@@ -1,0 +1,305 @@
+// Hermes Hub - Multi-Agent Collaboration Platform
+// Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== User & Auth ====================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  avatar    String?
+  password  String
+  bio       String?
+  role      String   @default("user") // user, admin
+  status    String   @default("online") // online, offline, busy
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agents         Agent[]
+  providers      LLMProvider[]
+  conversationParticipations ConversationParticipant[]
+  sentMessages   Message[]              @relation("MessageSender")
+  friends1       Friendship[]           @relation("FriendRequester")
+  friends2       Friendship[]           @relation("FriendAddressee")
+  gateways       HermesGateway[]
+  roomMemberships ChatRoomMember[]
+}
+
+model Friendship {
+  id          String   @id @default(cuid())
+  requesterId String
+  addresseeId String
+  status      String   @default("pending") // pending, accepted, blocked
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  requester User @relation("FriendRequester", fields: [requesterId], references: [id])
+  addressee User @relation("FriendAddressee", fields: [addresseeId], references: [id])
+
+  @@unique([requesterId, addresseeId])
+}
+
+// ==================== LLM Provider System ====================
+
+model LLMProvider {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String   // e.g., "My OpenAI", "Claude Pro"
+  provider     String   // openai, anthropic, google, ollama, custom, z-ai
+  apiKey       String?
+  baseUrl      String?  // Custom endpoint URL
+  models       String   @default("[]") // JSON array of model IDs
+  defaultModel String?
+  isActive     Boolean  @default(true)
+  config       String   @default("{}") // JSON: temperature, max_tokens, etc.
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agents Agent[]
+
+  @@index([userId])
+}
+
+// ==================== Agent System ====================
+
+model Agent {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  avatar      String?
+  systemPrompt String?
+  mode        String   @default("builtin") // builtin, custom_api, hermes
+  isPublic    Boolean  @default(false)
+  status      String   @default("offline") // online, offline, busy, error
+
+  // LLM Configuration
+  providerId  String?
+  model       String?   // Override provider default model
+  temperature Float?    // LLM temperature
+  maxTokens   Int?      // Max output tokens
+
+  // Custom API Configuration
+  callbackUrl String?
+  apiKey      String?   // Agent's own API key for external access
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider      LLMProvider?      @relation(fields: [providerId], references: [id])
+  skills        AgentSkill[]
+  connections   AgentConnection[]
+  conversations Conversation[]
+  plugins       AgentPlugin[]
+  roomAgents    ChatRoomAgent[]
+}
+
+// ==================== Skill/Plugin System ====================
+
+model Skill {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  displayName  String
+  description  String
+  category     String   // communication, productivity, development, data, media, utility
+  version      String   @default("1.0.0")
+  author       String?
+  icon         String?  // Lucide icon name
+  configSchema String?  @default("{}") // JSON Schema for configuration
+  handlerType  String   @default("builtin") // builtin, webhook, function
+  handlerUrl   String?  // For webhook-type skills
+  parameters   String   @default("[]") // JSON: [{name, type, required, description}]
+  isEnabled    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  agents AgentSkill[]
+}
+
+model AgentSkill {
+  id        String  @id @default(cuid())
+  agentId   String
+  skillId   String
+  config    String  @default("{}") // JSON: skill-specific configuration
+  isEnabled Boolean @default(true)
+  priority  Int     @default(0) // Execution order
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id])
+
+  @@unique([agentId, skillId])
+}
+
+model AgentPlugin {
+  id          String   @id @default(cuid())
+  agentId     String
+  name        String
+  description String?
+  type        String   @default("webhook") // webhook, function, hermes-protocol
+  endpoint    String?  // URL for webhook/function
+  config      String   @default("{}") // JSON configuration
+  authType    String?  // none, api_key, oauth, bearer
+  authToken   String?  // Encrypted auth token
+  isEnabled   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+}
+
+// ==================== Agent Connections ====================
+
+model AgentConnection {
+  id        String   @id @default(cuid())
+  agentId   String
+  type      String   // http, hermes, websocket, cli, acp
+  name      String?
+  config    String   @default("{}") // JSON: host, port, path, etc.
+  status    String   @default("disconnected") // connected, disconnected, error
+  lastPing  DateTime?
+  apiKey    String?  // Auto-generated API key for this connection
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+}
+
+// ==================== Hermes-Agent Management ====================
+
+model HermesGateway {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  host        String   @default("127.0.0.1")
+  port        Int      @default(8642)
+  status      String   @default("stopped") // running, stopped, error
+  pid         Int?
+  profilePath String?  // ~/.hermes/profiles/{name}
+  config      String   @default("{}") // JSON: gateway configuration
+  lastHealth  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ==================== Chat System ====================
+
+model Conversation {
+  id        String   @id @default(cuid())
+  type      String   @default("private") // private, group
+  name      String?
+  agentId   String?  // For agent conversations
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agent        Agent?                   @relation(fields: [agentId], references: [id])
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  id             String   @id @default(cuid())
+  conversationId String
+  userId         String?
+  agentId        String?
+  lastReadAt     DateTime @default(now())
+  joinedAt       DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  content        String
+  type           String   @default("text") // text, image, file, system, tool_call, tool_result
+  senderId       String?
+  senderType     String   @default("user") // user, agent, system
+  senderName     String?
+  metadata       String   @default("{}") // JSON: reactions, mentions, attachments
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User?        @relation("MessageSender", fields: [senderId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+}
+
+// ==================== Chat Rooms (Multi-Agent) ====================
+
+model ChatRoom {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  isPublic         Boolean  @default(true)
+  triggerTokens    Int      @default(4000)
+  maxHistoryTokens Int      @default(8000)
+  joinCode         String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  members  ChatRoomMember[]
+  agents   ChatRoomAgent[]
+  messages ChatRoomMessage[]
+}
+
+model ChatRoomMember {
+  id       String @id @default(cuid())
+  roomId   String
+  userId   String
+  userName String?
+  role     String @default("member") // admin, member
+
+  room ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+}
+
+model ChatRoomAgent {
+  id      String @id @default(cuid())
+  roomId  String
+  agentId String
+  profile String @default("{}") // JSON
+  status  String @default("active")
+
+  room  ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  agent Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, agentId])
+}
+
+model ChatRoomMessage {
+  id         String   @id @default(cuid())
+  roomId     String
+  content    String
+  type       String   @default("text")
+  senderInfo String   @default("{}") // JSON: {id, name, type, avatar}
+  createdAt  DateTime @default(now())
+
+  room ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
+}
