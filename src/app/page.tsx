@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api-client';
+import { I18nProvider } from '@/i18n';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Dashboard } from '@/components/views/Dashboard';
 import { AgentManager } from '@/components/views/AgentManager';
@@ -16,7 +17,7 @@ import { Settings } from '@/components/views/Settings';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { Toaster, toast } from 'sonner';
 
-export default function Home() {
+function AppContent() {
   const {
     user, isAuthenticated, setUser,
     currentView,
@@ -173,5 +174,13 @@ export default function Home() {
       </main>
       <Toaster />
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <I18nProvider>
+      <AppContent />
+    </I18nProvider>
   );
 }

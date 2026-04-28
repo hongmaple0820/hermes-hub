@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api-client';
+import { useI18n } from '@/i18n';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,8 +31,19 @@ const categoryColors: Record<string, string> = {
   utility: 'bg-cyan-500/10 text-cyan-600',
 };
 
+const CATEGORY_KEYS: Record<string, string> = {
+  all: 'skills.categoryAll',
+  communication: 'skills.categoryCommunication',
+  productivity: 'skills.categoryProductivity',
+  development: 'skills.categoryDevelopment',
+  data: 'skills.categoryData',
+  media: 'skills.categoryMedia',
+  utility: 'skills.categoryUtility',
+};
+
 export function SkillMarketplace() {
   const { skills, setSkills, agents } = useAppStore();
+  const { t } = useI18n();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [installing, setInstalling] = useState<string | null>(null);
@@ -56,7 +68,7 @@ export function SkillMarketplace() {
     setInstalling(skillId);
     try {
       await api.installSkill(skillId, { agentId });
-      toast.success('Skill installed!');
+      toast.success(t('skills.installed'));
       setShowInstall(null);
     } catch (error: any) {
       toast.error(error.message);
@@ -68,9 +80,9 @@ export function SkillMarketplace() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Skills Marketplace</h1>
+        <h1 className="text-2xl font-bold">{t('skills.title')}</h1>
         <p className="text-muted-foreground text-sm">
-          Browse and install standardized skills for your agents — inspired by Feishu/DingTalk bot plugin patterns
+          {t('skills.subtitle')}
         </p>
       </div>
 
@@ -79,7 +91,7 @@ export function SkillMarketplace() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search skills..."
+            placeholder={t('skills.searchPlaceholder')}
             className="pl-10"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -91,10 +103,10 @@ export function SkillMarketplace() {
               key={cat}
               variant={selectedCategory === cat ? 'default' : 'outline'}
               size="sm"
-              className="text-xs capitalize"
+              className="text-xs"
               onClick={() => setSelectedCategory(cat)}
             >
-              {cat}
+              {CATEGORY_KEYS[cat] ? t(CATEGORY_KEYS[cat]) : cat}
             </Button>
           ))}
         </div>
@@ -105,8 +117,8 @@ export function SkillMarketplace() {
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16">
             <Puzzle className="w-12 h-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-1">No Skills Found</h3>
-            <p className="text-muted-foreground text-sm">Try adjusting your search or filter</p>
+            <h3 className="text-lg font-semibold mb-1">{t('skills.noSkillsTitle')}</h3>
+            <p className="text-muted-foreground text-sm">{t('skills.noSkillsDesc')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -123,7 +135,9 @@ export function SkillMarketplace() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <CardTitle className="text-sm">{skill.displayName}</CardTitle>
-                      <Badge variant="outline" className="text-[10px] mt-1 capitalize">{skill.category}</Badge>
+                      <Badge variant="outline" className="text-[10px] mt-1">
+                        {CATEGORY_KEYS[skill.category] ? t(CATEGORY_KEYS[skill.category]) : skill.category}
+                      </Badge>
                     </div>
                   </div>
                 </CardHeader>
@@ -136,16 +150,16 @@ export function SkillMarketplace() {
                     <Dialog open={showInstall === skill.id} onOpenChange={(v) => setShowInstall(v ? skill.id : null)}>
                       <DialogTrigger asChild>
                         <Button size="sm" variant="outline" className="gap-1 text-xs">
-                          <Download className="w-3 h-3" /> Install
+                          <Download className="w-3 h-3" /> {t('common.install')}
                         </Button>
                       </DialogTrigger>
                       <DialogContent>
                         <DialogHeader>
-                          <DialogTitle>Install {skill.displayName}</DialogTitle>
+                          <DialogTitle>{t('common.install')} {skill.displayName}</DialogTitle>
                         </DialogHeader>
-                        <p className="text-sm text-muted-foreground mb-4">Select which agent to install this skill on:</p>
+                        <p className="text-sm text-muted-foreground mb-4">{t('skills.installTo', { skill: skill.displayName })}</p>
                         {agents.length === 0 ? (
-                          <p className="text-sm text-muted-foreground text-center py-4">No agents available. Create an agent first.</p>
+                          <p className="text-sm text-muted-foreground text-center py-4">{t('skills.noAgents')}</p>
                         ) : (
                           <div className="space-y-2">
                             {agents.map((agent: any) => (
@@ -161,7 +175,7 @@ export function SkillMarketplace() {
                                   className="gap-1"
                                 >
                                   {installing === skill.id ? <Zap className="w-3 h-3 animate-pulse" /> : <Plus className="w-3 h-3" />}
-                                  Install
+                                  {t('common.install')}
                                 </Button>
                               </div>
                             ))}

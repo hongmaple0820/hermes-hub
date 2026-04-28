@@ -87,3 +87,28 @@ Stage Summary:
 - Responsive design with shadcn/ui components
 - 12 skills seeded in marketplace
 - All API endpoints functional
+
+---
+Task ID: 4
+Agent: main
+Task: Implement global internationalization (i18n) with language switching
+
+Work Log:
+- Created 4 locale files: zh.json, en.json, ja.json, ko.json with complete translations
+- Created I18nProvider with React Context (src/i18n/index.tsx)
+- Implemented useI18n hook with t(key, params?) function supporting interpolation
+- Added lazy locale loading with caching
+- Locale persisted to localStorage
+- Added language switcher to Sidebar (Popover with checkmarks)
+- Added language switcher to Auth page (top-right corner)
+- Updated all 9 view components: Dashboard, AgentManager, AgentDetail, ProviderManager, SkillMarketplace, HermesManager, ChatView, ChatRoomManager, Settings
+- Updated Sidebar and AuthPage with i18n
+- Fixed lint error: replaced useEffect+setState with lazy initializer for locale
+- All lint checks passing
+
+Stage Summary:
+- 4 languages supported: 中文, English, 日本語, 한국어
+- Translation keys: 200+ keys across 12 namespaces (common, auth, nav, dashboard, agents, agentDetail, providers, skills, hermes, chat, chatRooms, settingsPage, language)
+- Language switcher in sidebar + auth page
+- Default language: 中文 (zh)
+- Locale saved to localStorage for persistence

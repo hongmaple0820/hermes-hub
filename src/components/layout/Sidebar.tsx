@@ -1,33 +1,36 @@
 'use client';
 
 import { useAppStore, type ViewMode } from '@/lib/store';
+import { useI18n } from '@/i18n';
 import {
   LayoutDashboard, Bot, Server, Puzzle, Cable, MessageSquare, Users, Settings,
-  LogOut, ChevronLeft, ChevronRight, Zap,
+  LogOut, ChevronLeft, ChevronRight, Zap, Languages,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
   onLogout: () => void;
 }
 
-const navItems: { id: ViewMode; label: string; icon: React.ElementType }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'agents', label: 'Agents', icon: Bot },
-  { id: 'providers', label: 'LLM Providers', icon: Server },
-  { id: 'skills', label: 'Skills', icon: Puzzle },
-  { id: 'hermes', label: 'Hermes Agent', icon: Cable },
-  { id: 'chat', label: 'Chat', icon: MessageSquare },
-  { id: 'chat-rooms', label: 'Chat Rooms', icon: Users },
-  { id: 'settings', label: 'Settings', icon: Settings },
+const navKeys: { id: ViewMode; labelKey: string; icon: React.ElementType }[] = [
+  { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  { id: 'agents', labelKey: 'nav.agents', icon: Bot },
+  { id: 'providers', labelKey: 'nav.providers', icon: Server },
+  { id: 'skills', labelKey: 'nav.skills', icon: Puzzle },
+  { id: 'hermes', labelKey: 'nav.hermes', icon: Cable },
+  { id: 'chat', labelKey: 'nav.chat', icon: MessageSquare },
+  { id: 'chat-rooms', labelKey: 'nav.chatRooms', icon: Users },
+  { id: 'settings', labelKey: 'nav.settings', icon: Settings },
 ];
 
 export function Sidebar({ onLogout }: SidebarProps) {
   const { currentView, setCurrentView, sidebarCollapsed, setSidebarCollapsed, user, agents, conversations } = useAppStore();
+  const { locale, setLocale, t, locales } = useI18n();
 
   const onlineAgents = agents.filter((a: any) => a.status === 'online').length;
   const unreadConvs = conversations.length;
@@ -51,7 +54,7 @@ export function Sidebar({ onLogout }: SidebarProps) {
           {!sidebarCollapsed && (
             <div className="flex flex-col min-w-0">
               <span className="font-bold text-sm truncate">Hermes Hub</span>
-              <span className="text-[10px] text-muted-foreground">Multi-Agent Platform</span>
+              <span className="text-[10px] text-muted-foreground">{t('auth.subtitle')}</span>
             </div>
           )}
         </div>
@@ -67,7 +70,7 @@ export function Sidebar({ onLogout }: SidebarProps) {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-2 px-2">
           <div className="space-y-1">
-            {navItems.map((item) => {
+            {navKeys.map((item) => {
               const isActive = currentView === item.id;
               const Icon = item.icon;
 
@@ -85,7 +88,7 @@ export function Sidebar({ onLogout }: SidebarProps) {
                   )}
                 >
                   <Icon className={cn('w-[18px] h-[18px] shrink-0', isActive && 'text-primary')} />
-                  {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                  {!sidebarCollapsed && <span className="truncate">{t(item.labelKey)}</span>}
                   {!sidebarCollapsed && item.id === 'agents' && onlineAgents > 0 && (
                     <span className="ml-auto text-[10px] bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded-full font-medium">
                       {onlineAgents}
@@ -103,7 +106,7 @@ export function Sidebar({ onLogout }: SidebarProps) {
                 return (
                   <Tooltip key={item.id}>
                     <TooltipTrigger asChild>{button}</TooltipTrigger>
-                    <TooltipContent side="right" className="font-medium">{item.label}</TooltipContent>
+                    <TooltipContent side="right" className="font-medium">{t(item.labelKey)}</TooltipContent>
                   </Tooltip>
                 );
               }
@@ -112,6 +115,46 @@ export function Sidebar({ onLogout }: SidebarProps) {
             })}
           </div>
         </nav>
+
+        <Separator />
+
+        {/* Language Switcher */}
+        <div className={cn('px-3 py-2', sidebarCollapsed && 'flex justify-center')}>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className={cn(
+                  'flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-lg px-2 py-1.5 hover:bg-accent w-full',
+                  sidebarCollapsed && 'justify-center px-0'
+                )}
+              >
+                <Languages className="w-4 h-4 shrink-0" />
+                {!sidebarCollapsed && (
+                  <span className="truncate">{locales.find((l) => l.code === locale)?.label}</span>
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align={sidebarCollapsed ? 'right' : 'center'} className="w-40 p-1">
+              {locales.map((l) => (
+                <button
+                  key={l.code}
+                  onClick={() => setLocale(l.code)}
+                  className={cn(
+                    'w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors',
+                    locale === l.code
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                  )}
+                >
+                  <span>{l.label}</span>
+                  {locale === l.code && (
+                    <span className="ml-auto text-xs">✓</span>
+                  )}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+        </div>
 
         <Separator />
 

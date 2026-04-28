@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api-client';
+import { useI18n } from '@/i18n';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,7 @@ import { cn } from '@/lib/utils';
 
 export function HermesManager() {
   const { gateways, setGateways } = useAppStore();
+  const { t } = useI18n();
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export function HermesManager() {
       setGateways([result.gateway, ...gateways]);
       setShowCreate(false);
       setForm({ name: '', host: '127.0.0.1', port: 8642 });
-      toast.success('Gateway created!');
+      toast.success(t('hermes.gatewayCreated'));
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -53,7 +55,7 @@ export function HermesManager() {
       await api.startGateway(id);
       const result = await api.getGateways();
       setGateways(result.gateways);
-      toast.success('Gateway started');
+      toast.success(t('hermes.gatewayStarted'));
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -67,7 +69,7 @@ export function HermesManager() {
       await api.stopGateway(id);
       const result = await api.getGateways();
       setGateways(result.gateways);
-      toast.success('Gateway stopped');
+      toast.success(t('hermes.gatewayStopped'));
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -79,9 +81,9 @@ export function HermesManager() {
     setActionLoading(id);
     try {
       await api.checkGatewayHealth(id);
-      toast.success('Health check passed');
+      toast.success(t('hermes.healthCheckPassed'));
     } catch (error: any) {
-      toast.error('Health check failed: ' + error.message);
+      toast.error(t('hermes.healthCheckFailed') + ': ' + error.message);
     } finally {
       setActionLoading(null);
     }
@@ -91,54 +93,54 @@ export function HermesManager() {
     try {
       await api.deleteGateway(id);
       setGateways(gateways.filter((g: any) => g.id !== id));
-      toast.success('Gateway deleted');
+      toast.success(t('hermes.gatewayDeleted'));
     } catch (error: any) {
       toast.error(error.message);
     }
   };
 
-  const statusConfig: Record<string, { icon: React.ElementType; color: string; bgColor: string; label: string }> = {
-    running: { icon: CheckCircle2, color: 'text-emerald-600', bgColor: 'bg-emerald-500/10', label: 'Running' },
-    stopped: { icon: Square, color: 'text-gray-500', bgColor: 'bg-gray-500/10', label: 'Stopped' },
-    error: { icon: AlertCircle, color: 'text-red-600', bgColor: 'bg-red-500/10', label: 'Error' },
+  const statusConfig: Record<string, { icon: React.ElementType; color: string; bgColor: string; labelKey: string }> = {
+    running: { icon: CheckCircle2, color: 'text-emerald-600', bgColor: 'bg-emerald-500/10', labelKey: 'hermes.running' },
+    stopped: { icon: Square, color: 'text-gray-500', bgColor: 'bg-gray-500/10', labelKey: 'hermes.stopped' },
+    error: { icon: AlertCircle, color: 'text-red-600', bgColor: 'bg-red-500/10', labelKey: 'common.error' },
   };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Hermes Agent Management</h1>
+          <h1 className="text-2xl font-bold">{t('hermes.title')}</h1>
           <p className="text-muted-foreground text-sm">
-            Connect and manage Hermes Agent instances — direct gateway control, health monitoring, and configuration
+            {t('hermes.subtitle')}
           </p>
         </div>
         <Dialog open={showCreate} onOpenChange={setShowCreate}>
           <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="w-4 h-4" /> Add Gateway</Button>
+            <Button className="gap-2"><Plus className="w-4 h-4" /> {t('hermes.addGateway')}</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Add Hermes Gateway</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t('hermes.addGatewayTitle')}</DialogTitle></DialogHeader>
             <div className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label>Gateway Name *</Label>
-                <Input placeholder="e.g., Production Gateway" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <Label>{t('hermes.gatewayName')} *</Label>
+                <Input placeholder={t('hermes.gatewayNamePlaceholder')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Host</Label>
+                  <Label>{t('hermes.host')}</Label>
                   <Input placeholder="127.0.0.1" value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Port</Label>
+                  <Label>{t('hermes.port')}</Label>
                   <Input type="number" placeholder="8642" value={form.port} onChange={(e) => setForm({ ...form, port: parseInt(e.target.value) || 8642 })} />
                 </div>
               </div>
               <div className="bg-accent rounded-lg p-3 text-xs text-muted-foreground">
-                <p className="font-medium mb-1">Hermes Agent Connection</p>
-                <p>This will create a gateway connection to your Hermes Agent instance. The gateway enables direct management of sessions, profiles, skills, and more — similar to hermes-web-ui.</p>
+                <p className="font-medium mb-1">{t('hermes.connectionInfo')}</p>
+                <p>{t('hermes.connectionInfoDesc')}</p>
               </div>
               <Button onClick={handleCreate} className="w-full" disabled={creating}>
-                {creating ? 'Creating...' : 'Add Gateway'}
+                {creating ? 'Creating...' : t('hermes.addGateway')}
               </Button>
             </div>
           </DialogContent>
@@ -150,10 +152,9 @@ export function HermesManager() {
         <CardContent className="flex items-start gap-3 py-4">
           <Cable className="w-5 h-5 text-primary shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium">Direct Hermes Agent Connection</p>
+            <p className="text-sm font-medium">{t('hermes.directConnection')}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              This platform supports direct connection to Hermes Agent instances. You can manage sessions, profiles, skills, memory, and gateway lifecycle —
-              just like the hermes-web-ui project. Connect your local or remote Hermes Agent to get started.
+              {t('hermes.directConnectionDesc')}
             </p>
           </div>
         </CardContent>
@@ -163,10 +164,10 @@ export function HermesManager() {
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16">
             <Cable className="w-12 h-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-1">No Hermes Gateways</h3>
-            <p className="text-muted-foreground text-sm mb-4">Add a gateway to connect to your Hermes Agent</p>
+            <h3 className="text-lg font-semibold mb-1">{t('hermes.noGatewaysTitle')}</h3>
+            <p className="text-muted-foreground text-sm mb-4">{t('hermes.noGatewaysDesc')}</p>
             <Button onClick={() => setShowCreate(true)} className="gap-2">
-              <Plus className="w-4 h-4" /> Add Gateway
+              <Plus className="w-4 h-4" /> {t('hermes.addGateway')}
             </Button>
           </CardContent>
         </Card>
@@ -189,7 +190,7 @@ export function HermesManager() {
                         <div className="flex items-center gap-3 mt-1">
                           <div className="flex items-center gap-1.5">
                             <StatusIcon className={cn('w-4 h-4', status.color)} />
-                            <span className={cn('text-sm font-medium', status.color)}>{status.label}</span>
+                            <span className={cn('text-sm font-medium', status.color)}>{t(status.labelKey)}</span>
                           </div>
                           <span className="text-sm text-muted-foreground font-mono">{gateway.host}:{gateway.port}</span>
                           {gateway.pid && <Badge variant="outline" className="text-[10px]">PID: {gateway.pid}</Badge>}
@@ -199,7 +200,7 @@ export function HermesManager() {
                         )}
                         {gateway.lastHealth && (
                           <p className="text-[10px] text-muted-foreground mt-1">
-                            Last health check: {new Date(gateway.lastHealth).toLocaleString()}
+                            {t('hermes.lastHealthCheck')}: {new Date(gateway.lastHealth).toLocaleString()}
                           </p>
                         )}
                       </div>
@@ -214,7 +215,7 @@ export function HermesManager() {
                           disabled={actionLoading === gateway.id}
                         >
                           {actionLoading === gateway.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Square className="w-3 h-3" />}
-                          Stop
+                          {t('hermes.stop')}
                         </Button>
                       ) : (
                         <Button
@@ -225,7 +226,7 @@ export function HermesManager() {
                           disabled={actionLoading === gateway.id}
                         >
                           {actionLoading === gateway.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
-                          Start
+                          {t('hermes.start')}
                         </Button>
                       )}
                       <Button
@@ -235,7 +236,7 @@ export function HermesManager() {
                         onClick={() => handleHealthCheck(gateway.id)}
                         disabled={actionLoading === gateway.id}
                       >
-                        <Activity className="w-3 h-3" /> Health
+                        <Activity className="w-3 h-3" /> {t('hermes.health')}
                       </Button>
                       <Button variant="ghost" size="icon" className="w-8 h-8 text-destructive" onClick={() => handleDelete(gateway.id)}>
                         <Trash2 className="w-4 h-4" />

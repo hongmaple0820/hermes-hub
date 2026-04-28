@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api-client';
+import { useI18n } from '@/i18n';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,7 @@ import { cn } from '@/lib/utils';
 
 export function AgentManager() {
   const { agents, setAgents, providers, setCurrentView, setSelectedAgentId } = useAppStore();
+  const { t } = useI18n();
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -37,7 +39,7 @@ export function AgentManager() {
 
   const handleCreate = async () => {
     if (!form.name.trim()) {
-      toast.error('Agent name is required');
+      toast.error(t('common.required'));
       return;
     }
     setCreating(true);
@@ -52,7 +54,7 @@ export function AgentManager() {
       setAgents([result.agent, ...agents]);
       setShowCreate(false);
       setForm({ name: '', description: '', systemPrompt: '', mode: 'builtin', providerId: '', model: '', isPublic: false, temperature: 0.7, maxTokens: 2048, callbackUrl: '' });
-      toast.success('Agent created!');
+      toast.success(t('agents.created'));
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -64,16 +66,16 @@ export function AgentManager() {
     try {
       await api.deleteAgent(id);
       setAgents(agents.filter((a: any) => a.id !== id));
-      toast.success('Agent deleted');
+      toast.success(t('agents.deleted'));
     } catch (error: any) {
       toast.error(error.message);
     }
   };
 
   const modeLabels: Record<string, string> = {
-    builtin: 'Built-in LLM',
-    custom_api: 'Custom API',
-    hermes: 'Hermes Agent',
+    builtin: t('agents.modeBuiltinShort'),
+    custom_api: t('agents.modeCustomApiShort'),
+    hermes: t('agents.modeHermesShort'),
   };
 
   const modeColors: Record<string, string> = {
@@ -86,36 +88,36 @@ export function AgentManager() {
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Agents</h1>
-          <p className="text-muted-foreground text-sm">Create and manage your AI agents with multi-provider LLM support</p>
+          <h1 className="text-2xl font-bold">{t('agents.title')}</h1>
+          <p className="text-muted-foreground text-sm">{t('agents.subtitle')}</p>
         </div>
         <Dialog open={showCreate} onOpenChange={setShowCreate}>
           <DialogTrigger asChild>
             <Button className="gap-2">
-              <Plus className="w-4 h-4" /> Create Agent
+              <Plus className="w-4 h-4" /> {t('agents.create')}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create New Agent</DialogTitle>
+              <DialogTitle>{t('agents.createTitle')}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label>Agent Name *</Label>
-                <Input placeholder="e.g., Code Assistant" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <Label>{t('agents.nameLabel')} *</Label>
+                <Input placeholder={t('agents.namePlaceholder')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Description</Label>
-                <Textarea placeholder="What does this agent do?" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} />
+                <Label>{t('agents.descriptionLabel')}</Label>
+                <Textarea placeholder={t('agents.descriptionPlaceholder')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} />
               </div>
               <div className="space-y-2">
-                <Label>Agent Mode</Label>
+                <Label>{t('agents.modeLabel')}</Label>
                 <Select value={form.mode} onValueChange={(v) => setForm({ ...form, mode: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="builtin">Built-in LLM (Use configured provider)</SelectItem>
-                    <SelectItem value="custom_api">Custom API (Connect external service)</SelectItem>
-                    <SelectItem value="hermes">Hermes Agent (Direct connection)</SelectItem>
+                    <SelectItem value="builtin">{t('agents.modeBuiltin')}</SelectItem>
+                    <SelectItem value="custom_api">{t('agents.modeCustomApi')}</SelectItem>
+                    <SelectItem value="hermes">{t('agents.modeHermes')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -123,12 +125,12 @@ export function AgentManager() {
               {form.mode === 'builtin' && (
                 <>
                   <div className="space-y-2">
-                    <Label>LLM Provider</Label>
+                    <Label>{t('agents.providerLabel')}</Label>
                     <Select value={form.providerId} onValueChange={(v) => setForm({ ...form, providerId: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select a provider" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder={t('agents.providerPlaceholder')} /></SelectTrigger>
                       <SelectContent>
                         {providers.length === 0 ? (
-                          <SelectItem value="none" disabled>No providers configured</SelectItem>
+                          <SelectItem value="none" disabled>{t('agents.noProviders')}</SelectItem>
                         ) : (
                           providers.map((p: any) => (
                             <SelectItem key={p.id} value={p.id}>{p.name} ({p.provider})</SelectItem>
@@ -137,20 +139,20 @@ export function AgentManager() {
                       </SelectContent>
                     </Select>
                     {providers.length === 0 && (
-                      <p className="text-xs text-amber-600">Please configure an LLM provider first</p>
+                      <p className="text-xs text-amber-600">{t('agents.addProviderFirst')}</p>
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label>Model Override (optional)</Label>
-                    <Input placeholder="Leave empty to use provider default" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
+                    <Label>{t('agents.modelOverride')}</Label>
+                    <Input placeholder={t('agents.modelOverridePlaceholder')} value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Temperature: {form.temperature}</Label>
+                      <Label>{t('agents.temperature')}: {form.temperature}</Label>
                       <input type="range" min="0" max="2" step="0.1" value={form.temperature} onChange={(e) => setForm({ ...form, temperature: parseFloat(e.target.value) })} className="w-full" />
                     </div>
                     <div className="space-y-2">
-                      <Label>Max Tokens</Label>
+                      <Label>{t('agents.maxTokens')}</Label>
                       <Input type="number" value={form.maxTokens} onChange={(e) => setForm({ ...form, maxTokens: parseInt(e.target.value) || 2048 })} />
                     </div>
                   </div>
@@ -159,23 +161,23 @@ export function AgentManager() {
 
               {form.mode === 'custom_api' && (
                 <div className="space-y-2">
-                  <Label>Callback URL *</Label>
-                  <Input placeholder="https://your-api.com/callback" value={form.callbackUrl} onChange={(e) => setForm({ ...form, callbackUrl: e.target.value })} />
+                  <Label>{t('agents.callbackUrl')} *</Label>
+                  <Input placeholder={t('agents.callbackUrlPlaceholder')} value={form.callbackUrl} onChange={(e) => setForm({ ...form, callbackUrl: e.target.value })} />
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label>System Prompt</Label>
-                <Textarea placeholder="Instructions for the agent..." value={form.systemPrompt} onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })} rows={4} />
+                <Label>{t('agents.systemPrompt')}</Label>
+                <Textarea placeholder={t('agents.systemPromptPlaceholder')} value={form.systemPrompt} onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })} rows={4} />
               </div>
 
               <div className="flex items-center gap-2">
                 <Switch checked={form.isPublic} onCheckedChange={(v) => setForm({ ...form, isPublic: v })} />
-                <Label>Make agent public (discoverable)</Label>
+                <Label>{t('agents.isPublic')}</Label>
               </div>
 
               <Button onClick={handleCreate} className="w-full" disabled={creating}>
-                {creating ? 'Creating...' : 'Create Agent'}
+                {creating ? t('agents.creating') : t('agents.create')}
               </Button>
             </div>
           </DialogContent>
@@ -186,10 +188,10 @@ export function AgentManager() {
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16">
             <Bot className="w-12 h-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-1">No Agents Yet</h3>
-            <p className="text-muted-foreground text-sm mb-4">Create your first AI agent to get started</p>
+            <h3 className="text-lg font-semibold mb-1">{t('agents.noAgentsTitle')}</h3>
+            <p className="text-muted-foreground text-sm mb-4">{t('agents.noAgentsDesc')}</p>
             <Button onClick={() => setShowCreate(true)} className="gap-2">
-              <Plus className="w-4 h-4" /> Create Agent
+              <Plus className="w-4 h-4" /> {t('agents.create')}
             </Button>
           </CardContent>
         </Card>
@@ -225,10 +227,10 @@ export function AgentManager() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => { setSelectedAgentId(agent.id); setCurrentView('agent-detail'); }}>
-                          <Eye className="w-4 h-4 mr-2" /> View Details
+                          <Eye className="w-4 h-4 mr-2" /> {t('common.view')} {t('common.details')}
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(agent.id)}>
-                          <Trash2 className="w-4 h-4 mr-2" /> Delete
+                          <Trash2 className="w-4 h-4 mr-2" /> {t('common.delete')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -237,7 +239,7 @@ export function AgentManager() {
               </CardHeader>
               <CardContent className="pt-0">
                 <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                  {agent.description || 'No description'}
+                  {agent.description || t('common.noData')}
                 </p>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -250,7 +252,7 @@ export function AgentManager() {
                     className="text-xs gap-1"
                     onClick={() => { setSelectedAgentId(agent.id); setCurrentView('agent-detail'); }}
                   >
-                    <Settings className="w-3 h-3" /> Configure
+                    <Settings className="w-3 h-3" /> {t('common.configure')}
                   </Button>
                 </div>
                 {/* Skills & Connections indicators */}
@@ -258,12 +260,12 @@ export function AgentManager() {
                   <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border">
                     {agent.skills?.length > 0 && (
                       <span className="text-[10px] text-muted-foreground bg-accent px-1.5 py-0.5 rounded">
-                        {agent.skills.length} skill{agent.skills.length > 1 ? 's' : ''}
+                        {t('agents.skillsCount', { count: agent.skills.length })}
                       </span>
                     )}
                     {agent.connections?.length > 0 && (
                       <span className="text-[10px] text-muted-foreground bg-accent px-1.5 py-0.5 rounded">
-                        {agent.connections.length} connection{agent.connections.length > 1 ? 's' : ''}
+                        {t('agents.connectionsCount', { count: agent.connections.length })}
                       </span>
                     )}
                   </div>

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api-client';
+import { useI18n } from '@/i18n';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,7 @@ import { toast } from 'sonner';
 
 export function ChatView() {
   const { agents, conversations, setConversations, selectedConversationId, setSelectedConversationId } = useAppStore();
+  const { t } = useI18n();
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -120,16 +122,16 @@ export function ChatView() {
       {/* Conversation List */}
       <div className="w-72 border-r border-border flex flex-col">
         <div className="p-4 border-b border-border flex items-center justify-between">
-          <h2 className="font-semibold text-sm">Conversations</h2>
+          <h2 className="font-semibold text-sm">{t('chat.conversations')}</h2>
           <Dialog open={showNewChat} onOpenChange={setShowNewChat}>
             <DialogTrigger asChild>
               <Button size="icon" className="w-7 h-7"><Plus className="w-4 h-4" /></Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Start New Chat</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{t('chat.startNewChatTitle')}</DialogTitle></DialogHeader>
               <div className="space-y-2 mt-4">
                 {agents.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">No agents available</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">{t('chat.noAgents')}</p>
                 ) : (
                   agents.map((agent: any) => (
                     <div
@@ -170,13 +172,13 @@ export function ChatView() {
                     {conv.agent?.name || conv.name || 'Conversation'}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {conv.lastMessage?.content?.substring(0, 40) || 'No messages yet'}
+                    {conv.lastMessage?.content?.substring(0, 40) || t('chat.noMessages')}
                   </p>
                 </div>
               </button>
             ))}
             {conversations.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-8">No conversations yet</p>
+              <p className="text-sm text-muted-foreground text-center py-8">{t('chat.noConversations')}</p>
             )}
           </div>
         </ScrollArea>
@@ -193,7 +195,7 @@ export function ChatView() {
               </div>
               <div>
                 <p className="text-sm font-medium">{selectedConv.agent?.name || 'Chat'}</p>
-                <p className="text-xs text-muted-foreground">{selectedConv.agent?.status === 'online' ? 'Online' : 'Offline'}</p>
+                <p className="text-xs text-muted-foreground">{selectedConv.agent?.status === 'online' ? t('common.online') : t('common.offline')}</p>
               </div>
             </div>
 
@@ -262,7 +264,7 @@ export function ChatView() {
             <div className="p-4 border-t border-border">
               <div className="max-w-3xl mx-auto flex items-center gap-2">
                 <Input
-                  placeholder="Type a message..."
+                  placeholder={t('chat.typeMessage')}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -278,10 +280,10 @@ export function ChatView() {
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center">
             <Bot className="w-16 h-16 text-muted-foreground mb-4" />
-            <h2 className="text-xl font-semibold mb-1">Start a Conversation</h2>
-            <p className="text-muted-foreground text-sm mb-4">Select an agent to chat with</p>
+            <h2 className="text-xl font-semibold mb-1">{t('chat.startConversation')}</h2>
+            <p className="text-muted-foreground text-sm mb-4">{t('chat.selectAgent')}</p>
             <Button onClick={() => setShowNewChat(true)} className="gap-2">
-              <Plus className="w-4 h-4" /> New Chat
+              <Plus className="w-4 h-4" /> {t('chat.newChat')}
             </Button>
           </div>
         )}
