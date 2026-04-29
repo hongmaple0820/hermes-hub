@@ -136,13 +136,13 @@ export function AgentManager() {
   const modeLabels: Record<string, string> = {
     builtin: t('agents.modeBuiltinShort'),
     custom_api: t('agents.modeCustomApiShort'),
-    hermes: t('agents.modeHermesShort'),
+    acrp: t('agents.modeAcrpShort'),
   };
 
   const modeColors: Record<string, string> = {
     builtin: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
     custom_api: 'bg-violet-500/10 text-violet-600 border-violet-200',
-    hermes: 'bg-cyan-500/10 text-cyan-600 border-cyan-200',
+    acrp: 'bg-cyan-500/10 text-cyan-600 border-cyan-200',
   };
 
   const renderFormFields = (isEdit: boolean) => (
@@ -162,7 +162,7 @@ export function AgentManager() {
           <SelectContent>
             <SelectItem value="builtin">{t('agents.modeBuiltin')}</SelectItem>
             <SelectItem value="custom_api">{t('agents.modeCustomApi')}</SelectItem>
-            <SelectItem value="hermes">{t('agents.modeHermes')}</SelectItem>
+            <SelectItem value="acrp">{t('agents.modeAcrp')}</SelectItem>
           </SelectContent>
         </Select>
       </div>

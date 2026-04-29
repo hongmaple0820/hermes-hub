@@ -10,7 +10,7 @@ import { AgentManager } from '@/components/views/AgentManager';
 import { AgentDetail } from '@/components/views/AgentDetail';
 import { ProviderManager } from '@/components/views/ProviderManager';
 import { SkillMarketplace } from '@/components/views/SkillMarketplace';
-import { HermesManager } from '@/components/views/HermesManager';
+import { AgentControlCenter } from '@/components/views/AgentControlCenter';
 import { ChatView } from '@/components/views/ChatView';
 import { ChatRoomManager } from '@/components/views/ChatRoomManager';
 import { Settings } from '@/components/views/Settings';
@@ -154,8 +154,7 @@ function AppContent() {
         return <ProviderManager />;
       case 'skills':
         return <SkillMarketplace />;
-      case 'hermes':
-        return <HermesManager />;
+
       case 'chat':
         return <ChatView />;
       case 'chat-rooms':

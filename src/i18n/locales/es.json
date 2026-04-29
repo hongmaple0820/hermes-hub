@@ -61,7 +61,7 @@
     "accountCreated": "¡Cuenta creada!",
     "welcomeBack": "¡Bienvenido de nuevo!",
     "authFailed": "Autenticación fallida",
-    "features": "Soporte multi-proveedor LLM · Sistema de skills tipo plugin · Gestión de agente Hermes"
+    "features": "LLM multiproveedor · Sistema de skills por plugins · Control ACRP de Agent"
   },
   "nav": {
     "dashboard": "Panel",
@@ -91,8 +91,8 @@
     "providersActive": "{count} activos",
     "skills": "Skills",
     "skillsEnabled": "{count} habilitados",
-    "gateways": "Gateways Hermes",
-    "gatewaysRunning": "{count} ejecutándose",
+    "gateways": "Agentes Conectados",
+    "gatewaysRunning": "{count} conectados",
     "conversations": "Conversaciones",
     "conversationsActive": "Chats activos",
     "chatRooms": "Salas de Chat",
@@ -102,7 +102,7 @@
     "configureProvider": "Configurar Proveedor LLM",
     "createAgent": "Crear Nuevo Agente",
     "browseSkills": "Explorar Mercado de Skills",
-    "connectHermes": "Conectar Agente Hermes",
+    "connectHermes": "Centro de Control de Agent",
     "recentAgents": "Agentes Recientes",
     "recentAgentsDesc": "Tus agentes recientemente activos",
     "noAgents": "Aún no hay agentes. ¡Crea tu primer agente!"
@@ -139,6 +139,8 @@
     "modeBuiltinShort": "LLM Integrado",
     "modeCustomApiShort": "API Personalizada",
     "modeHermesShort": "Agente Hermes",
+    "modeAcrp": "ACRP Agent (Conexión WebSocket)",
+    "modeAcrpShort": "ACRP Agent",
     "skillsCount": "{count} skills",
     "connectionsCount": "{count} conexiones",
     "chat": "Chat",

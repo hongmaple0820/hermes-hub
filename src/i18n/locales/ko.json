@@ -61,7 +61,7 @@
     "accountCreated": "계정이 생성되었습니다!",
     "welcomeBack": "다시 오셨군요!",
     "authFailed": "인증 실패",
-    "features": "멀티 프로바이더 LLM 지원 · 플러그인 스킬 시스템 · Hermes Agent 관리"
+    "features": "멀티 프로바이더 LLM 지원 · 플러그인 스킬 시스템 · ACRP Agent 제어"
   },
   "nav": {
     "dashboard": "대시보드",
@@ -91,8 +91,8 @@
     "providersActive": "{count} 활성",
     "skills": "스킬",
     "skillsEnabled": "{count} 활성화",
-    "gateways": "Hermes 게이트웨이",
-    "gatewaysRunning": "{count} 실행 중",
+    "gateways": "연결된 Agent",
+    "gatewaysRunning": "{count}개 연결됨",
     "conversations": "대화",
     "conversationsActive": "활성 채팅",
     "chatRooms": "채팅방",
@@ -102,7 +102,7 @@
     "configureProvider": "LLM 프로바이더 구성",
     "createAgent": "새 에이전트 생성",
     "browseSkills": "스킬 마켓 둘러보기",
-    "connectHermes": "Hermes Agent 연결",
+    "connectHermes": "Agent 제어 센터",
     "recentAgents": "최근 에이전트",
     "recentAgentsDesc": "최근 활성 에이전트",
     "noAgents": "에이전트가 없습니다. 첫 에이전트를 만들어보세요!"
@@ -139,6 +139,8 @@
     "modeBuiltinShort": "내장 LLM",
     "modeCustomApiShort": "커스텀 API",
     "modeHermesShort": "Hermes Agent",
+    "modeAcrp": "ACRP Agent (WebSocket 연결)",
+    "modeAcrpShort": "ACRP Agent",
     "skillsCount": "{count} 스킬",
     "connectionsCount": "{count} 연결",
     "chat": "채팅",

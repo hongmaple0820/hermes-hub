@@ -61,7 +61,7 @@
     "accountCreated": "アカウント作成完了！",
     "welcomeBack": "おかえりなさい！",
     "authFailed": "認証に失敗しました",
-    "features": "マルチプロバイダーLLM対応 · プラグインスキルシステム · Hermes Agent 管理"
+    "features": "マルチプロバイダーLLM対応 · プラグインスキルシステム · ACRP Agentコントロール"
   },
   "nav": {
     "dashboard": "ダッシュボード",
@@ -91,8 +91,8 @@
     "providersActive": "{count} アクティブ",
     "skills": "スキル",
     "skillsEnabled": "{count} 有効",
-    "gateways": "Hermesゲートウェイ",
-    "gatewaysRunning": "{count} 実行中",
+    "gateways": "接続済みAgent",
+    "gatewaysRunning": "{count} 接続中",
     "conversations": "会話",
     "conversationsActive": "アクティブなチャット",
     "chatRooms": "チャットルーム",
@@ -102,7 +102,7 @@
     "configureProvider": "LLMプロバイダーを設定",
     "createAgent": "新しいエージェントを作成",
     "browseSkills": "スキルマーケットを閲覧",
-    "connectHermes": "Hermes Agentに接続",
+    "connectHermes": "Agent コントロールセンター",
     "recentAgents": "最近のエージェント",
     "recentAgentsDesc": "最近アクティブなエージェント",
     "noAgents": "エージェントがありません。最初のエージェントを作成しましょう！"
@@ -139,6 +139,8 @@
     "modeBuiltinShort": "内蔵LLM",
     "modeCustomApiShort": "カスタムAPI",
     "modeHermesShort": "Hermes Agent",
+    "modeAcrp": "ACRP Agent（WebSocket接続）",
+    "modeAcrpShort": "ACRP Agent",
     "skillsCount": "{count} スキル",
     "connectionsCount": "{count} 接続",
     "chat": "チャット",

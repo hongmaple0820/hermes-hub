@@ -3,7 +3,7 @@
 import { useAppStore } from '@/lib/store';
 import { useI18n } from '@/i18n';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bot, Server, Puzzle, Cable, MessageSquare, Users, Activity, ArrowUpRight } from 'lucide-react';
+import { Bot, Server, Puzzle, Monitor, MessageSquare, Users, Activity, ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function Dashboard() {
@@ -42,10 +42,10 @@ export function Dashboard() {
       title: t('dashboard.gateways'),
       value: gateways.length,
       subtitle: t('dashboard.gatewaysRunning', { count: gateways.filter((g: any) => g.status === 'running').length }),
-      icon: Cable,
+      icon: Monitor,
       color: 'text-cyan-600',
       bgColor: 'bg-cyan-500/10',
-      view: 'hermes' as const,
+      view: 'agent-control' as const,
     },
     {
       title: t('dashboard.conversations'),
@@ -117,8 +117,8 @@ export function Dashboard() {
             <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setCurrentView('skills')}>
               <Puzzle className="w-4 h-4" /> {t('dashboard.browseSkills')}
             </Button>
-            <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setCurrentView('hermes')}>
-              <Cable className="w-4 h-4" /> {t('dashboard.connectHermes')}
+            <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setCurrentView('agent-control')}>
+              <Monitor className="w-4 h-4" /> {t('dashboard.connectHermes')}
             </Button>
           </CardContent>
         </Card>
@@ -147,7 +147,7 @@ export function Dashboard() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{agent.name}</p>
-                      <p className="text-xs text-muted-foreground">{t(`agents.mode${agent.mode === 'builtin' ? 'BuiltinShort' : agent.mode === 'custom-api' ? 'CustomApiShort' : 'HermesShort'}`)} · {agent.status === 'online' ? t('common.online') : t('common.offline')}</p>
+                      <p className="text-xs text-muted-foreground">{t(`agents.mode${agent.mode === 'builtin' ? 'BuiltinShort' : agent.mode === 'custom_api' ? 'CustomApiShort' : agent.mode === 'acrp' ? 'AcrpShort' : 'BuiltinShort'}`)} · {agent.status === 'online' ? t('common.online') : t('common.offline')}</p>
                     </div>
                     <div className={`w-2 h-2 rounded-full ${agent.status === 'online' ? 'bg-emerald-500' : agent.status === 'error' ? 'bg-red-500' : 'bg-gray-300'}`} />
                   </div>

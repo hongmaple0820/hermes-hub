@@ -61,7 +61,7 @@
     "accountCreated": "账号创建成功！",
     "welcomeBack": "欢迎回来！",
     "authFailed": "认证失败",
-    "features": "多供应商LLM支持 · 插件化技能系统 · Hermes Agent 管理"
+    "features": "多供应商LLM支持 · 插件化技能系统 · ACRP Agent 控制"
   },
   "nav": {
     "dashboard": "仪表盘",
@@ -91,8 +91,8 @@
     "providersActive": "{count} 个活跃",
     "skills": "技能",
     "skillsEnabled": "{count} 个已启用",
-    "gateways": "Hermes 网关",
-    "gatewaysRunning": "{count} 个运行中",
+    "gateways": "已连接 Agent",
+    "gatewaysRunning": "{count} 个已连接",
     "conversations": "会话",
     "conversationsActive": "活跃聊天",
     "chatRooms": "聊天室",
@@ -102,7 +102,7 @@
     "configureProvider": "配置 LLM 供应商",
     "createAgent": "创建新智能体",
     "browseSkills": "浏览技能市场",
-    "connectHermes": "连接 Hermes Agent",
+    "connectHermes": "Agent 控制中心",
     "recentAgents": "最近使用的智能体",
     "recentAgentsDesc": "您最近活跃的智能体",
     "noAgents": "暂无智能体，创建您的第一个！"
@@ -139,6 +139,8 @@
     "modeBuiltinShort": "内置 LLM",
     "modeCustomApiShort": "自定义 API",
     "modeHermesShort": "Hermes Agent",
+    "modeAcrp": "ACRP Agent（WebSocket 连接）",
+    "modeAcrpShort": "ACRP Agent",
     "skillsCount": "{count} 个技能",
     "connectionsCount": "{count} 个连接",
     "chat": "聊天",

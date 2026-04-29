@@ -6,7 +6,6 @@ export type ViewMode =
   | 'agent-detail'
   | 'providers'
   | 'skills'
-  | 'hermes'
   | 'chat'
   | 'chat-rooms'
   | 'settings'

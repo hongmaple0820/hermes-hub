@@ -3,7 +3,7 @@
 import { useAppStore, type ViewMode } from '@/lib/store';
 import { useI18n } from '@/i18n';
 import {
-  LayoutDashboard, Bot, Server, Puzzle, Cable, MessageSquare, Users, Settings,
+  LayoutDashboard, Bot, Server, Puzzle, MessageSquare, Users, Settings,
   LogOut, ChevronLeft, ChevronRight, Zap, Languages,
   Radio, Clock, BarChart3, UserCircle, Brain, ScrollText, Folder, Terminal,
   Monitor,
@@ -27,7 +27,6 @@ const navSections = [
       { id: 'agents' as ViewMode, labelKey: 'nav.agents', icon: Bot },
       { id: 'providers' as ViewMode, labelKey: 'nav.providers', icon: Server },
       { id: 'skills' as ViewMode, labelKey: 'nav.skills', icon: Puzzle },
-      { id: 'hermes' as ViewMode, labelKey: 'nav.hermes', icon: Cable },
       { id: 'agent-control' as ViewMode, labelKey: 'nav.agentControl', icon: Monitor },
       { id: 'channels' as ViewMode, labelKey: 'nav.channels', icon: Radio },
     ],
