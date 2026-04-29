@@ -478,3 +478,42 @@ Stage Summary:
 - **Capability results resolve pending promises** with 60s timeout, supporting both wait-for-response and fire-and-forget modes
 - **Automatic stale connection cleanup** for both legacy and ACRP connections
 - **New ACRP API routes**: validate-token, register, heartbeat, status, invocation-result — all called by skill-ws to sync with DB
+
+---
+Task ID: ACRP-2
+Agent: main
+Task: Remove direct Hermes Agent connection, replace with ACRP WebSocket
+
+Work Log:
+- Removed 'hermes' from ViewMode type in store.ts
+- Removed HermesManager nav item from Sidebar (was using Cable icon, 'hermes' view)
+- Removed Cable icon import from Sidebar (no longer needed)
+- Removed HermesManager import and case from page.tsx
+- Removed 'hermes' case from renderView() in page.tsx
+- Updated AgentManager: replaced 'hermes' mode with 'acrp' mode
+  - modeLabels: hermes → acrp, using agents.modeAcrpShort
+  - modeColors: hermes → acrp, same cyan color
+  - SelectItem: value="hermes" → value="acrp", label agents.modeAcrp
+- Updated Dashboard:
+  - Changed Cable icon to Monitor icon
+  - Changed gateways card view from 'hermes' to 'agent-control'
+  - Changed quick action from setCurrentView('hermes') to setCurrentView('agent-control')
+  - Updated agent mode display logic to handle 'acrp' mode
+- Updated i18n across all 8 locales:
+  - Added agents.modeAcrp: "ACRP Agent (WebSocket connection)" (+ translations)
+  - Added agents.modeAcrpShort: "ACRP Agent" (+ translations)
+  - Updated dashboard.connectHermes: "Connect Hermes Agent" → "Agent Control Center"
+  - Updated dashboard.gateways: "Hermes Gateways" → "Connected Agents"
+  - Updated dashboard.gatewaysRunning: "{count} running" → "{count} connected"
+  - Updated auth.features: "Hermes Agent management" → "ACRP Agent Control"
+  - Kept agents.modeHermes/modeHermesShort for backward compatibility
+- All lint checks pass clean
+- Committed and pushed to remote (9a673c3)
+
+Stage Summary:
+- **Direct Hermes Agent connection removed from UI** — replaced by ACRP Agent Control
+- **Sidebar simplified**: "Hermes Agent" (Cable icon) replaced by "Agent Control" (Monitor icon)
+- **Agent creation**: "Hermes Agent (Direct connection)" → "ACRP Agent (WebSocket connection)"
+- **Dashboard**: Gateways card and quick action now point to Agent Control Center
+- **Backward compatible**: modeHermes keys kept in i18n, HermesManager.tsx file still exists but unused
+- **ACRP is now the primary way to manage external agents**
