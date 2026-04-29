@@ -30,7 +30,6 @@ model User {
   sentMessages   Message[]              @relation("MessageSender")
   friends1       Friendship[]           @relation("FriendRequester")
   friends2       Friendship[]           @relation("FriendAddressee")
-  gateways       HermesGateway[]
   roomMemberships ChatRoomMember[]
   channels        Channel[]
   jobs            Job[]
@@ -89,7 +88,7 @@ model Agent {
   description String?
   avatar      String?
   systemPrompt String?
-  mode        String   @default("builtin") // builtin, custom_api, hermes
+  mode        String   @default("builtin") // builtin, acrp
   isPublic    Boolean  @default(false)
   status      String   @default("offline") // online, offline, busy, error
 
@@ -226,7 +225,7 @@ model AgentPlugin {
 model AgentConnection {
   id        String   @id @default(cuid())
   agentId   String
-  type      String   // http, hermes, websocket, cli, acp
+  type      String   // websocket
   name      String?
   config    String   @default("{}") // JSON: host, port, path, etc.
   status    String   @default("disconnected") // connected, disconnected, error
@@ -251,27 +250,6 @@ model AgentConnection {
   agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@index([agentId])
-}
-
-// ==================== Hermes-Agent Management ====================
-
-model HermesGateway {
-  id          String   @id @default(cuid())
-  userId      String
-  name        String
-  host        String   @default("127.0.0.1")
-  port        Int      @default(8642)
-  status      String   @default("stopped") // running, stopped, error
-  pid         Int?
-  profilePath String?  // ~/.hermes/profiles/{name}
-  config      String   @default("{}") // JSON: gateway configuration
-  lastHealth  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
 }
 
 // ==================== Chat System ====================

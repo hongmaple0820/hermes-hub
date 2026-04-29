@@ -141,6 +141,7 @@
     "modeHermesShort": "Hermes Agent",
     "modeAcrp": "ACRP Agent（WebSocket 连接）",
     "modeAcrpShort": "ACRP Agent",
+    "modeAcrpDesc": "通过 WebSocket (ACRP) 连接。在 Agent 控制中心生成令牌。",
     "skillsCount": "{count} 个技能",
     "connectionsCount": "{count} 个连接",
     "chat": "聊天",

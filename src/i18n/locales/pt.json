@@ -141,6 +141,7 @@
     "modeHermesShort": "Agente Hermes",
     "modeAcrp": "ACRP Agent (Conexão WebSocket)",
     "modeAcrpShort": "ACRP Agent",
+    "modeAcrpDesc": "Conecta via WebSocket (ACRP). Gerar token no Centro de controle.",
     "skillsCount": "{count} skills",
     "connectionsCount": "{count} conexões",
     "chat": "Chat",

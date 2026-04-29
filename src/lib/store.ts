@@ -49,10 +49,6 @@ interface AppState {
   skills: any[];
   setSkills: (skills: any[]) => void;
 
-  // Gateways
-  gateways: any[];
-  setGateways: (gateways: any[]) => void;
-
   // Conversations
   conversations: any[];
   setConversations: (conversations: any[]) => void;
@@ -113,10 +109,6 @@ export const useAppStore = create<AppState>((set) => ({
   // Skills
   skills: [],
   setSkills: (skills) => set({ skills }),
-
-  // Gateways
-  gateways: [],
-  setGateways: (gateways) => set({ gateways }),
 
   // Conversations
   conversations: [],

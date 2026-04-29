@@ -141,6 +141,7 @@
     "modeHermesShort": "Hermes Agent",
     "modeAcrp": "ACRP Agent（WebSocket接続）",
     "modeAcrpShort": "ACRP Agent",
+    "modeAcrpDesc": "WebSocket (ACRP) で接続。エージェントコントロールセンターでトークンを生成。",
     "skillsCount": "{count} スキル",
     "connectionsCount": "{count} 接続",
     "chat": "チャット",

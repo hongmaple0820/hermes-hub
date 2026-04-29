@@ -63,6 +63,7 @@ export function Sidebar({ onLogout }: SidebarProps) {
   const { locale, setLocale, t, locales } = useI18n();
 
   const onlineAgents = agents.filter((a: any) => a.status === 'online').length;
+  const connectedAcrp = agents.filter((a: any) => a.mode === 'acrp' && a.wsConnected).length;
   const unreadConvs = conversations.length;
 
   return (
@@ -131,6 +132,12 @@ export function Sidebar({ onLogout }: SidebarProps) {
                       {!sidebarCollapsed && item.id === 'agents' && onlineAgents > 0 && (
                         <span className="ml-auto text-[10px] bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded-full font-medium">
                           {onlineAgents}
+                        </span>
+                      )}
+                      {!sidebarCollapsed && item.id === 'agent-control' && connectedAcrp > 0 && (
+                        <span className="ml-auto flex items-center gap-1 text-[10px] bg-cyan-500/10 text-cyan-600 px-1.5 py-0.5 rounded-full font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+                          {connectedAcrp}
                         </span>
                       )}
                       {!sidebarCollapsed && item.id === 'chat' && unreadConvs > 0 && (

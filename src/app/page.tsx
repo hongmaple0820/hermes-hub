@@ -10,7 +10,6 @@ import { AgentManager } from '@/components/views/AgentManager';
 import { AgentDetail } from '@/components/views/AgentDetail';
 import { ProviderManager } from '@/components/views/ProviderManager';
 import { SkillMarketplace } from '@/components/views/SkillMarketplace';
-import { AgentControlCenter } from '@/components/views/AgentControlCenter';
 import { ChatView } from '@/components/views/ChatView';
 import { ChatRoomManager } from '@/components/views/ChatRoomManager';
 import { Settings } from '@/components/views/Settings';
@@ -31,7 +30,7 @@ function AppContent() {
   const {
     user, isAuthenticated, setUser,
     currentView,
-    setProviders, setAgents, setSkills, setGateways, setConversations, setChatRooms,
+    setProviders, setAgents, setSkills, setConversations, setChatRooms,
     isLoading, setIsLoading,
   } = useAppStore();
 
@@ -59,11 +58,10 @@ function AppContent() {
     if (!isAuthenticated) return;
     setIsLoading(true);
     try {
-      const [providers, agents, skills, gateways, conversations, chatRooms] = await Promise.all([
+      const [providers, agents, skills, conversations, chatRooms] = await Promise.all([
         api.getProviders().catch(() => ({ providers: [] })),
         api.getAgents().catch(() => ({ agents: [] })),
         api.getSkills().catch(() => ({ skills: [] })),
-        api.getGateways().catch(() => ({ gateways: [] })),
         api.getConversations().catch(() => ({ conversations: [] })),
         api.getChatRooms().catch(() => ({ rooms: [] })),
       ]);
@@ -80,7 +78,6 @@ function AppContent() {
         setSkills(skills.skills);
       }
 
-      setGateways(gateways.gateways || []);
       setConversations(conversations.conversations || []);
       setChatRooms(chatRooms.rooms || []);
     } catch (error) {
@@ -88,7 +85,7 @@ function AppContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, setProviders, setAgents, setSkills, setGateways, setConversations, setChatRooms, setIsLoading]);
+  }, [isAuthenticated, setProviders, setAgents, setSkills, setConversations, setChatRooms, setIsLoading]);
 
   useEffect(() => {
     if (isAuthenticated) {

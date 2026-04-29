@@ -110,7 +110,7 @@ export function AgentDetail() {
   const [configValue, setConfigValue] = useState('{}');
 
   // Forms
-  const [connectionForm, setConnectionForm] = useState({ type: 'http', name: '', config: '{}' });
+  const [connectionForm, setConnectionForm] = useState({ type: 'websocket', name: '', config: '{}' });
   const [pluginForm, setPluginForm] = useState({ name: '', description: '', type: 'webhook', endpoint: '', authType: 'none', authToken: '' });
 
   // Collapsible states
@@ -376,17 +376,7 @@ export function AgentDetail() {
     }
   };
 
-  const handleTestCallback = async () => {
-    if (!agent.callbackUrl) {
-      toast.error(t('agentDetail.testCallbackFailed'));
-      return;
-    }
-    try {
-      toast.success(t('agentDetail.testCallbackSuccess'));
-    } catch {
-      toast.error(t('agentDetail.testCallbackFailed'));
-    }
-  };
+
 
   const installedSkillIds = new Set((agent.skills || []).map((as: any) => as.skillId || as.skill?.id));
   const availableSkills = skills.filter((s: any) => !installedSkillIds.has(s.id));
@@ -506,28 +496,58 @@ export function AgentDetail() {
               </CardContent>
             </Card>
 
-            {/* Custom API Config */}
-            {agent.mode === 'custom_api' && (
+            {/* ACRP Connection Info */}
+            {agent.mode === 'acrp' && (
               <Card className="md:col-span-2">
-                <CardHeader><CardTitle className="text-base">{t('agentDetail.customApiConfig')}</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Radio className="w-4 h-4" /> ACRP Connection</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                    <p className="text-xs text-amber-700 dark:text-amber-400">
-                      {t('agentDetail.callbackExplanation')}
+                  <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                    <p className="text-xs text-cyan-700 dark:text-cyan-400">
+                      {t('agents.modeAcrpDesc')}
                     </p>
                   </div>
-                  <div>
-                    <Label className="text-xs">{t('agentDetail.callbackUrlLabel')}</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <code className="text-sm font-mono bg-accent px-2 py-1 rounded flex-1 truncate">
-                        {agent.callbackUrl || t('agentDetail.notSet')}
-                      </code>
-                      {agent.callbackUrl && <CopyButton value={agent.callbackUrl} />}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs">{t('agentDetail.connectionStatus')}</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className={cn('w-2.5 h-2.5 rounded-full', agent.wsConnected ? 'bg-emerald-500' : 'bg-gray-300')} />
+                        <span className="text-sm font-medium">{agent.wsConnected ? t('common.online') : t('common.offline')}</span>
+                      </div>
                     </div>
+                    {agent.agentToken && (
+                      <div>
+                        <Label className="text-xs">Agent Token</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <code className="text-xs font-mono bg-accent px-2 py-0.5 rounded flex-1 truncate">{agent.agentToken.substring(0, 12)}•••</code>
+                          <CopyButton value={agent.agentToken} />
+                        </div>
+                      </div>
+                    )}
+                    {agent.agentType && (
+                      <div>
+                        <Label className="text-xs">{t('acrp.agentType')}</Label>
+                        <p className="text-sm font-medium">{agent.agentType}</p>
+                      </div>
+                    )}
+                    {agent.agentVersion && (
+                      <div>
+                        <Label className="text-xs">{t('acrp.agentVersion')}</Label>
+                        <p className="text-sm font-medium">{agent.agentVersion}</p>
+                      </div>
+                    )}
+                    {agent.lastHeartbeatAt && (
+                      <div>
+                        <Label className="text-xs">{t('acrp.lastHeartbeat')}</Label>
+                        <p className="text-sm font-medium">{formatTime(agent.lastHeartbeatAt)}</p>
+                      </div>
+                    )}
+                    {agent.registeredAt && (
+                      <div>
+                        <Label className="text-xs">{t('agentDetail.registered')}</Label>
+                        <p className="text-sm font-medium">{formatTime(agent.registeredAt)}</p>
+                      </div>
+                    )}
                   </div>
-                  <Button variant="outline" size="sm" className="gap-2" onClick={handleTestCallback} disabled={!agent.callbackUrl}>
-                    <Zap className="w-3.5 h-3.5" /> {t('agentDetail.testCallback')}
-                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -772,11 +792,7 @@ export function AgentDetail() {
                       <Select value={connectionForm.type} onValueChange={(v) => setConnectionForm({ ...connectionForm, type: v })}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="http">HTTP Webhook</SelectItem>
-                          <SelectItem value="hermes">Hermes Protocol</SelectItem>
                           <SelectItem value="websocket">WebSocket</SelectItem>
-                          <SelectItem value="cli">CLI Client</SelectItem>
-                          <SelectItem value="acp">ACP Protocol</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -806,10 +822,9 @@ export function AgentDetail() {
                       <Card key={conn.id} className="overflow-hidden">
                         <div className="p-4">
                           <div className="flex items-start gap-3">
-                            <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0',
-                              conn.type === 'hermes' ? 'bg-cyan-500/10' : conn.type === 'websocket' ? 'bg-purple-500/10' : 'bg-violet-500/10'
+                            <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0', 'bg-purple-500/10'
                             )}>
-                              <Link2 className={cn('w-4 h-4', conn.type === 'hermes' ? 'text-cyan-600' : conn.type === 'websocket' ? 'text-purple-600' : 'text-violet-600')} />
+                              <Link2 className={cn('w-4 h-4', 'text-purple-600')} />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
@@ -921,7 +936,7 @@ export function AgentDetail() {
                         <SelectContent>
                           <SelectItem value="webhook">Webhook</SelectItem>
                           <SelectItem value="function">Function</SelectItem>
-                          <SelectItem value="hermes-protocol">Hermes Protocol</SelectItem>
+
                         </SelectContent>
                       </Select>
                     </div>
@@ -1103,7 +1118,7 @@ export function AgentDetail() {
                 <CardTitle className="text-base flex items-center gap-2">
                   <BookOpen className="w-4 h-4" /> {t('agentDetail.quickStart')}
                 </CardTitle>
-                <CardDescription>{t('agentDetail.callbackExplanation')}</CardDescription>
+                <CardDescription>{t('agentDetail.endpointExplanation')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">

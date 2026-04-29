@@ -28,7 +28,6 @@ interface AgentForm {
   isPublic: boolean;
   temperature: number;
   maxTokens: number;
-  callbackUrl: string;
   apiKey: string;
 }
 
@@ -42,7 +41,6 @@ const defaultForm: AgentForm = {
   isPublic: false,
   temperature: 0.7,
   maxTokens: 2048,
-  callbackUrl: '',
   apiKey: '',
 };
 
@@ -93,7 +91,6 @@ export function AgentManager() {
       isPublic: agent.isPublic || false,
       temperature: agent.temperature ?? 0.7,
       maxTokens: agent.maxTokens ?? 2048,
-      callbackUrl: agent.callbackUrl || '',
       apiKey: agent.apiKey || '',
     });
     setShowEdit(true);
@@ -135,13 +132,11 @@ export function AgentManager() {
 
   const modeLabels: Record<string, string> = {
     builtin: t('agents.modeBuiltinShort'),
-    custom_api: t('agents.modeCustomApiShort'),
     acrp: t('agents.modeAcrpShort'),
   };
 
   const modeColors: Record<string, string> = {
     builtin: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
-    custom_api: 'bg-violet-500/10 text-violet-600 border-violet-200',
     acrp: 'bg-cyan-500/10 text-cyan-600 border-cyan-200',
   };
 
@@ -161,10 +156,12 @@ export function AgentManager() {
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="builtin">{t('agents.modeBuiltin')}</SelectItem>
-            <SelectItem value="custom_api">{t('agents.modeCustomApi')}</SelectItem>
             <SelectItem value="acrp">{t('agents.modeAcrp')}</SelectItem>
           </SelectContent>
         </Select>
+        {form.mode === 'acrp' && (
+          <p className="text-xs text-muted-foreground">{t('agents.modeAcrpDesc')}</p>
+        )}
       </div>
 
       {form.mode === 'builtin' && (
@@ -202,13 +199,6 @@ export function AgentManager() {
             </div>
           </div>
         </>
-      )}
-
-      {form.mode === 'custom_api' && (
-        <div className="space-y-2">
-          <Label>{t('agents.callbackUrl')} *</Label>
-          <Input placeholder={t('agents.callbackUrlPlaceholder')} value={form.callbackUrl} onChange={(e) => setForm({ ...form, callbackUrl: e.target.value })} />
-        </div>
       )}
 
       <div className="space-y-2">

@@ -184,35 +184,6 @@ class ApiClient {
     return this.post<{ success: boolean }>(`/skills/${skillId}/uninstall`, { agentId });
   }
 
-  // Hermes Gateways
-  async getGateways() {
-    return this.get<{ gateways: any[] }>('/hermes/gateways');
-  }
-
-  async createGateway(data: any) {
-    return this.post<{ gateway: any }>('/hermes/gateways', data);
-  }
-
-  async updateGateway(id: string, data: any) {
-    return this.patch(`/hermes/gateways/${id}`, data);
-  }
-
-  async deleteGateway(id: string) {
-    return this.del(`/hermes/gateways/${id}`);
-  }
-
-  async startGateway(id: string) {
-    return this.post(`/hermes/gateways/${id}/start`);
-  }
-
-  async stopGateway(id: string) {
-    return this.post(`/hermes/gateways/${id}/stop`);
-  }
-
-  async checkGatewayHealth(id: string) {
-    return this.get(`/hermes/gateways/${id}/health`);
-  }
-
   // Conversations
   async getConversations() {
     return this.get<{ conversations: any[] }>('/conversations');

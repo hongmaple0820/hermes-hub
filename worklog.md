@@ -517,3 +517,37 @@ Stage Summary:
 - **Dashboard**: Gateways card and quick action now point to Agent Control Center
 - **Backward compatible**: modeHermes keys kept in i18n, HermesManager.tsx file still exists but unused
 - **ACRP is now the primary way to manage external agents**
+
+---
+Task ID: BUGFIX-CLEANUP
+Agent: main
+Task: Fix deployment failures — remove hermesGateway 500 errors, simplify agent modes
+
+Work Log:
+- **Identified critical bug**: `/api/hermes/gateways` returned 500 because `db.hermesGateway.findMany()` was called but HermesGateway model no longer exists in Prisma schema
+- Deleted `/home/z/my-project/src/app/api/hermes/` directory entirely (5 route files: gateways, [id], start, stop, health)
+- Deleted `/home/z/my-project/src/components/views/HermesManager.tsx` (unused component)
+- Removed Hermes Gateway methods from `api-client.ts`: getGateways, createGateway, updateGateway, deleteGateway, startGateway, stopGateway, checkGatewayHealth
+- Removed `gateways` state from `store.ts` (gateways, setGateways)
+- Removed `api.getGateways()` call from `page.tsx` loadData function
+- Removed gateways from Promise.all in loadData
+- Verified AgentManager already simplified to only `builtin` and `acrp` modes (custom_api removed earlier)
+- Added `allowedDevOrigins` to `next.config.ts` to fix CORS warnings
+- Added `modeAcrpDesc` i18n key to all 8 locale files
+- Enhanced Dashboard with:
+  - System Status card (LLM Providers progress bar, ACRP Connections progress bar, Skills Active progress bar, quick stats grid)
+  - Agent Architecture card (Builtin Mode and ACRP Mode diagrams with flow indicators)
+  - Recent Activity card
+  - Better stat cards with colored borders, hover animations (-translate-y-0.5), detail text
+  - System Online + ACRP v2.0 badges in header
+- Enhanced Sidebar with ACRP connected agent count badge (cyan pulse dot)
+- All lint checks pass clean
+- API endpoints verified: `/api/hermes/gateways` → 404 (was 500), all other APIs → 200
+
+Stage Summary:
+- **Critical deployment bug FIXED**: hermesGateway 500 error resolved by removing orphaned API routes
+- **Agent mode simplified**: Only `builtin` (Hub-internal LLM) and `acrp` (WebSocket connection) remain
+- **One agent = one connection method**: builtin uses provider+model, acrp uses WebSocket token auth
+- **Dashboard redesigned**: Richer with system status, architecture diagrams, activity feed
+- **Sidebar enhanced**: Live ACRP connection count badge with pulse animation
+- **All API tests pass**: No more 500 errors

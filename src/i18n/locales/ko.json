@@ -141,6 +141,7 @@
     "modeHermesShort": "Hermes Agent",
     "modeAcrp": "ACRP Agent (WebSocket 연결)",
     "modeAcrpShort": "ACRP Agent",
+    "modeAcrpDesc": "WebSocket (ACRP)으로 연결. 에이전트 제어 센터에서 토큰 생성.",
     "skillsCount": "{count} 스킬",
     "connectionsCount": "{count} 연결",
     "chat": "채팅",
