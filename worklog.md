@@ -343,3 +343,95 @@ Stage Summary:
   - Next.js (3000): Main app + APIs + DB
   - chat-service (3003): Socket.IO chat + LLM streaming + skill invocation (WS-first, HTTP-fallback)
   - skill-ws (3004): Socket.IO for external agent WS connections + internal HTTP API
+
+---
+Task ID: 2-b
+Agent: AcrpApiBuilder
+Task: Create ACRP (Agent Capability Registration Protocol) API routes
+
+Work Log:
+- Created 12 API route files under `/home/z/my-project/src/app/api/acrp/`:
+  1. `POST /api/acrp/generate-token/route.ts` — Generate ACRP connection token (acrp_ prefixed UUID), update Agent.agentToken and registeredAt, return wsConnectUrl + wsDirectUrl
+  2. `GET /api/acrp/validate-token/route.ts` — Validate agentToken for skill-ws auth, returns agentId, name, agentType
+  3. `POST /api/acrp/register/route.ts` — Register agent capabilities (upsert by agentId+capabilityId), update agent info (type, version, platform, metadata), prune stale capabilities, set wsConnected=true and status=online
+  4. `POST /api/acrp/heartbeat/route.ts` — Update agent heartbeat (lastHeartbeatAt, wsConnected, status), merge metrics into agentMetadata
+  5. `POST /api/acrp/disconnect/route.ts` — Mark agent as disconnected (wsConnected=false, status=offline)
+  6. `GET /api/acrp/agents/route.ts` — List all ACRP-enabled agents for a userId with capabilities, recent 5 invocations, and live status from skill-ws
+  7. `GET /api/acrp/agents/[id]/route.ts` — Get single agent details with capabilities (ordered by category, uiHints), recent 20 invocations, and live status from skill-ws
+  8. `POST /api/acrp/agents/[id]/invoke/route.ts` — Invoke a capability on an agent (requires x-user-id header), creates CapabilityInvocation record, sends via skill-ws /internal/acrp-invoke
+  9. `POST /api/acrp/invocation-result/route.ts` — Update invocation result (called by skill-ws), sets result/error/duration/completedAt, increments capability invokeCount
+  10. `GET /api/acrp/invocations/route.ts` — List invocation history with filters (agentId, capabilityId, status, limit, userId), includes capability info
+  11. `POST /api/acrp/agents/[id]/command/route.ts` — Send command to agent via skill-ws /internal/acrp-notify
+  12. `DELETE /api/acrp/agents/[id]/token/route.ts` — Revoke agent's ACRP token, set agentToken=null, wsConnected=false, status=offline, delete all capabilities
+- All routes use `import { db } from '@/lib/db'` for database access
+- All routes use `NextRequest`/`NextResponse` with proper error handling (try/catch)
+- Dynamic route params use `params: Promise<{ id: string }>` pattern (Next.js 16)
+- skill-ws integration uses `http://localhost:3004/internal/*` endpoints with AbortSignal.timeout(3000-5000)
+- Lint check passes clean
+
+Stage Summary:
+- Complete ACRP API backend implemented with 12 routes
+- Supports full agent lifecycle: token generation → registration → heartbeat → invocation → result → disconnect → revocation
+- Deep integration with skill-ws WebSocket service for real-time agent communication
+- Capability upsert with stale pruning ensures agent registrations stay in sync
+- Invocation tracking with status progression: pending → sent → executing → success/failed/timeout
+
+---
+Task ID: 2
+Agent: SkillWsAcrpUpdater
+Task: Evolve the skill-ws service to support ACRP (Agent Capability Registration Protocol)
+
+Work Log:
+- Rewrote `/home/z/my-project/mini-services/skill-ws/index.ts` (1603 lines) with full ACRP support:
+  - **Dual authentication middleware**: Supports both `endpointToken` (legacy skill-plugin bindings) and `agentToken` (ACRP agent-level auth)
+    - If `agentToken` provided: validates via `GET /api/acrp/validate-token`, stores `socket.data.authMode = 'acrp'`
+    - If `endpointToken` provided: validates via `GET /api/skill-protocol/validate` (existing flow)
+    - Auth mode determines which connection handler runs on connect
+  - **ACRP event handlers** (agent → server):
+    - `agent:register` — Agent registers profile + capabilities, syncs to DB via `POST /api/acrp/register`, emits `agent:registered` with heartbeatInterval and serverTime
+    - `agent:heartbeat` — Updates lastHeartbeat, forwards to DB via `POST /api/acrp/heartbeat`, emits `agent:heartbeat-ack`
+    - `capability:result` — Agent returns invocation result, resolves pending promise, updates DB via `POST /api/acrp/invocation-result`
+    - `agent:status` — Agent sends status update (online/busy/error), updates DB via `POST /api/acrp/status`
+    - `agent:event` — General events (message, notification, im_event), processes message type by creating conversation messages
+  - **Hub → Agent events**:
+    - `capability:invoke` — Sent via `/internal/acrp-invoke`, includes invocationId, capabilityId, params, invokedBy, timestamp
+    - `agent:command` — Sent via `/internal/acrp-notify` with command field, includes command, params, timestamp
+    - `agent:notification` — Sent via `/internal/acrp-notify`, includes type, data, timestamp
+  - **New internal HTTP API endpoints**:
+    - `POST /internal/acrp-invoke` — Invoke capability on connected ACRP agent (with optional wait-for-response, 60s timeout)
+    - `GET /internal/acrp-status` — Get ACRP agent connection status (connected, lastHeartbeat, socketId, capabilities, agentType, agentVersion)
+    - `POST /internal/acrp-notify` — Send notification or command to ACRP agent (supports both agent:notification and agent:command events)
+  - **Connected ACRP Agent tracking**: Separate `Map<agentId, ACRPConnectedAgent>` with socketId, agentToken, name, version, platform, capabilities[], connectedAt, lastHeartbeat
+  - **Reconnection handling**: If agent reconnects, old socket is disconnected and replaced
+  - **Disconnect cleanup**: Updates Agent.wsConnected=false, status='offline' via `POST /api/acrp/status`
+  - **Stale heartbeat cleanup**: ACRP connections checked alongside legacy connections every 30s, stale agents (>90s) disconnected and cleaned
+  - **Updated health endpoint**: Now includes acrpConnectedAgents count
+  - **Updated agents list**: `/internal/agents` now returns both legacy and ACRP agents with authMode field
+  - **Updated notify**: `/internal/notify` now also sends to ACRP connections
+  - **Graceful shutdown**: Cleans up both acrpConnectedAgents and acrpSocketToAgentId maps
+- Updated `/home/z/my-project/src/app/api/acrp/validate-token/route.ts`:
+  - Added agentVersion, agentPlatform, and status to the response for skill-ws to store
+- Updated `/home/z/my-project/src/app/api/acrp/register/route.ts`:
+  - Added dual-format support: accepts both `{agentId, name, version, platform, capabilities}` (from skill-ws) and `{agentToken, agentInfo}` (direct API)
+  - Capability identifiers support both `id` (ACRP spec) and `capabilityId` (DB field)
+  - Stale capabilities are deleted (not just disabled) when agent removes them
+- Updated `/home/z/my-project/src/app/api/acrp/invocation-result/route.ts`:
+  - Creates new invocation record if not found (for fire-and-forget invocations)
+  - Updates capability invokeCount only for existing invocations
+- Created `/home/z/my-project/src/app/api/acrp/heartbeat/route.ts`:
+  - POST endpoint to process ACRP agent heartbeats
+  - Updates lastHeartbeatAt, wsConnected, status, and merges metrics into agentMetadata
+- Created `/home/z/my-project/src/app/api/acrp/status/route.ts`:
+  - POST endpoint to update ACRP agent status
+  - Updates status, wsConnected, and metrics
+- All existing skill-ws functionality preserved (endpointToken auth, skill:register, skill:heartbeat, etc.)
+- Lint check passes clean
+
+Stage Summary:
+- **skill-ws service now supports dual authentication**: endpointToken (legacy) + agentToken (ACRP)
+- **ACRP agents connect at the agent level** using agentToken, then register capabilities (model.switch, skill.install, soul.configure, etc.)
+- **Hub can remotely invoke capabilities** on connected agents via /internal/acrp-invoke
+- **Full bidirectional event flow**: agent:register, agent:heartbeat, capability:result, agent:status, agent:event (agent→hub) + capability:invoke, agent:command, agent:notification (hub→agent)
+- **Capability results resolve pending promises** with 60s timeout, supporting both wait-for-response and fire-and-forget modes
+- **Automatic stale connection cleanup** for both legacy and ACRP connections
+- **New ACRP API routes**: validate-token, register, heartbeat, status, invocation-result — all called by skill-ws to sync with DB

@@ -6,6 +6,7 @@ import {
   LayoutDashboard, Bot, Server, Puzzle, Cable, MessageSquare, Users, Settings,
   LogOut, ChevronLeft, ChevronRight, Zap, Languages,
   Radio, Clock, BarChart3, UserCircle, Brain, ScrollText, Folder, Terminal,
+  Monitor,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -27,6 +28,7 @@ const navSections = [
       { id: 'providers' as ViewMode, labelKey: 'nav.providers', icon: Server },
       { id: 'skills' as ViewMode, labelKey: 'nav.skills', icon: Puzzle },
       { id: 'hermes' as ViewMode, labelKey: 'nav.hermes', icon: Cable },
+      { id: 'agent-control' as ViewMode, labelKey: 'nav.agentControl', icon: Monitor },
       { id: 'channels' as ViewMode, labelKey: 'nav.channels', icon: Radio },
     ],
   },

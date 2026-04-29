@@ -103,6 +103,18 @@ model Agent {
   callbackUrl String?
   apiKey      String?   // Agent's own API key for external access
 
+  // ACRP - Agent Capability Registration Protocol
+  agentToken      String?   @unique // Token for ACRP WebSocket authentication (agent dials home)
+  agentType       String?   // hermes-agent, openclaw, claude-code, codex, trae, custom
+  agentVersion    String?   // Agent software version
+  agentPlatform   String?   // Agent platform info (OS, runtime, etc.)
+  agentMetadata   String    @default("{}") // JSON: arbitrary agent metadata
+  wsConnected     Boolean   @default(false) // Whether agent is currently connected via ACRP WebSocket
+  lastHeartbeatAt DateTime? // Last ACRP heartbeat from agent
+  registeredAt    DateTime? // When agent first registered via ACRP
+  capabilities    AgentCapability[]
+  invocations     CapabilityInvocation[]
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -589,4 +601,52 @@ model ContextSnapshot {
 
   @@index([roomId, createdAt])
   @@index([conversationId, createdAt])
+}
+
+// ==================== Agent Capability Registration Protocol (ACRP) ====================
+
+model AgentCapability {
+  id          String   @id @default(cuid())
+  agentId     String
+  capabilityId String  // Unique capability identifier within the agent, e.g., "model.switch", "skill.install"
+  name        String   // Human-readable name, e.g., "Switch Model", "Install Skill"
+  description String   // What this capability does
+  category    String   @default("general") // model, skill, soul, memory, gateway, chat, im, system, general
+  version     String   @default("1.0.0")
+  parameters  String   @default("{}") // JSON Schema for input parameters
+  uiHints     String   @default("{}") // JSON: { icon, color, confirmRequired, order, group }
+  isEnabled   Boolean  @default(true)
+  invokeCount Int      @default(0)
+  lastInvokedAt DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  invocations CapabilityInvocation[]
+
+  @@unique([agentId, capabilityId])
+  @@index([agentId])
+  @@index([category])
+}
+
+model CapabilityInvocation {
+  id           String   @id @default(cuid())
+  agentId      String
+  capabilityId String   // References AgentCapability.capabilityId (not a FK — uses compound unique)
+  invokedBy    String   // User ID who invoked
+  params       String   @default("{}") // JSON: input parameters
+  result       String?  // JSON: invocation result
+  status       String   @default("pending") // pending, sent, executing, success, failed, timeout
+  error        String?  // Error message if failed
+  duration     Int?     // Execution duration in ms
+  createdAt    DateTime @default(now())
+  completedAt  DateTime?
+
+  agent       Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  capability  AgentCapability  @relation(fields: [capabilityId, agentId], references: [capabilityId, agentId], onDelete: Cascade)
+
+  @@index([agentId, createdAt])
+  @@index([capabilityId])
+  @@index([status])
 }

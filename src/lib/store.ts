@@ -17,7 +17,8 @@ export type ViewMode =
   | 'memory'
   | 'logs'
   | 'files'
-  | 'terminal';
+  | 'terminal'
+  | 'agent-control';
 
 interface AppState {
   // Auth

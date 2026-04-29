@@ -1,19 +1,22 @@
 /**
- * Hermes Skill WebSocket Service
+ * Hermes Skill WebSocket Service + ACRP (Agent Capability Registration Protocol)
  *
- * Dedicated Socket.IO WebSocket server for the Skill Plugin Protocol on port 3004.
- * External agents connect via WebSocket using an endpoint token and can:
- *   - Receive events (tool_call, message, command) from the hub
- *   - Send events (tool_result, message, status, heartbeat) to the hub
- *   - Maintain persistent connections with automatic heartbeat
- *   - Get real-time bidirectional communication
+ * Dedicated Socket.IO WebSocket server on port 3004.
+ *
+ * Two authentication modes:
+ *   1. endpointToken — Legacy skill-plugin bindings (AgentSkill/AgentPlugin/AgentConnection)
+ *   2. agentToken    — ACRP: agents connect at the agent level and register capabilities
+ *
+ * ACRP flow:
+ *   Agent → connects with agentToken → authenticates → registers capabilities →
+ *   hub can invoke capabilities remotely → agent returns results
  *
  * Architecture:
  *   External Agent → WebSocket → skill-ws (port 3004) ↔ Next.js API/DB
  *                                       ↕
  *                                 chat-service (port 3003)
  *                                       ↕
- *                                 Frontend (user chat)
+ *                                 Frontend (user chat / hub UI)
  */
 
 import { createServer, IncomingMessage, ServerResponse } from 'http'
@@ -22,6 +25,8 @@ import { Server, Socket } from 'socket.io'
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+// --- Legacy Skill Plugin types ---
 
 interface ConnectedAgent {
   socketId: string
@@ -84,6 +89,73 @@ interface PendingToolCall {
   createdAt: Date
 }
 
+// --- ACRP types ---
+
+interface ACRPCapability {
+  id: string          // e.g., "model.switch"
+  name: string        // e.g., "Switch Model"
+  description: string // e.g., "Switch the LLM model"
+  category: string    // e.g., "model", "skill", "soul", "memory", "gateway", "chat", "im", "system"
+  parameters: object  // JSON Schema for input parameters
+  uiHints?: object    // { icon, color, confirmRequired, order, group }
+  version?: string
+}
+
+interface ACRPRegisterData {
+  name: string
+  version: string
+  platform: string   // "hermes-agent", "openclaw", "claude-code", etc.
+  capabilities: ACRPCapability[]
+  metadata?: object
+}
+
+interface ACRPHeartbeatData {
+  status?: string
+  metrics?: {
+    cpu?: number
+    memory?: number
+    uptime?: number
+    taskCount?: number
+  }
+}
+
+interface ACRPCapabilityResult {
+  invocationId: string
+  result: any
+  error?: string
+  duration?: number  // ms
+}
+
+interface ACRPStatusData {
+  status: string     // "online", "busy", "error"
+  metrics?: object   // { cpu, memory, uptime, taskCount, model }
+}
+
+interface ACRPEventData {
+  type: string  // "message", "notification", "im_event", etc.
+  data: any
+}
+
+interface ACRPConnectedAgent {
+  socketId: string
+  agentId: string
+  agentToken: string
+  name: string
+  version: string
+  platform: string
+  capabilities: ACRPCapability[]
+  connectedAt: Date
+  lastHeartbeat: Date
+}
+
+interface ACRPInvokePayload {
+  agentId: string
+  capabilityId: string  // e.g., "model.switch"
+  params: object
+  invocationId: string
+  invokedBy: string
+}
+
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
@@ -92,19 +164,26 @@ const PORT = 3004
 const NEXTJS_API_URL = process.env.NEXTJS_API_URL || 'http://localhost:3000'
 const HEARTBEAT_INTERVAL = 30 // seconds
 const TOOL_CALL_TIMEOUT = 30000 // 30s timeout for tool call responses
+const ACRP_INVOKE_TIMEOUT = 60000 // 60s timeout for ACRP capability invocations
 
 // ---------------------------------------------------------------------------
 // In-Memory State
 // ---------------------------------------------------------------------------
 
-/** Map of agent tracking key (agentId:skillId or agentId:pluginId) → ConnectedAgent */
+/** Map of agent tracking key (agentId:skillId or agentId:pluginId) → ConnectedAgent (legacy) */
 const connectedAgents = new Map<string, ConnectedAgent>()
 
-/** Map of socketId → tracking key */
+/** Map of socketId → tracking key (legacy) */
 const socketToKey = new Map<string, string>()
 
-/** Map of requestId → PendingToolCall for pending tool call promises */
+/** Map of requestId → PendingToolCall for pending tool call promises (legacy + ACRP) */
 const pendingToolCalls = new Map<string, PendingToolCall>()
+
+/** Map of agentId → ACRPConnectedAgent (ACRP) */
+const acrpConnectedAgents = new Map<string, ACRPConnectedAgent>()
+
+/** Map of socketId → agentId (ACRP) */
+const acrpSocketToAgentId = new Map<string, string>()
 
 // ---------------------------------------------------------------------------
 // HTTP Server & Socket.IO Setup
@@ -124,7 +203,6 @@ const io = new Server(httpServer, {
 
 // Prepend our HTTP request handler BEFORE Socket.IO's handler so that
 // /internal/* and /health paths are handled by us, not Socket.IO.
-// Socket.IO with path: '/' would otherwise intercept ALL requests.
 const existingListeners = httpServer.listeners('request').slice()
 httpServer.removeAllListeners('request')
 httpServer.on('request', (req: IncomingMessage, res: ServerResponse) => {
@@ -140,15 +218,58 @@ httpServer.on('request', (req: IncomingMessage, res: ServerResponse) => {
 })
 
 // ---------------------------------------------------------------------------
-// Authentication Middleware
+// Authentication Middleware — supports both endpointToken (legacy) and agentToken (ACRP)
 // ---------------------------------------------------------------------------
 
 io.use(async (socket, next) => {
   const endpointToken = socket.handshake.auth.endpointToken
+  const agentToken = socket.handshake.auth.agentToken
 
+  // --- ACRP authentication via agentToken ---
+  if (agentToken && !endpointToken) {
+    try {
+      const response = await fetch(
+        `${NEXTJS_API_URL}/api/acrp/validate-token?token=${encodeURIComponent(agentToken)}`,
+      )
+
+      if (!response.ok) {
+        console.warn(`[AUTH:ACRP] Token validation failed (${response.status}) for socket ${socket.id}`)
+        return next(new Error('Authentication error: invalid agent token'))
+      }
+
+      const data = await response.json()
+
+      if (!data.valid) {
+        console.warn(`[AUTH:ACRP] Token invalid for socket ${socket.id}: ${data.error}`)
+        return next(new Error(`Authentication error: ${data.error || 'invalid agent token'}`))
+      }
+
+      // Store ACRP auth info on socket.data
+      socket.data = {
+        authMode: 'acrp',
+        agentToken,
+        agentId: data.agentId,
+        agentName: data.name,
+        agentType: data.agentType,
+        agentVersion: data.agentVersion,
+        agentPlatform: data.agentPlatform,
+      }
+
+      console.log(
+        `[AUTH:ACRP] Socket ${socket.id} authenticated: agentId=${data.agentId}, name=${data.name}, type=${data.agentType}`,
+      )
+
+      return next()
+    } catch (err: any) {
+      console.error(`[AUTH:ACRP] Validation request failed for socket ${socket.id}:`, err.message)
+      return next(new Error('Authentication error: validation service unavailable'))
+    }
+  }
+
+  // --- Legacy endpointToken authentication ---
   if (!endpointToken) {
-    console.warn(`[AUTH] Connection rejected: no endpointToken provided (socket: ${socket.id})`)
-    return next(new Error('Authentication error: endpointToken is required'))
+    console.warn(`[AUTH] Connection rejected: no endpointToken or agentToken provided (socket: ${socket.id})`)
+    return next(new Error('Authentication error: endpointToken or agentToken is required'))
   }
 
   try {
@@ -170,6 +291,7 @@ io.use(async (socket, next) => {
 
     // Store binding info on socket.data
     socket.data = {
+      authMode: 'endpoint',
       endpointToken,
       agentId: data.agentId,
       bindingType: data.bindingType,
@@ -198,6 +320,20 @@ io.use(async (socket, next) => {
 // ---------------------------------------------------------------------------
 
 io.on('connection', (socket: Socket) => {
+  const authMode = socket.data.authMode as string
+
+  if (authMode === 'acrp') {
+    handleACRPConnection(socket)
+  } else {
+    handleLegacyConnection(socket)
+  }
+})
+
+// ---------------------------------------------------------------------------
+// Legacy Skill Plugin Connection Handler
+// ---------------------------------------------------------------------------
+
+function handleLegacyConnection(socket: Socket) {
   const { endpointToken, agentId, bindingType, skillId, pluginId } = socket.data
 
   // Build the tracking key
@@ -496,10 +632,295 @@ io.on('connection', (socket: Socket) => {
   socket.on('error', (error) => {
     console.error(`[ERROR] Socket error for ${trackingKey} (${socket.id}):`, error)
   })
-})
+}
 
 // ---------------------------------------------------------------------------
-// Internal HTTP API (for chat-service to call)
+// ACRP Connection Handler
+// ---------------------------------------------------------------------------
+
+function handleACRPConnection(socket: Socket) {
+  const { agentId, agentToken, agentName, agentType, agentVersion, agentPlatform } = socket.data
+
+  console.log(
+    `[CONNECT:ACRP] Agent connected: agentId=${agentId}, name=${agentName}, type=${agentType} (socket: ${socket.id})`,
+  )
+
+  // Check if there's an existing ACRP connection for this agent and disconnect it
+  const existing = acrpConnectedAgents.get(agentId)
+  if (existing) {
+    console.log(
+      `[CONNECT:ACRP] Replacing existing connection for agent ${agentId} (old socket: ${existing.socketId})`,
+    )
+    const existingSocket = io.sockets.sockets.get(existing.socketId)
+    if (existingSocket) {
+      existingSocket.emit('agent:notification', {
+        type: 'replaced',
+        data: { reason: 'New connection established for the same agent' },
+        timestamp: new Date().toISOString(),
+      })
+      existingSocket.disconnect(true)
+    }
+    // Clean up old socket mapping
+    acrpSocketToAgentId.delete(existing.socketId)
+  }
+
+  // Register the ACRP connected agent
+  const acrpAgent: ACRPConnectedAgent = {
+    socketId: socket.id,
+    agentId,
+    agentToken,
+    name: agentName || 'Unknown Agent',
+    version: agentVersion || '0.0.0',
+    platform: agentPlatform || agentType || 'custom',
+    capabilities: [],
+    connectedAt: new Date(),
+    lastHeartbeat: new Date(),
+  }
+  acrpConnectedAgents.set(agentId, acrpAgent)
+  acrpSocketToAgentId.set(socket.id, agentId)
+
+  // Update DB: agent is connected via ACRP
+  fetch(`${NEXTJS_API_URL}/api/acrp/status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      agentId,
+      status: 'online',
+      wsConnected: true,
+    }),
+  }).catch((err) =>
+    console.error(`[CONNECT:ACRP] Failed to update DB status for agent ${agentId}:`, err.message),
+  )
+
+  // -----------------------------------------------------------------------
+  // agent:register — Agent registers its profile and capabilities
+  // -----------------------------------------------------------------------
+
+  socket.on('agent:register', async (data: ACRPRegisterData) => {
+    console.log(
+      `[ACRP:REGISTER] agentId=${agentId}: name=${data.name}, version=${data.version}, platform=${data.platform}, capabilities=${data.capabilities?.length}`,
+    )
+
+    // Update in-memory agent info
+    const agent = acrpConnectedAgents.get(agentId)
+    if (agent) {
+      agent.name = data.name
+      agent.version = data.version
+      agent.platform = data.platform
+      agent.capabilities = data.capabilities || []
+      agent.lastHeartbeat = new Date()
+    }
+
+    // Sync capabilities to DB via Next.js API
+    try {
+      const registerResponse = await fetch(`${NEXTJS_API_URL}/api/acrp/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentId,
+          name: data.name,
+          version: data.version,
+          platform: data.platform,
+          capabilities: data.capabilities,
+          metadata: data.metadata,
+        }),
+      })
+
+      if (!registerResponse.ok) {
+        const errText = await registerResponse.text()
+        console.error(`[ACRP:REGISTER] DB sync failed for agent ${agentId}: ${errText}`)
+      } else {
+        const result = await registerResponse.json()
+        console.log(
+          `[ACRP:REGISTER] Agent ${agentId} registered: synced=${result.syncedCapabilities?.length}, removed=${result.removedCapabilities?.length}`,
+        )
+      }
+    } catch (err: any) {
+      console.error(`[ACRP:REGISTER] DB sync error for agent ${agentId}:`, err.message)
+    }
+
+    socket.emit('agent:registered', {
+      success: true,
+      heartbeatInterval: HEARTBEAT_INTERVAL,
+      serverTime: new Date().toISOString(),
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // agent:heartbeat — ACRP agent heartbeat
+  // -----------------------------------------------------------------------
+
+  socket.on('agent:heartbeat', async (data: ACRPHeartbeatData) => {
+    const agent = acrpConnectedAgents.get(agentId)
+    if (agent) {
+      agent.lastHeartbeat = new Date()
+    }
+
+    // Update DB via ACRP heartbeat API
+    try {
+      await fetch(`${NEXTJS_API_URL}/api/acrp/heartbeat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentId,
+          status: data.status || 'online',
+          metrics: data.metrics,
+        }),
+      })
+    } catch (err: any) {
+      console.error(`[ACRP:HEARTBEAT] Failed to update DB for agent ${agentId}:`, err.message)
+    }
+
+    socket.emit('agent:heartbeat-ack', {
+      timestamp: new Date().toISOString(),
+      nextInterval: HEARTBEAT_INTERVAL,
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // capability:result — Agent returns the result of a capability invocation
+  // -----------------------------------------------------------------------
+
+  socket.on('capability:result', async (data: ACRPCapabilityResult) => {
+    console.log(
+      `[ACRP:RESULT] agentId=${agentId}: invocationId=${data.invocationId}` +
+        (data.error ? `, error=${data.error}` : ', success') +
+        (data.duration ? `, duration=${data.duration}ms` : ''),
+    )
+
+    // Resolve pending invocation promise
+    const pending = pendingToolCalls.get(data.invocationId)
+    if (pending) {
+      clearTimeout(pending.timeout)
+      pendingToolCalls.delete(data.invocationId)
+
+      if (data.error) {
+        pending.reject(new Error(data.error))
+      } else {
+        pending.resolve(data.result)
+      }
+    } else {
+      console.warn(
+        `[ACRP:RESULT] No pending invocation found for invocationId=${data.invocationId}`,
+      )
+    }
+
+    // Update CapabilityInvocation record in DB
+    try {
+      await fetch(`${NEXTJS_API_URL}/api/acrp/invocation-result`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invocationId: data.invocationId,
+          agentId,
+          capabilityId: data.invocationId, // Will be resolved from the pending call
+          result: data.result,
+          error: data.error,
+          duration: data.duration,
+        }),
+      })
+    } catch (err: any) {
+      console.error(`[ACRP:RESULT] Failed to update DB for invocation ${data.invocationId}:`, err.message)
+    }
+  })
+
+  // -----------------------------------------------------------------------
+  // agent:status — Agent sends a status update
+  // -----------------------------------------------------------------------
+
+  socket.on('agent:status', async (data: ACRPStatusData) => {
+    console.log(`[ACRP:STATUS] agentId=${agentId}: status=${data.status}`)
+
+    // Update DB via ACRP status API
+    try {
+      await fetch(`${NEXTJS_API_URL}/api/acrp/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentId,
+          status: data.status,
+          metrics: data.metrics,
+          wsConnected: true,
+        }),
+      })
+    } catch (err: any) {
+      console.error(`[ACRP:STATUS] Failed to update DB for agent ${agentId}:`, err.message)
+    }
+  })
+
+  // -----------------------------------------------------------------------
+  // agent:event — Agent sends a general event
+  // -----------------------------------------------------------------------
+
+  socket.on('agent:event', async (data: ACRPEventData) => {
+    console.log(`[ACRP:EVENT] agentId=${agentId}: type=${data.type}`)
+
+    // Process different event types
+    try {
+      if (data.type === 'message') {
+        // Agent sent a message — create in conversation
+        const { conversationId, content, senderName } = data.data
+        if (conversationId && content) {
+          await fetch(`${NEXTJS_API_URL}/api/conversations/${conversationId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content,
+              senderType: 'agent',
+              senderName: senderName || acrpAgent.name || 'ACRP Agent',
+              type: 'text',
+              metadata: JSON.stringify({
+                source: 'acrp_ws',
+                agentId,
+                eventType: data.type,
+              }),
+            }),
+          })
+        }
+      } else if (data.type === 'notification' || data.type === 'im_event') {
+        // Notifications and IM events — store for potential future use
+        console.log(`[ACRP:EVENT] Agent ${agentId} sent ${data.type} event, stored for processing`)
+      }
+    } catch (err: any) {
+      console.error(`[ACRP:EVENT] Error processing event from agent ${agentId}:`, err.message)
+    }
+  })
+
+  // -----------------------------------------------------------------------
+  // Disconnect (ACRP)
+  // -----------------------------------------------------------------------
+
+  socket.on('disconnect', (reason) => {
+    console.log(`[DISCONNECT:ACRP] Agent ${agentId} disconnected: ${reason}`)
+
+    // Remove from tracking
+    acrpConnectedAgents.delete(agentId)
+    acrpSocketToAgentId.delete(socket.id)
+
+    // Update DB: agent is disconnected
+    fetch(`${NEXTJS_API_URL}/api/acrp/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agentId,
+        status: 'offline',
+        wsConnected: false,
+      }),
+    }).catch((err) =>
+      console.error(
+        `[DISCONNECT:ACRP] Failed to update DB status for agent ${agentId}:`,
+        err.message,
+      ),
+    )
+  })
+
+  socket.on('error', (error) => {
+    console.error(`[ERROR:ACRP] Socket error for agent ${agentId} (${socket.id}):`, error)
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Internal HTTP API (for chat-service and hub UI to call)
 // ---------------------------------------------------------------------------
 
 async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
@@ -516,6 +937,207 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
     res.end()
     return
   }
+
+  // =======================================================================
+  // ACRP Internal API Endpoints
+  // =======================================================================
+
+  // -----------------------------------------------------------------------
+  // POST /internal/acrp-invoke — Invoke a capability on a connected ACRP agent
+  // -----------------------------------------------------------------------
+
+  if (path === '/internal/acrp-invoke' && req.method === 'POST') {
+    try {
+      const body = await readRequestBody(req)
+      const { agentId, capabilityId, params, invocationId, invokedBy } =
+        JSON.parse(body) as ACRPInvokePayload
+
+      if (!agentId || !capabilityId || !invocationId) {
+        res.writeHead(400, { 'Content-Type': 'application/json' })
+        res.end(
+          JSON.stringify({
+            error: 'Missing required fields: agentId, capabilityId, invocationId',
+          }),
+        )
+        return
+      }
+
+      // Find the connected ACRP agent
+      const acrpAgent = acrpConnectedAgents.get(agentId)
+
+      if (!acrpAgent) {
+        console.warn(`[ACRP:INVOKE] Agent not connected: ${agentId}`)
+        res.writeHead(404, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: false, error: 'ACRP agent not connected' }))
+        return
+      }
+
+      const socket = io.sockets.sockets.get(acrpAgent.socketId)
+      if (!socket) {
+        res.writeHead(404, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: false, error: 'ACRP agent socket not found' }))
+        return
+      }
+
+      // Emit capability:invoke to the agent
+      socket.emit('capability:invoke', {
+        invocationId,
+        capabilityId,
+        params: params || {},
+        invokedBy: invokedBy || 'system',
+        timestamp: new Date().toISOString(),
+      })
+
+      console.log(
+        `[ACRP:INVOKE] Sent capability:invoke to agent ${agentId} for ${capabilityId} (invocationId: ${invocationId})`,
+      )
+
+      // Optionally wait for the response
+      const waitForResponse = url.searchParams.get('wait') === 'true'
+
+      if (waitForResponse) {
+        // Create a promise that resolves when the agent responds
+        const responsePromise = new Promise<any>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            pendingToolCalls.delete(invocationId)
+            reject(new Error('ACRP capability invocation timed out'))
+          }, ACRP_INVOKE_TIMEOUT)
+
+          pendingToolCalls.set(invocationId, {
+            resolve,
+            reject,
+            timeout,
+            createdAt: new Date(),
+          })
+        })
+
+        try {
+          const result = await responsePromise
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: true, result }))
+        } catch (err: any) {
+          res.writeHead(504, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: false, error: err.message }))
+        }
+      } else {
+        // Fire and forget — set up pending call with safety timeout
+        const timeout = setTimeout(() => {
+          pendingToolCalls.delete(invocationId)
+          console.warn(`[ACRP:INVOKE] Capability invocation timed out: ${invocationId}`)
+        }, ACRP_INVOKE_TIMEOUT)
+
+        pendingToolCalls.set(invocationId, {
+          resolve: () => {},
+          reject: () => {},
+          timeout,
+          createdAt: new Date(),
+        })
+
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: true, invocationId }))
+      }
+    } catch (err: any) {
+      console.error('[ACRP:INVOKE] Error:', err)
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: err.message || 'Internal server error' }))
+    }
+    return
+  }
+
+  // -----------------------------------------------------------------------
+  // GET /internal/acrp-status — Get ACRP agent connection status
+  // -----------------------------------------------------------------------
+
+  if (path === '/internal/acrp-status' && req.method === 'GET') {
+    try {
+      const agentId = url.searchParams.get('agentId')
+
+      if (!agentId) {
+        res.writeHead(400, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Missing agentId parameter' }))
+        return
+      }
+
+      const agent = acrpConnectedAgents.get(agentId)
+
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(
+        JSON.stringify({
+          connected: !!agent,
+          lastHeartbeat: agent?.lastHeartbeat?.toISOString() || null,
+          socketId: agent?.socketId || null,
+          capabilities: agent?.capabilities || [],
+          agentType: agent?.platform || null,
+          agentVersion: agent?.version || null,
+          name: agent?.name || null,
+          connectedAt: agent?.connectedAt?.toISOString() || null,
+        }),
+      )
+    } catch (err: any) {
+      console.error('[ACRP:STATUS] Error:', err)
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: err.message || 'Internal server error' }))
+    }
+    return
+  }
+
+  // -----------------------------------------------------------------------
+  // POST /internal/acrp-notify — Send notification to ACRP agent
+  // -----------------------------------------------------------------------
+
+  if (path === '/internal/acrp-notify' && req.method === 'POST') {
+    try {
+      const body = await readRequestBody(req)
+      const { agentId, type, data: notificationData, command, params: commandParams } = JSON.parse(body)
+
+      if (!agentId) {
+        res.writeHead(400, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Missing required field: agentId' }))
+        return
+      }
+
+      const acrpAgent = acrpConnectedAgents.get(agentId)
+      if (!acrpAgent) {
+        res.writeHead(404, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: false, error: 'ACRP agent not connected' }))
+        return
+      }
+
+      const socket = io.sockets.sockets.get(acrpAgent.socketId)
+      if (!socket) {
+        res.writeHead(404, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: false, error: 'ACRP agent socket not found' }))
+        return
+      }
+
+      // If command is provided, send agent:command; otherwise send agent:notification
+      if (command) {
+        socket.emit('agent:command', {
+          command,
+          params: commandParams || {},
+          timestamp: new Date().toISOString(),
+        })
+      } else {
+        socket.emit('agent:notification', {
+          type: type || 'info',
+          data: notificationData,
+          timestamp: new Date().toISOString(),
+        })
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ success: true, notified: true }))
+    } catch (err: any) {
+      console.error('[ACRP:NOTIFY] Error:', err)
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: err.message || 'Internal server error' }))
+    }
+    return
+  }
+
+  // =======================================================================
+  // Legacy Skill Plugin Internal API Endpoints
+  // =======================================================================
 
   // -----------------------------------------------------------------------
   // POST /internal/invoke — Trigger a skill invocation on a connected agent
@@ -543,8 +1165,8 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
       for (const [key, value] of connectedAgents.entries()) {
         if (value.agentId === agentId) {
           // Check if this agent has the matching skill
-          const socket = io.sockets.sockets.get(value.socketId)
-          if (socket?.data?.skillName === skillName) {
+          const sock = io.sockets.sockets.get(value.socketId)
+          if (sock?.data?.skillName === skillName) {
             agent = value
             break
           }
@@ -642,7 +1264,7 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
   }
 
   // -----------------------------------------------------------------------
-  // GET /internal/status — Check agent connection status
+  // GET /internal/status — Check agent connection status (legacy)
   // -----------------------------------------------------------------------
 
   if (path === '/internal/status' && req.method === 'GET') {
@@ -663,8 +1285,8 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
         // Look for a specific skill binding
         for (const [, value] of connectedAgents.entries()) {
           if (value.agentId === agentId) {
-            const socket = io.sockets.sockets.get(value.socketId)
-            if (socket?.data?.skillName === skillName) {
+            const sock = io.sockets.sockets.get(value.socketId)
+            if (sock?.data?.skillName === skillName) {
               agent = value
               break
             }
@@ -700,7 +1322,7 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
   }
 
   // -----------------------------------------------------------------------
-  // POST /internal/notify — Send notification to a connected agent
+  // POST /internal/notify — Send notification to a connected agent (legacy)
   // -----------------------------------------------------------------------
 
   if (path === '/internal/notify' && req.method === 'POST') {
@@ -714,7 +1336,7 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
         return
       }
 
-      // Find all connected sockets for this agent
+      // Find all connected sockets for this agent (legacy)
       let notified = 0
       for (const [, agent] of connectedAgents.entries()) {
         if (agent.agentId === agentId) {
@@ -730,6 +1352,20 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
         }
       }
 
+      // Also try ACRP connection
+      const acrpAgent = acrpConnectedAgents.get(agentId)
+      if (acrpAgent) {
+        const socket = io.sockets.sockets.get(acrpAgent.socketId)
+        if (socket) {
+          socket.emit('agent:notification', {
+            type,
+            data: notificationData,
+            timestamp: new Date().toISOString(),
+          })
+          notified++
+        }
+      }
+
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ success: true, notified }))
     } catch (err: any) {
@@ -741,12 +1377,12 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
   }
 
   // -----------------------------------------------------------------------
-  // GET /internal/agents — List all connected agents
+  // GET /internal/agents — List all connected agents (legacy + ACRP)
   // -----------------------------------------------------------------------
 
   if (path === '/internal/agents' && req.method === 'GET') {
     try {
-      const agents = Array.from(connectedAgents.values()).map((a) => ({
+      const legacyAgents = Array.from(connectedAgents.values()).map((a) => ({
         agentId: a.agentId,
         skillId: a.skillId,
         pluginId: a.pluginId,
@@ -758,10 +1394,30 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
         connectedAt: a.connectedAt.toISOString(),
         lastHeartbeat: a.lastHeartbeat.toISOString(),
         socketId: a.socketId,
+        authMode: 'endpoint',
+      }))
+
+      const acrpAgents = Array.from(acrpConnectedAgents.values()).map((a) => ({
+        agentId: a.agentId,
+        name: a.name,
+        version: a.version,
+        platform: a.platform,
+        capabilities: a.capabilities.map((c) => c.id),
+        connectedAt: a.connectedAt.toISOString(),
+        lastHeartbeat: a.lastHeartbeat.toISOString(),
+        socketId: a.socketId,
+        authMode: 'acrp',
       }))
 
       res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ agents, count: agents.length }))
+      res.end(
+        JSON.stringify({
+          agents: [...legacyAgents, ...acrpAgents],
+          legacyCount: legacyAgents.length,
+          acrpCount: acrpAgents.length,
+          count: legacyAgents.length + acrpAgents.length,
+        }),
+      )
     } catch (err: any) {
       console.error('[AGENTS] Error:', err)
       res.writeHead(500, { 'Content-Type': 'application/json' })
@@ -782,6 +1438,7 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
         service: 'hermes-skill-ws',
         port: PORT,
         connectedAgents: connectedAgents.size,
+        acrpConnectedAgents: acrpConnectedAgents.size,
         pendingToolCalls: pendingToolCalls.size,
         uptime: process.uptime(),
       }),
@@ -821,13 +1478,15 @@ async function updateConnectionStatus(endpointToken: string, status: string): Pr
 }
 
 // ---------------------------------------------------------------------------
-// Stale Heartbeat Cleanup
+// Stale Heartbeat Cleanup (both legacy + ACRP)
 // ---------------------------------------------------------------------------
 
 const STALE_THRESHOLD = 90_000 // 90 seconds
 
 setInterval(() => {
   const now = Date.now()
+
+  // Clean up stale legacy connections
   for (const [key, agent] of connectedAgents.entries()) {
     const timeSinceHeartbeat = now - agent.lastHeartbeat.getTime()
     if (timeSinceHeartbeat > STALE_THRESHOLD) {
@@ -855,10 +1514,43 @@ setInterval(() => {
     }
   }
 
+  // Clean up stale ACRP connections
+  for (const [agentId, agent] of acrpConnectedAgents.entries()) {
+    const timeSinceHeartbeat = now - agent.lastHeartbeat.getTime()
+    if (timeSinceHeartbeat > STALE_THRESHOLD) {
+      console.warn(
+        `[STALE:ACRP] Agent ${agentId} last heartbeat was ${Math.round(timeSinceHeartbeat / 1000)}s ago, disconnecting`,
+      )
+
+      const socket = io.sockets.sockets.get(agent.socketId)
+      if (socket) {
+        socket.emit('agent:notification', {
+          type: 'heartbeat_timeout',
+          data: { reason: 'No heartbeat received within threshold' },
+          timestamp: new Date().toISOString(),
+        })
+        socket.disconnect(true)
+      }
+
+      // Clean up tracking
+      acrpConnectedAgents.delete(agentId)
+      acrpSocketToAgentId.delete(agent.socketId)
+
+      // Update DB
+      fetch(`${NEXTJS_API_URL}/api/acrp/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId, status: 'offline', wsConnected: false }),
+      }).catch((err) =>
+        console.error(`[STALE:ACRP] Failed to update DB status for agent ${agentId}:`, err.message),
+      )
+    }
+  }
+
   // Clean up expired pending tool calls
   for (const [requestId, pending] of pendingToolCalls.entries()) {
     const elapsed = now - pending.createdAt.getTime()
-    if (elapsed > TOOL_CALL_TIMEOUT * 2) {
+    if (elapsed > Math.max(TOOL_CALL_TIMEOUT, ACRP_INVOKE_TIMEOUT) * 2) {
       // Double timeout as safety net
       clearTimeout(pending.timeout)
       pendingToolCalls.delete(requestId)
@@ -876,6 +1568,7 @@ httpServer.listen(PORT, () => {
   console.log(`[Hermes Skill WS] WebSocket endpoint: ws://localhost:${PORT}`)
   console.log(`[Hermes Skill WS] Internal API: http://localhost:${PORT}/internal/*`)
   console.log(`[Hermes Skill WS] Health check: http://localhost:${PORT}/health`)
+  console.log(`[Hermes Skill WS] Auth modes: endpointToken (legacy), agentToken (ACRP)`)
   console.log(`[Hermes Skill WS] Ready to accept agent connections`)
 })
 
@@ -897,6 +1590,8 @@ const shutdown = () => {
   io.disconnectSockets(true)
   connectedAgents.clear()
   socketToKey.clear()
+  acrpConnectedAgents.clear()
+  acrpSocketToAgentId.clear()
 
   httpServer.close(() => {
     console.log('[Hermes Skill WS] Server closed')

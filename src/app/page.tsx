@@ -22,6 +22,7 @@ import { MemoryView } from '@/components/views/MemoryView';
 import { LogsView } from '@/components/views/LogsView';
 import { FilesView } from '@/components/views/FilesView';
 import { TerminalView } from '@/components/views/TerminalView';
+import { AgentControlCenter } from '@/components/views/AgentControlCenter';
 import { SessionSearch } from '@/components/views/SessionSearch';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { Toaster, toast } from 'sonner';
@@ -175,6 +176,8 @@ function AppContent() {
         return <FilesView />;
       case 'terminal':
         return <TerminalView />;
+      case 'agent-control':
+        return <AgentControlCenter />;
       case 'settings':
         return <Settings onLogout={handleLogout} />;
       default:

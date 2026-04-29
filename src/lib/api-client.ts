@@ -544,6 +544,40 @@ class ApiClient {
     }>(`/agents/${agentId}/generate-skill-endpoint`, { skillId, regenerate: true });
   }
 
+  // ACRP - Agent Capability Registration Protocol
+  async generateAcrpToken(agentId: string) {
+    return this.post<{ agentToken: string; wsConnectUrl: string; wsDirectUrl: string; agentId: string }>('/acrp/generate-token', { agentId });
+  }
+
+  async getAcrpAgents() {
+    return this.get<{ agents: any[] }>('/acrp/agents');
+  }
+
+  async getAcrpAgent(id: string) {
+    return this.get<{ agent: any; capabilities: any[]; recentInvocations: any[]; liveStatus: any }>(`/acrp/agents/${id}`);
+  }
+
+  async invokeCapability(agentId: string, capabilityId: string, params?: any) {
+    return this.post<{ invocationId: string; status: string }>(`/acrp/agents/${agentId}/invoke`, { capabilityId, params });
+  }
+
+  async sendAgentCommand(agentId: string, command: string, params?: any) {
+    return this.post<{ success: boolean }>(`/acrp/agents/${agentId}/command`, { command, params });
+  }
+
+  async getAcrpInvocations(agentId?: string, capabilityId?: string, status?: string, limit?: number) {
+    const params = new URLSearchParams();
+    if (agentId) params.set('agentId', agentId);
+    if (capabilityId) params.set('capabilityId', capabilityId);
+    if (status) params.set('status', status);
+    if (limit) params.set('limit', String(limit));
+    return this.get<{ invocations: any[] }>(`/acrp/invocations?${params.toString()}`);
+  }
+
+  async revokeAcrpToken(agentId: string) {
+    return this.del(`/acrp/agents/${agentId}/token`);
+  }
+
   // Context Engine
   async getContext(type: 'conversation' | 'room', id: string) {
     return this.get<{ context: string; wasCompressed: boolean; snapshotId?: string; tokenCount: number; stats: any }>(`/context?type=${type}&id=${id}`);
