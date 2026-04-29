@@ -134,6 +134,17 @@ model Skill {
   handlerUrl   String?  // For webhook-type skills
   parameters   String   @default("[]") // JSON: [{name, type, required, description}]
   isEnabled    Boolean  @default(true)
+
+  // Skill Protocol fields
+  endpointToken    String?  @unique // unique token for the skill endpoint URL
+  callbackUrl      String?  // outbound callback URL (where system sends events to the skill)
+  callbackSecret   String?  // secret for signing outbound callback requests
+  protocolVersion  String   @default("v1") // protocol version
+  events           String   @default("[]") // JSON array of event types this skill subscribes to
+  registeredAt     DateTime? // when an external agent registered to this skill
+  lastHeartbeat    DateTime? // last heartbeat from external agent
+  registrationInfo String   @default("{}") // JSON: registered agent info (name, version, capabilities)
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -147,6 +158,13 @@ model AgentSkill {
   config    String  @default("{}") // JSON: skill-specific configuration
   isEnabled Boolean @default(true)
   priority  Int     @default(0) // Execution order
+
+  // Skill Protocol fields
+  endpointToken   String?   @unique // unique token for this specific agent+skill binding
+  callbackUrl     String?   // callback for this specific binding
+  callbackSecret  String?   // secret for signing callbacks
+  lastInvokedAt   DateTime? // when this binding was last invoked
+  invokeCount     Int       @default(0) // number of times this binding has been invoked
 
   agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
   skill Skill @relation(fields: [skillId], references: [id])
@@ -165,6 +183,17 @@ model AgentPlugin {
   authType    String?  // none, api_key, oauth, bearer
   authToken   String?  // Encrypted auth token
   isEnabled   Boolean  @default(true)
+
+  // Skill Protocol fields
+  endpointToken    String?   @unique // unique token for plugin endpoint
+  callbackUrl      String?   // outbound callback URL
+  callbackSecret   String?   // secret for signing callbacks
+  protocolVersion  String    @default("v1") // protocol version
+  events           String    @default("[]") // subscribed event types
+  registeredAt     DateTime? // when external agent registered
+  lastHeartbeat    DateTime? // last heartbeat from external agent
+  registrationInfo String    @default("{}") // JSON: registered agent info
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -184,6 +213,14 @@ model AgentConnection {
   status    String   @default("disconnected") // connected, disconnected, error
   lastPing  DateTime?
   apiKey    String?  // Auto-generated API key for this connection
+
+  // Skill Protocol fields
+  endpointToken     String?  @unique // unique token for connection endpoint
+  protocolVersion   String   @default("v1") // protocol version
+  heartbeatInterval Int      @default(30) // seconds between expected heartbeats
+  registeredAt      DateTime? // when external agent registered
+  registrationInfo  String   @default("{}") // JSON: registered agent info
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

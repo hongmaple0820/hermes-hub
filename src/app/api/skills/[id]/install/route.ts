@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { generateEndpointToken, generateCallbackSecret } from '@/lib/skill-protocol';
 
 export async function POST(
   request: NextRequest,
@@ -45,6 +46,10 @@ export async function POST(
       );
     }
 
+    // Generate endpoint token and callback secret for the binding
+    const endpointToken = generateEndpointToken();
+    const callbackSecret = generateCallbackSecret();
+
     const agentSkill = await db.agentSkill.create({
       data: {
         agentId,
@@ -52,11 +57,22 @@ export async function POST(
         config: JSON.stringify(config || {}),
         isEnabled: true,
         priority: priority ?? 0,
+        endpointToken,
+        callbackSecret,
       },
       include: { skill: true },
     });
 
-    return NextResponse.json({ agentSkill }, { status: 201 });
+    // Build the endpoint URL
+    const endpointUrl = `/api/skill-protocol/events?token=${endpointToken}`;
+
+    return NextResponse.json({
+      agentSkill,
+      endpointUrl,
+      endpointToken,
+      callbackSecret,
+      protocol: skill.protocolVersion || 'v1',
+    }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

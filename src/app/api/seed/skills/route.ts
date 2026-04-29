@@ -10,9 +10,11 @@ const DEFAULT_SKILLS = [
     icon: 'Search',
     handlerType: 'builtin',
     parameters: JSON.stringify([
-      { name: 'query', type: 'string', required: true, description: 'Search query' },
+      { name: 'query', type: 'string', required: true, description: 'Search query string' },
       { name: 'maxResults', type: 'number', required: false, description: 'Maximum number of results (default: 5)' },
+      { name: 'language', type: 'string', required: false, description: 'Language code for results (e.g., en, zh)' },
     ]),
+    events: JSON.stringify(['message', 'command']),
   },
   {
     name: 'weather-query',
@@ -23,8 +25,10 @@ const DEFAULT_SKILLS = [
     handlerType: 'builtin',
     parameters: JSON.stringify([
       { name: 'location', type: 'string', required: true, description: 'City or location name' },
-      { name: 'unit', type: 'string', required: false, description: 'Temperature unit (celsius/fahrenheit)' },
+      { name: 'unit', type: 'string', required: false, description: 'Temperature unit (celsius/fahrenheit)', enum: ['celsius', 'fahrenheit'] },
+      { name: 'forecast', type: 'boolean', required: false, description: 'Include 5-day forecast' },
     ]),
+    events: JSON.stringify(['message']),
   },
   {
     name: 'code-execution',
@@ -34,9 +38,11 @@ const DEFAULT_SKILLS = [
     icon: 'Code',
     handlerType: 'builtin',
     parameters: JSON.stringify([
-      { name: 'code', type: 'string', required: true, description: 'Code to execute' },
-      { name: 'language', type: 'string', required: true, description: 'Programming language' },
+      { name: 'code', type: 'string', required: true, description: 'Source code to execute' },
+      { name: 'language', type: 'string', required: true, description: 'Programming language', enum: ['python', 'javascript', 'typescript', 'bash', 'rust', 'go'] },
+      { name: 'timeout', type: 'number', required: false, description: 'Execution timeout in seconds (default: 30)' },
     ]),
+    events: JSON.stringify(['message', 'command', 'tool_result']),
   },
   {
     name: 'image-generation',
@@ -46,9 +52,12 @@ const DEFAULT_SKILLS = [
     icon: 'Image',
     handlerType: 'builtin',
     parameters: JSON.stringify([
-      { name: 'prompt', type: 'string', required: true, description: 'Image description' },
-      { name: 'size', type: 'string', required: false, description: 'Image size (e.g., 1024x1024)' },
+      { name: 'prompt', type: 'string', required: true, description: 'Image description/prompt' },
+      { name: 'size', type: 'string', required: false, description: 'Image size (e.g., 1024x1024, 512x512)', enum: ['256x256', '512x512', '1024x1024'] },
+      { name: 'style', type: 'string', required: false, description: 'Image style (natural, vivid)', enum: ['natural', 'vivid'] },
+      { name: 'quality', type: 'string', required: false, description: 'Image quality (standard, hd)', enum: ['standard', 'hd'] },
     ]),
+    events: JSON.stringify(['message', 'command']),
   },
   {
     name: 'document-processing',
@@ -58,9 +67,12 @@ const DEFAULT_SKILLS = [
     icon: 'FileText',
     handlerType: 'builtin',
     parameters: JSON.stringify([
-      { name: 'action', type: 'string', required: true, description: 'Action: read, write, convert, summarize' },
-      { name: 'fileUrl', type: 'string', required: false, description: 'URL of the document' },
+      { name: 'action', type: 'string', required: true, description: 'Action to perform', enum: ['read', 'write', 'convert', 'summarize', 'extract'] },
+      { name: 'fileUrl', type: 'string', required: false, description: 'URL or path of the document' },
+      { name: 'format', type: 'string', required: false, description: 'Output format (pdf, docx, xlsx, txt, md)', enum: ['pdf', 'docx', 'xlsx', 'txt', 'md'] },
+      { name: 'content', type: 'string', required: false, description: 'Content to write (for write action)' },
     ]),
+    events: JSON.stringify(['message', 'tool_result']),
   },
   {
     name: 'translation',
@@ -71,9 +83,11 @@ const DEFAULT_SKILLS = [
     handlerType: 'builtin',
     parameters: JSON.stringify([
       { name: 'text', type: 'string', required: true, description: 'Text to translate' },
-      { name: 'targetLang', type: 'string', required: true, description: 'Target language code' },
+      { name: 'targetLang', type: 'string', required: true, description: 'Target language code (e.g., en, zh, ja, ko)' },
       { name: 'sourceLang', type: 'string', required: false, description: 'Source language code (auto-detect if omitted)' },
+      { name: 'formality', type: 'string', required: false, description: 'Formality level', enum: ['formal', 'informal'] },
     ]),
+    events: JSON.stringify(['message']),
   },
   {
     name: 'reminder',
@@ -85,8 +99,10 @@ const DEFAULT_SKILLS = [
     parameters: JSON.stringify([
       { name: 'message', type: 'string', required: true, description: 'Reminder message' },
       { name: 'time', type: 'string', required: true, description: 'When to remind (ISO date or natural language)' },
-      { name: 'repeat', type: 'string', required: false, description: 'Repeat interval (daily, weekly, monthly)' },
+      { name: 'repeat', type: 'string', required: false, description: 'Repeat interval', enum: ['daily', 'weekly', 'monthly', 'yearly'] },
+      { name: 'priority', type: 'string', required: false, description: 'Priority level', enum: ['low', 'medium', 'high'] },
     ]),
+    events: JSON.stringify(['message', 'command', 'status']),
   },
   {
     name: 'http-request',
@@ -97,10 +113,12 @@ const DEFAULT_SKILLS = [
     handlerType: 'builtin',
     parameters: JSON.stringify([
       { name: 'url', type: 'string', required: true, description: 'Request URL' },
-      { name: 'method', type: 'string', required: true, description: 'HTTP method' },
-      { name: 'headers', type: 'object', required: false, description: 'Request headers' },
-      { name: 'body', type: 'object', required: false, description: 'Request body' },
+      { name: 'method', type: 'string', required: true, description: 'HTTP method', enum: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] },
+      { name: 'headers', type: 'object', required: false, description: 'Request headers as key-value pairs' },
+      { name: 'body', type: 'object', required: false, description: 'Request body (for POST/PUT/PATCH)' },
+      { name: 'timeout', type: 'number', required: false, description: 'Request timeout in seconds (default: 30)' },
     ]),
+    events: JSON.stringify(['message', 'command', 'tool_result']),
   },
   {
     name: 'data-analysis',
@@ -111,8 +129,11 @@ const DEFAULT_SKILLS = [
     handlerType: 'builtin',
     parameters: JSON.stringify([
       { name: 'data', type: 'string', required: true, description: 'Data source (URL, CSV text, or file reference)' },
-      { name: 'analysis', type: 'string', required: true, description: 'Type of analysis (summary, trend, comparison, etc.)' },
+      { name: 'analysis', type: 'string', required: true, description: 'Type of analysis', enum: ['summary', 'trend', 'comparison', 'correlation', 'outlier'] },
+      { name: 'visualize', type: 'boolean', required: false, description: 'Generate visualization (default: false)' },
+      { name: 'format', type: 'string', required: false, description: 'Output format', enum: ['text', 'json', 'chart', 'table'] },
     ]),
+    events: JSON.stringify(['message', 'tool_result']),
   },
   {
     name: 'email-sender',
@@ -123,9 +144,12 @@ const DEFAULT_SKILLS = [
     handlerType: 'webhook',
     parameters: JSON.stringify([
       { name: 'to', type: 'string', required: true, description: 'Recipient email address' },
-      { name: 'subject', type: 'string', required: true, description: 'Email subject' },
-      { name: 'body', type: 'string', required: true, description: 'Email content' },
+      { name: 'subject', type: 'string', required: true, description: 'Email subject line' },
+      { name: 'body', type: 'string', required: true, description: 'Email content (plain text or HTML)' },
+      { name: 'cc', type: 'string', required: false, description: 'CC recipients (comma-separated)' },
+      { name: 'html', type: 'boolean', required: false, description: 'Whether body is HTML (default: false)' },
     ]),
+    events: JSON.stringify(['message', 'command', 'status']),
   },
   {
     name: 'text-to-speech',
@@ -136,9 +160,11 @@ const DEFAULT_SKILLS = [
     handlerType: 'builtin',
     parameters: JSON.stringify([
       { name: 'text', type: 'string', required: true, description: 'Text to convert to speech' },
-      { name: 'voice', type: 'string', required: false, description: 'Voice selection' },
-      { name: 'language', type: 'string', required: false, description: 'Language code' },
+      { name: 'voice', type: 'string', required: false, description: 'Voice selection (e.g., alloy, echo, fable)', enum: ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'] },
+      { name: 'language', type: 'string', required: false, description: 'Language code (e.g., en, zh)' },
+      { name: 'speed', type: 'number', required: false, description: 'Speech speed (0.5-2.0, default: 1.0)' },
     ]),
+    events: JSON.stringify(['message']),
   },
   {
     name: 'database-query',
@@ -149,8 +175,11 @@ const DEFAULT_SKILLS = [
     handlerType: 'builtin',
     parameters: JSON.stringify([
       { name: 'query', type: 'string', required: true, description: 'SQL query to execute' },
-      { name: 'database', type: 'string', required: false, description: 'Database connection name' },
+      { name: 'database', type: 'string', required: false, description: 'Database connection name or identifier' },
+      { name: 'limit', type: 'number', required: false, description: 'Maximum rows to return (default: 100)' },
+      { name: 'dryRun', type: 'boolean', required: false, description: 'Validate query without executing (default: false)' },
     ]),
+    events: JSON.stringify(['message', 'command', 'tool_result']),
   },
 ];
 

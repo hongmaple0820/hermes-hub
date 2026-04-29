@@ -471,6 +471,49 @@ class ApiClient {
     return this.del('/auth/copilot');
   }
 
+  // Skill Plugin Protocol
+  async generateSkillEndpoint(agentId: string, skillId: string) {
+    return this.post<{ endpointUrl: string; endpointToken: string; callbackSecret: string }>(
+      `/agents/${agentId}/generate-skill-endpoint`, { skillId }
+    );
+  }
+
+  async generatePluginEndpoint(agentId: string, pluginId: string) {
+    return this.post<{ endpointUrl: string; endpointToken: string; callbackSecret: string }>(
+      `/agents/${agentId}/generate-skill-endpoint`, { pluginId }
+    );
+  }
+
+  async testSkillConnection(agentId: string, skillId: string) {
+    return this.post<{ success: boolean; latency?: number; error?: string }>(
+      `/agents/${agentId}/skills/${skillId}/test`
+    );
+  }
+
+  async testPluginConnection(agentId: string, pluginId: string) {
+    return this.post<{ success: boolean; latency?: number; error?: string }>(
+      `/agents/${agentId}/plugins/${pluginId}/test`
+    );
+  }
+
+  async testConnection(agentId: string, connectionId: string) {
+    return this.post<{ success: boolean; latency?: number; error?: string }>(
+      `/agents/${agentId}/connections/${connectionId}/test`
+    );
+  }
+
+  async registerSkillProtocol(data: { endpointToken: string; agentInfo: { name: string; callbackUrl: string; version?: string; capabilities?: string[] } }) {
+    return this.post<{ success: boolean; protocol: string; events: string[] }>('/skill-protocol/register', data);
+  }
+
+  async sendSkillHeartbeat(data: { endpointToken: string; status: string; metrics?: any }) {
+    return this.post<{ success: boolean; nextHeartbeat: number }>('/skill-protocol/heartbeat', data);
+  }
+
+  async sendSkillEvent(data: { endpointToken: string; event: { type: string; data: any; timestamp?: string } }) {
+    return this.post<{ success: boolean; eventId: string }>('/skill-protocol/events', data);
+  }
+
   // Context Engine
   async getContext(type: 'conversation' | 'room', id: string) {
     return this.get<{ context: string; wasCompressed: boolean; snapshotId?: string; tokenCount: number; stats: any }>(`/context?type=${type}&id=${id}`);

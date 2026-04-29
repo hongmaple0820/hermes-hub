@@ -25,7 +25,41 @@ export async function GET(
       return NextResponse.json({ error: 'Skill not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ skill });
+    // Enhance each agent binding with endpoint URL and registration status
+    const agentsWithEndpoints = skill.agents.map((binding) => {
+      const registrationInfo = JSON.parse(binding.registrationInfo || '{}');
+      // Note: registrationInfo is on AgentSkill, not Skill — but we may not have it yet
+      // Actually, the binding IS the AgentSkill record
+      return {
+        ...binding,
+        endpointUrl: binding.endpointToken
+          ? `/api/skill-protocol/events?token=${binding.endpointToken}`
+          : null,
+        registrationStatus: binding.callbackUrl ? 'registered' : 'pending',
+        registrationInfo,
+        invokeCount: binding.invokeCount,
+        lastInvokedAt: binding.lastInvokedAt,
+      };
+    });
+
+    // Also include the skill-level endpoint and registration info
+    const skillEndpointUrl = skill.endpointToken
+      ? `/api/skill-protocol/events?token=${skill.endpointToken}`
+      : null;
+
+    const skillRegistrationInfo = JSON.parse(skill.registrationInfo || '{}');
+    const skillEvents = JSON.parse(skill.events || '[]');
+
+    return NextResponse.json({
+      skill: {
+        ...skill,
+        agents: agentsWithEndpoints,
+        endpointUrl: skillEndpointUrl,
+        registrationStatus: skill.callbackUrl ? 'registered' : 'pending',
+        registrationInfo: skillRegistrationInfo,
+        events: skillEvents,
+      },
+    });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -56,10 +90,11 @@ export async function PATCH(
     const allowedFields = [
       'displayName', 'description', 'category', 'version', 'author',
       'icon', 'configSchema', 'handlerType', 'handlerUrl', 'parameters', 'isEnabled',
+      'callbackUrl', 'events',
     ];
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
-        if (['configSchema', 'parameters'].includes(field)) {
+        if (['configSchema', 'parameters', 'events'].includes(field)) {
           updateData[field] = JSON.stringify(body[field]);
         } else {
           updateData[field] = body[field];

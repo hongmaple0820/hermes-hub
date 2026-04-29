@@ -46,6 +46,21 @@ interface AgentConfig {
   baseUrl?: string
   callbackUrl?: string
   systemPrompt?: string
+  skills?: AgentSkillConfig[]
+}
+
+interface AgentSkillConfig {
+  skillId: string
+  skillName: string
+  skillDisplayName: string
+  handlerType: string // builtin, webhook, function
+  callbackUrl?: string
+  handlerUrl?: string
+  callbackSecret?: string
+  endpointToken?: string
+  isEnabled: boolean
+  priority: number
+  parameters?: string // JSON
 }
 
 interface AgentMessagePayload {
@@ -604,18 +619,48 @@ async function handleBuiltinAgent(
   }
   messages.push({ role: 'user', content: message })
 
+  // Build tool definitions from enabled skills
+  const tools: any[] = []
+  if (agentConfig.skills && agentConfig.skills.length > 0) {
+    for (const skill of agentConfig.skills) {
+      if (!skill.isEnabled) continue
+      let parameters: any[] = []
+      try { parameters = JSON.parse(skill.parameters || '[]') } catch {}
+      const properties: Record<string, any> = {}
+      const required: string[] = []
+      for (const param of parameters) {
+        properties[param.name] = { type: param.type || 'string', description: param.description || '' }
+        if (param.required) required.push(param.name)
+      }
+      tools.push({
+        type: 'function',
+        function: {
+          name: `skill_${skill.skillName}`,
+          description: skill.skillDisplayName,
+          parameters: { type: 'object', properties, required: required.length > 0 ? required : undefined },
+        },
+      })
+    }
+  }
+
   try {
+    const requestBody: any = {
+      model,
+      messages,
+      stream: true,
+    }
+    if (tools.length > 0) {
+      requestBody.tools = tools
+      requestBody.tool_choice = 'auto'
+    }
+
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model,
-        messages,
-        stream: true,
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     if (!response.ok) {
@@ -629,6 +674,8 @@ async function handleBuiltinAgent(
     }
 
     let fullResponse = ''
+    let toolCalls: any[] = []
+    let hasToolCalls = false
     const reader = body.getReader()
     const decoder = new TextDecoder()
 
@@ -646,7 +693,23 @@ async function handleBuiltinAgent(
 
         try {
           const parsed = JSON.parse(data)
-          const content = parsed.choices?.[0]?.delta?.content
+          const delta = parsed.choices?.[0]?.delta
+          
+          // Handle tool calls
+          if (delta?.tool_calls) {
+            hasToolCalls = true
+            for (const tc of delta.tool_calls) {
+              if (!toolCalls[tc.index]) {
+                toolCalls[tc.index] = { id: tc.id, function: { name: '', arguments: '' } }
+              }
+              if (tc.id) toolCalls[tc.index].id = tc.id
+              if (tc.function?.name) toolCalls[tc.index].function.name += tc.function.name
+              if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments
+            }
+          }
+          
+          // Handle regular content
+          const content = delta?.content
           if (content) {
             fullResponse += content
             io.to(roomKey).emit('agent:stream', {
@@ -659,6 +722,73 @@ async function handleBuiltinAgent(
         } catch {
           // Skip malformed JSON chunks
         }
+      }
+    }
+
+    // Process tool calls if any
+    if (hasToolCalls && toolCalls.length > 0) {
+      toolCalls = toolCalls.filter(Boolean)
+      console.log(`[AGENT:BUILTIN] Processing ${toolCalls.length} tool calls from LLM`)
+      
+      for (const toolCall of toolCalls) {
+        const skillName = toolCall.function.name?.replace('skill_', '')
+        const args = (() => { try { return JSON.parse(toolCall.function.arguments || '{}') } catch { return {} } })()
+        
+        console.log(`[AGENT:BUILTIN] Tool call: ${skillName} with args:`, args)
+        
+        // Find the matching skill in agent config
+        const matchingSkill = agentConfig.skills?.find(s => s.skillName === skillName && s.isEnabled)
+        if (!matchingSkill) {
+          fullResponse += `\n[Tool ${skillName}: Skill not found or disabled]`
+          continue
+        }
+        
+        // Invoke the skill based on handler type
+        let skillResult = ''
+        const targetUrl = matchingSkill.callbackUrl || matchingSkill.handlerUrl
+        if (targetUrl) {
+          try {
+            const skillResponse = await fetch(targetUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Hermes-Agent-Id': agentConfig.agentId,
+                'X-Hermes-Skill-Id': matchingSkill.skillId,
+              },
+              body: JSON.stringify({
+                agentId: agentConfig.agentId,
+                skillName,
+                skillDisplayName: matchingSkill.skillDisplayName,
+                arguments: args,
+                message,
+                conversationId,
+                timestamp: new Date().toISOString(),
+              }),
+              signal: AbortSignal.timeout(15000),
+            })
+            
+            if (skillResponse.ok) {
+              const data = await skillResponse.json().catch(() => ({ response: 'Skill executed' }))
+              skillResult = data.response || data.message || data.content || data.result || JSON.stringify(data)
+            } else {
+              skillResult = `[Skill ${matchingSkill.skillDisplayName} error: ${skillResponse.status}]`
+            }
+          } catch (err: any) {
+            skillResult = `[Skill ${matchingSkill.skillDisplayName} failed: ${err.message}]`
+          }
+        } else {
+          skillResult = `[Skill ${matchingSkill.skillDisplayName}: No callback/handler URL configured]`
+        }
+        
+        fullResponse += `\n🔧 **${matchingSkill.skillDisplayName}**: ${skillResult}\n`
+        
+        // Stream the skill result
+        io.to(roomKey).emit('agent:stream', {
+          conversationId,
+          agentId: agentConfig.agentId,
+          chunk: `\n🔧 **${matchingSkill.skillDisplayName}**: ${skillResult}\n`,
+          timestamp: new Date().toISOString(),
+        } as StreamChunk)
       }
     }
 
@@ -715,7 +845,7 @@ async function handleCustomApiAgent(
     io.to(roomKey).emit('agent:stream-complete', {
       conversationId,
       agentId: agentConfig.agentId,
-      fullResponse: 'Error: Callback URL not configured for this agent.',
+      fullResponse: 'Error: Callback URL not configured for this agent. Please configure a callback URL in the agent settings, or generate a Skill endpoint URL to allow external agents to register.',
       timestamp: new Date().toISOString(),
       error: true,
     })
@@ -723,6 +853,20 @@ async function handleCustomApiAgent(
   }
 
   try {
+    // Build skill tool definitions for custom API too
+    const tools: any[] = []
+    if (agentConfig.skills && agentConfig.skills.length > 0) {
+      for (const skill of agentConfig.skills) {
+        if (!skill.isEnabled) continue
+        tools.push({
+          name: skill.skillName,
+          displayName: skill.skillDisplayName,
+          handlerType: skill.handlerType,
+          callbackUrl: skill.callbackUrl || skill.handlerUrl,
+        })
+      }
+    }
+
     const response = await fetch(callbackUrl, {
       method: 'POST',
       headers: {
@@ -733,6 +877,7 @@ async function handleCustomApiAgent(
         agentId: agentConfig.agentId,
         agentName: agentConfig.name,
         message,
+        skills: tools,
         timestamp: new Date().toISOString(),
       }),
     })

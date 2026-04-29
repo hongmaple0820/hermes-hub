@@ -30,6 +30,8 @@ export async function PATCH(
     if (body.config !== undefined) updateData.config = JSON.stringify(body.config);
     if (body.isEnabled !== undefined) updateData.isEnabled = body.isEnabled;
     if (body.priority !== undefined) updateData.priority = body.priority;
+    if (body.callbackUrl !== undefined) updateData.callbackUrl = body.callbackUrl;
+    if (body.callbackSecret !== undefined) updateData.callbackSecret = body.callbackSecret;
 
     const updated = await db.agentSkill.update({
       where: { agentId_skillId: { agentId: id, skillId } },
