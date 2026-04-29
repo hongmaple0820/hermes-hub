@@ -364,9 +364,14 @@ function RoomsPanel() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const socketRef = useRef<Socket | null>(null);
+  const selectedRoomIdRef = useRef<string | null>(null);
 
   const selectedRoom = chatRooms.find((r: any) => r.id === selectedRoomId);
   const roomAgents = selectedRoom?.agents || [];
+
+  useEffect(() => {
+    selectedRoomIdRef.current = selectedRoomId;
+  }, [selectedRoomId]);
 
   // Socket.IO connection
   useEffect(() => {
@@ -378,10 +383,6 @@ function RoomsPanel() {
         username: user.name || user.email || 'User',
       },
       transports: ['websocket'],
-    });
-
-    socket.on('connect', () => {
-      console.log('[ChatView] Socket.IO connected');
     });
 
     socket.on('room:message', (data: any) => {
@@ -409,7 +410,7 @@ function RoomsPanel() {
       if (!data.error) {
         setRoomMessages((prev) => [...prev, {
           id: `agent-msg-${Date.now()}`,
-          roomId: data.conversationId || selectedRoomId,
+          roomId: data.conversationId || selectedRoomIdRef.current,
           senderId: data.agentId,
           senderName: data.agentName || 'Agent',
           content: data.fullResponse,
@@ -425,7 +426,7 @@ function RoomsPanel() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [user?.id, user?.name, user?.email, selectedRoomId]);
+  }, [user?.id, user?.name, user?.email]);
 
   // Join/leave room via Socket.IO
   useEffect(() => {
