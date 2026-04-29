@@ -14,10 +14,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Bot, Send, Plus, Loader2, ArrowLeft, MessageSquare, Users } from 'lucide-react';
+import { Bot, Send, Plus, Loader2, ArrowLeft, MessageSquare, Users, GitBranch, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
+import { ContextIndicator } from '@/components/shared/ContextIndicator';
 
 // ---------------------------------------------------------------------------
 // Sub-component: Conversations Tab (1-on-1 chats)
@@ -31,6 +32,7 @@ function ConversationsPanel() {
   const [sending, setSending] = useState(false);
   const [showNewChat, setShowNewChat] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [lineage, setLineage] = useState<{ ancestors: any[]; totalMessages: number } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const selectedConv = conversations.find((c: any) => c.id === selectedConversationId);
@@ -48,13 +50,26 @@ function ConversationsPanel() {
     }
   }, [selectedConversationId]);
 
+  // Load lineage info
+  const loadLineage = useCallback(async () => {
+    if (!selectedConversationId) return;
+    try {
+      const result = await api.getConversationLineage(selectedConversationId);
+      setLineage(result as any);
+    } catch {
+      // Lineage not available yet or no data
+    }
+  }, [selectedConversationId]);
+
   useEffect(() => {
     if (selectedConversationId) {
       loadMessages();
+      loadLineage();
     } else {
       setMessages([]);
+      setLineage(null);
     }
-  }, [selectedConversationId, loadMessages]);
+  }, [selectedConversationId, loadMessages, loadLineage]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -192,13 +207,45 @@ function ConversationsPanel() {
       <div className="flex-1 flex flex-col">
         {selectedConv ? (
           <>
-            <div className="px-6 py-3 border-b border-border flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <Bot className="w-4 h-4 text-primary" />
+            <div className="px-6 py-3 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Bot className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{selectedConv.agent?.name || 'Chat'}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-muted-foreground">{selectedConv.agent?.status === 'online' ? t('common.online') : t('common.offline')}</p>
+                    {lineage && lineage.ancestors.length > 0 && (
+                      <Badge variant="outline" className="text-[10px] h-4 gap-1">
+                        <GitBranch className="w-2.5 h-2.5" />
+                        {t('context.lineage')}: {lineage.ancestors.length} · {t('context.totalMessages')}: {lineage.totalMessages}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium">{selectedConv.agent?.name || 'Chat'}</p>
-                <p className="text-xs text-muted-foreground">{selectedConv.agent?.status === 'online' ? t('common.online') : t('common.offline')}</p>
+              <div className="flex items-center gap-2">
+                <ContextIndicator type="conversation" id={selectedConversationId!} />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={async () => {
+                    try {
+                      const result = await api.continueConversation(selectedConversationId!, selectedConv.agentId);
+                      const convs = await api.getConversations();
+                      setConversations(convs.conversations || []);
+                      setSelectedConversationId(result.conversationId);
+                      toast.success(t('context.continueInNewSession'));
+                    } catch (error: any) {
+                      toast.error(error.message);
+                    }
+                  }}
+                >
+                  <ArrowRight className="w-3 h-3" />
+                  <span className="hidden sm:inline">{t('context.continueInNewSession')}</span>
+                </Button>
               </div>
             </div>
 
@@ -646,9 +693,13 @@ function RoomsPanel() {
                   </div>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedRoomId(null)} className="gap-1">
-                <ArrowLeft className="w-3 h-3" /> {t('chat.backToRooms')}
-              </Button>
+              <div className="flex items-center gap-2">
+                {/* Context indicator for room */}
+                <ContextIndicator type="room" id={selectedRoomId!} />
+                <Button variant="ghost" size="sm" onClick={() => setSelectedRoomId(null)} className="gap-1">
+                  <ArrowLeft className="w-3 h-3" /> {t('chat.backToRooms')}
+                </Button>
+              </div>
             </div>
 
             {/* Messages */}

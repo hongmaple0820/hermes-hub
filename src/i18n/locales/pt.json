@@ -625,5 +625,23 @@
   "markdown": {
     "copy": "Copiar",
     "copied": "Copiado!"
+  },
+  "oauth": {
+    "title": "Integração OAuth",
+    "connect": "Conectar",
+    "connected": "Conectado",
+    "disconnected": "Desconectado",
+    "verifyCode": "Verificar código",
+    "openUrl": "Abrir URL",
+    "polling": "Aguardando verificação...",
+    "success": "Conexão bem-sucedida",
+    "failed": "Falha na conexão",
+    "cancel": "Cancelar",
+    "revoke": "Desconectar",
+    "codex": "OpenAI Codex",
+    "nous": "Nous Research",
+    "copilot": "GitHub Copilot",
+    "deviceCodeHint": "Conecte-se usando o fluxo de código de dispositivo. Você receberá um código para inserir no site do provedor.",
+    "enterCodeAt": "Insira o código abaixo na URL de verificação"
   }
 }

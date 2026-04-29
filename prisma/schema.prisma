@@ -39,6 +39,7 @@ model User {
   logEntries      LogEntry[]
   fileEntries     FileEntry[]
   appSettings     AppSettings[]
+  oAuthTokens     OAuthToken[]
 }
 
 model Friendship {
@@ -215,17 +216,20 @@ model HermesGateway {
 // ==================== Chat System ====================
 
 model Conversation {
-  id        String   @id @default(cuid())
-  type      String   @default("private") // private, group
-  name      String?
-  agentId   String?  // For agent conversations
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  type            String   @default("private") // private, group
+  name            String?
+  agentId         String?  // For agent conversations
+  parentSessionId String?  // For conversation lineage tracking - links to previous session after compression
+  lineage         String   @default("[]") // JSON array of { sessionId, compressedAt, messageCount } for tracking the full conversation chain
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   agent        Agent?                   @relation(fields: [agentId], references: [id])
   participants ConversationParticipant[]
   messages     Message[]
   usageRecords UsageRecord[]
+  contextSnapshots ContextSnapshot[]
 }
 
 model ConversationParticipant {
@@ -276,6 +280,7 @@ model ChatRoom {
   members  ChatRoomMember[]
   agents   ChatRoomAgent[]
   messages ChatRoomMessage[]
+  contextSnapshots ContextSnapshot[]
 }
 
 model ChatRoomMember {
@@ -492,4 +497,47 @@ model AppSettings {
 
   @@unique([userId, section, key])
   @@index([userId])
+}
+
+// ==================== OAuth Integration ====================
+
+model OAuthToken {
+  id            String   @id @default(cuid())
+  userId        String
+  provider      String   // codex, nous, copilot
+  accessToken   String?
+  refreshToken  String?
+  deviceCode    String?
+  expiresIn     Int?     // seconds until expiration
+  scope         String?
+  tokenType     String?  // Bearer, etc.
+  status        String   @default("pending") // pending, active, expired, revoked
+  polling       Boolean  @default(false)
+  verifiedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+// ==================== Context Compression ====================
+
+model ContextSnapshot {
+  id              String   @id @default(cuid())
+  roomId          String?  // For group chat compression
+  conversationId  String?  // For 1-on-1 compression
+  summary         String   // Compressed summary text
+  messageRange    String   @default("{}") // JSON: { fromMessageId, toMessageId, fromTimestamp, toTimestamp }
+  tokenCount      Int      @default(0)    // Estimated tokens in summary
+  compressionType String   @default("full") // full, incremental
+  createdAt       DateTime @default(now())
+
+  room        ChatRoom?       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  conversation Conversation?  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
+  @@index([conversationId, createdAt])
 }

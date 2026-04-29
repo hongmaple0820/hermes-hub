@@ -422,6 +422,80 @@ class ApiClient {
   async seedSkills() {
     return this.post('/seed/skills');
   }
+
+  // OAuth - Codex
+  async startCodexOAuth() {
+    return this.post<{ deviceCode: string; userCode: string; verificationUri: string; expiresIn: number }>('/auth/codex/start');
+  }
+  async pollCodexOAuth(deviceCode: string) {
+    return this.get<{ status: string }>(`/auth/codex/poll?deviceCode=${encodeURIComponent(deviceCode)}`);
+  }
+  async getCodexOAuthStatus() {
+    return this.get<{ status: string; hasToken: boolean; verifiedAt?: string }>('/auth/codex/status');
+  }
+  async revokeCodexOAuth() {
+    return this.del('/auth/codex');
+  }
+
+  // OAuth - Nous
+  async startNousOAuth() {
+    return this.post<{ deviceCode: string; userCode: string; verificationUri: string; expiresIn: number }>('/auth/nous/start');
+  }
+  async pollNousOAuth(deviceCode: string) {
+    return this.get<{ status: string }>(`/auth/nous/poll?deviceCode=${encodeURIComponent(deviceCode)}`);
+  }
+  async getNousOAuthStatus() {
+    return this.get<{ status: string; hasToken: boolean; verifiedAt?: string }>('/auth/nous/status');
+  }
+  async revokeNousOAuth() {
+    return this.del('/auth/nous');
+  }
+
+  // OAuth - Copilot
+  async startCopilotOAuth() {
+    return this.post<{ deviceCode: string; userCode: string; verificationUri: string; expiresIn: number }>('/auth/copilot/start');
+  }
+  async pollCopilotOAuth(deviceCode: string) {
+    return this.get<{ status: string }>(`/auth/copilot/poll?deviceCode=${encodeURIComponent(deviceCode)}`);
+  }
+  async getCopilotStatus() {
+    return this.get<{ valid: boolean; source: string; status?: string }>('/auth/copilot/check-token');
+  }
+  async enableCopilot() {
+    return this.post('/auth/copilot/start', { action: 'enable' });
+  }
+  async disableCopilot() {
+    return this.post('/auth/copilot/start', { action: 'disable' });
+  }
+  async revokeCopilotOAuth() {
+    return this.del('/auth/copilot');
+  }
+
+  // Context Engine
+  async getContext(type: 'conversation' | 'room', id: string) {
+    return this.get<{ context: string; wasCompressed: boolean; snapshotId?: string; tokenCount: number; stats: any }>(`/context?type=${type}&id=${id}`);
+  }
+
+  async forceCompress(type: 'conversation' | 'room', id: string) {
+    return this.post<{ snapshotId: string; summaryTokenCount: number }>('/context/compress', { type, id });
+  }
+
+  async compressRoom(roomId: string) {
+    return this.post(`/chat-rooms/${roomId}/compress`);
+  }
+
+  async getContextDetails(type: 'conversation' | 'room', id: string) {
+    return this.get(`/context/${type}/${id}`);
+  }
+
+  // Conversation Lineage
+  async getConversationLineage(conversationId: string) {
+    return this.get<{ current: any; ancestors: any[]; totalMessages: number }>(`/conversations/${conversationId}/lineage`);
+  }
+
+  async continueConversation(conversationId: string, agentId?: string) {
+    return this.post<{ conversationId: string; carriedContext: string }>(`/conversations/${conversationId}/continue`, { agentId });
+  }
 }
 
 export const api = new ApiClient();

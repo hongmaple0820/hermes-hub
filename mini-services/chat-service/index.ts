@@ -481,6 +481,64 @@ io.on('connection', (socket: Socket) => {
   })
 
   // -----------------------------------------------------------------------
+  // Context Compression Events
+  // -----------------------------------------------------------------------
+
+  socket.on('room:compress', async (data: { roomId: string }) => {
+    const { roomId } = data
+    const roomKey = `room:${roomId}`
+
+    console.log(`[ROOM:COMPRESS] User ${username} requested compression for room ${roomId}`)
+
+    // Emit compressing status
+    io.to(roomKey).emit('room:compress-status', {
+      roomId,
+      status: 'compressing',
+      timestamp: new Date().toISOString(),
+    })
+
+    try {
+      // Call the Next.js API to trigger compression
+      const nextjsUrl = process.env.NEXTJS_API_URL || 'http://localhost:3000'
+      const response = await fetch(`${nextjsUrl}/api/chat-rooms/${roomId}/compress`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId,
+        },
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Compression API error: ${response.status} - ${errorText}`)
+      }
+
+      const result = await response.json()
+
+      console.log(`[ROOM:COMPRESS] Compression complete for room ${roomId}, snapshot: ${result.snapshotId}`)
+
+      // Emit ready status
+      io.to(roomKey).emit('room:compress-status', {
+        roomId,
+        status: 'ready',
+        snapshotId: result.snapshotId,
+        summaryTokenCount: result.summaryTokenCount,
+        timestamp: new Date().toISOString(),
+      })
+    } catch (err: any) {
+      console.error(`[ROOM:COMPRESS] Error compressing room ${roomId}:`, err)
+
+      // Emit error status
+      io.to(roomKey).emit('room:compress-status', {
+        roomId,
+        status: 'error',
+        error: err.message || 'Compression failed',
+        timestamp: new Date().toISOString(),
+      })
+    }
+  })
+
+  // -----------------------------------------------------------------------
   // Disconnect
   // -----------------------------------------------------------------------
 

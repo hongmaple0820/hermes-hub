@@ -625,5 +625,40 @@
   "markdown": {
     "copy": "Copy",
     "copied": "Copied!"
+  },
+  "oauth": {
+    "title": "OAuth Integration",
+    "connect": "Connect",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "verifyCode": "Verify Code",
+    "openUrl": "Open URL",
+    "polling": "Waiting for verification...",
+    "success": "Connected Successfully",
+    "failed": "Connection Failed",
+    "cancel": "Cancel",
+    "revoke": "Disconnect",
+    "codex": "OpenAI Codex",
+    "nous": "Nous Research",
+    "copilot": "GitHub Copilot",
+    "deviceCodeHint": "Connect using device code flow. You will be given a code to enter on the provider's website.",
+    "enterCodeAt": "Enter the code below at the verification URL"
+  },
+  "context": {
+    "title": "Context Engine",
+    "compressed": "Compressed",
+    "compressing": "Compressing...",
+    "forceCompress": "Force Compress",
+    "tokenCount": "Token Count",
+    "threshold": "Threshold",
+    "triggerTokens": "Trigger Tokens",
+    "maxHistoryTokens": "Max History Tokens",
+    "tailMessageCount": "Tail Messages",
+    "lineage": "Lineage",
+    "continuesFrom": "Continues from previous session",
+    "continueInNewSession": "Continue in New Session",
+    "totalMessages": "Total Messages",
+    "compressionType": "Compression Type",
+    "snapshotCreated": "Snapshot Created"
   }
 }

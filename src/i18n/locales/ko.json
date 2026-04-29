@@ -625,5 +625,40 @@
   "markdown": {
     "copy": "복사",
     "copied": "복사됨!"
+  },
+  "oauth": {
+    "title": "OAuth 연동",
+    "connect": "연결",
+    "connected": "연결됨",
+    "disconnected": "연결 끊김",
+    "verifyCode": "확인 코드",
+    "openUrl": "URL 열기",
+    "polling": "인증 대기 중...",
+    "success": "연결 성공",
+    "failed": "연결 실패",
+    "cancel": "취소",
+    "revoke": "연결 해제",
+    "codex": "OpenAI Codex",
+    "nous": "Nous Research",
+    "copilot": "GitHub Copilot",
+    "deviceCodeHint": "디바이스 코드 플로우로 연결합니다. 프로바이더 웹사이트에 입력할 코드가 제공됩니다.",
+    "enterCodeAt": "인증 URL에서 아래 코드를 입력하세요"
+  },
+  "context": {
+    "title": "컨텍스트 엔진",
+    "compressed": "압축됨",
+    "compressing": "압축 중...",
+    "forceCompress": "강제 압축",
+    "tokenCount": "토큰 수",
+    "threshold": "임계값",
+    "triggerTokens": "압축 트리거 토큰 수",
+    "maxHistoryTokens": "최대 기록 토큰 수",
+    "tailMessageCount": "꼬리 메시지 수",
+    "lineage": "대화 체인",
+    "continuesFrom": "이전 세션에서 계속",
+    "continueInNewSession": "새 세션에서 계속",
+    "totalMessages": "총 메시지 수",
+    "compressionType": "압축 유형",
+    "snapshotCreated": "스냅샷 생성됨"
   }
 }

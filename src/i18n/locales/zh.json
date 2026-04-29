@@ -625,5 +625,40 @@
   "markdown": {
     "copy": "复制",
     "copied": "已复制！"
+  },
+  "oauth": {
+    "title": "OAuth 集成",
+    "connect": "连接",
+    "connected": "已连接",
+    "disconnected": "已断开",
+    "verifyCode": "验证码",
+    "openUrl": "打开链接",
+    "polling": "等待验证中...",
+    "success": "连接成功",
+    "failed": "连接失败",
+    "cancel": "取消",
+    "revoke": "断开连接",
+    "codex": "OpenAI Codex",
+    "nous": "Nous Research",
+    "copilot": "GitHub Copilot",
+    "deviceCodeHint": "使用设备码流程连接。您将获得一个代码，需要在供应商网站上输入。",
+    "enterCodeAt": "在验证网址输入以下代码"
+  },
+  "context": {
+    "title": "上下文引擎",
+    "compressed": "已压缩",
+    "compressing": "压缩中...",
+    "forceCompress": "强制压缩",
+    "tokenCount": "Token 数量",
+    "threshold": "阈值",
+    "triggerTokens": "触发压缩 Token 数",
+    "maxHistoryTokens": "最大历史 Token 数",
+    "tailMessageCount": "尾部保留消息数",
+    "lineage": "会话链",
+    "continuesFrom": "接续自上一个会话",
+    "continueInNewSession": "在新会话中继续",
+    "totalMessages": "总消息数",
+    "compressionType": "压缩类型",
+    "snapshotCreated": "快照已创建"
   }
 }

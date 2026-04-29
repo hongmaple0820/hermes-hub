@@ -625,5 +625,40 @@
   "markdown": {
     "copy": "コピー",
     "copied": "コピーしました！"
+  },
+  "oauth": {
+    "title": "OAuth連携",
+    "connect": "接続",
+    "connected": "接続済み",
+    "disconnected": "切断",
+    "verifyCode": "確認コード",
+    "openUrl": "URLを開く",
+    "polling": "認証待ち...",
+    "success": "接続に成功しました",
+    "failed": "接続に失敗しました",
+    "cancel": "キャンセル",
+    "revoke": "切断",
+    "codex": "OpenAI Codex",
+    "nous": "Nous Research",
+    "copilot": "GitHub Copilot",
+    "deviceCodeHint": "デバイスコードフローで接続します。プロバイダーのウェブサイトで入力するコードが発行されます。",
+    "enterCodeAt": "認証URLで以下のコードを入力してください"
+  },
+  "context": {
+    "title": "コンテキストエンジン",
+    "compressed": "圧縮済み",
+    "compressing": "圧縮中...",
+    "forceCompress": "強制圧縮",
+    "tokenCount": "トークン数",
+    "threshold": "閾値",
+    "triggerTokens": "圧縮トリガートークン数",
+    "maxHistoryTokens": "最大履歴トークン数",
+    "tailMessageCount": "末尾メッセージ数",
+    "lineage": "会話チェーン",
+    "continuesFrom": "前のセッションから継続",
+    "continueInNewSession": "新しいセッションで継続",
+    "totalMessages": "総メッセージ数",
+    "compressionType": "圧縮タイプ",
+    "snapshotCreated": "スナップショット作成済み"
   }
 }
