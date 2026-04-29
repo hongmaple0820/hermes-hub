@@ -345,6 +345,49 @@ Stage Summary:
   - skill-ws (3004): Socket.IO for external agent WS connections + internal HTTP API
 
 ---
+Task ID: ACRP-1
+Agent: main
+Task: Design & implement Agent Capability Registration Protocol (ACRP)
+
+Work Log:
+- Updated Prisma schema with ACRP fields on Agent model: agentToken, agentType, agentVersion, agentPlatform, agentMetadata, wsConnected, lastHeartbeatAt, registeredAt
+- Created AgentCapability model: capabilityId, name, description, category, parameters (JSON Schema), uiHints, isEnabled, invokeCount
+- Created CapabilityInvocation model: capabilityId, invokedBy, params, result, status (pending/sent/executing/success/failed/timeout), error, duration
+- Ran db:push to apply schema changes
+- Evolved skill-ws service with dual authentication: endpointToken (legacy) + agentToken (ACRP)
+- Added ACRP event handlers: agent:register, agent:heartbeat, agent:status, agent:event, capability:result
+- Added Hub→Agent events: capability:invoke, agent:command, agent:notification
+- Added internal HTTP APIs: /internal/acrp-invoke (with 60s timeout), /internal/acrp-status, /internal/acrp-notify
+- Created 12 ACRP API routes under /api/acrp/: generate-token, validate-token, register, heartbeat, disconnect, status, agents, agents/[id], agents/[id]/invoke, agents/[id]/command, agents/[id]/token, invocation-result, invocations
+- Built AgentControlCenter.tsx (1342 lines) with 3 tabs: Connected Agents, Remote Control, Setup Guide
+- Updated api-client.ts with 7 ACRP methods
+- Added 46 i18n keys across all 8 locales (en, zh, ja, ko, de, es, fr, pt)
+- Updated Sidebar with Monitor icon + agent-control view
+- Updated page.tsx to render AgentControlCenter
+- Added 'agent-control' to ViewMode in store
+- All lint checks pass clean
+- All API endpoints tested and working
+- Pushed to remote: github.com/hongmaple0820/hermes-hub main
+
+Stage Summary:
+- **ACRP (Agent Capability Registration Protocol) fully implemented**
+- External agents (hermes-agent, openclaw, claude-code, codex, trae) can now:
+  1. Generate a connection token from the Hub UI
+  2. Connect via WebSocket using agentToken authentication
+  3. Self-register their capabilities (model.switch, skill.install, soul.configure, etc.)
+  4. Maintain heartbeat for connection health monitoring
+  5. Receive capability invocations from the Hub
+  6. Return results asynchronously
+- **Hub users can now**:
+  1. See all connected ACRP agents with live status
+  2. Remotely invoke any registered capability
+  3. Send commands (restart, reload_config, update_skills)
+  4. View invocation history with status tracking
+  5. Revoke tokens to disconnect agents
+- **Architecture**: Skill-ws dual auth (endpointToken + agentToken), separate ACRP agent tracking
+- **Supported agent types**: hermes-agent, openclaw, claude-code, codex, trae, custom
+
+---
 Task ID: 2-b
 Agent: AcrpApiBuilder
 Task: Create ACRP (Agent Capability Registration Protocol) API routes
