@@ -256,3 +256,29 @@ Stage Summary:
 - All translation keys: 200+ keys across 17+ namespaces per locale
 - Language switcher automatically shows all 8 languages
 - Lazy loading and caching work for all new locales without code changes
+
+---
+Task ID: 6
+Agent: main
+Task: Comprehensive feature parity implementation with hermes-web-ui, bug fixes, and push to remote
+
+Work Log:
+- Analyzed hermes-web-ui (reference project) feature set: 15 pages, 50+ API endpoints, 10 stores, 8 platforms, context engine, OAuth, terminal, file browser, etc.
+- Identified major gaps: Channels, Jobs, Usage, Profiles, Memory, Logs, Files, Terminal, Session Search, Settings, SSE Streaming, Chat Room messaging, Agent/Provider Edit, Markdown Rendering, i18n expansion
+- Fixed critical bug: ChatRoom delete was calling api.deleteAgent() instead of api.deleteChatRoom()
+- Extended Prisma schema with 8 new models: Channel, Job, Profile, AgentMemory, UsageRecord, LogEntry, FileEntry, AppSettings
+- Added 22 new API route files across 10 endpoint groups
+- Created 9 new view components: ChannelsView, JobsView, UsageView, ProfilesView, MemoryView, LogsView, FilesView, TerminalView, SessionSearch
+- Enhanced 5 existing views: ChatView (rooms + markdown), AgentManager (edit), ProviderManager (edit), Settings (8 sub-sections), Sidebar (4 navigation sections)
+- Created MarkdownRenderer component with code block copy support
+- Added 4 new i18n locales (de, es, fr, pt) for total of 8 languages
+- All lint checks passing, dev server running correctly
+- Committed and pushed to GitHub remote
+
+Stage Summary:
+- Total views: 18 (9 original + 9 new)
+- Total API routes: 50+ route files across 18 endpoint groups
+- Total database models: 24 (16 original + 8 new)
+- i18n: 8 languages (zh, en, ja, ko, de, es, fr, pt) with 200+ keys each
+- Feature parity with hermes-web-ui significantly improved
+- Remaining gaps: OAuth integration (Codex/Nous/Copilot), actual WebSocket terminal (node-pty), conversation lineage tracking, WeChat QR login flow
