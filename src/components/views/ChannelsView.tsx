@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  MessageCircle, Hash, HashIcon, Phone, Grid3x3, Birds,
+  MessageCircle, Hash, HashIcon, Phone, Grid3x3, Bird,
   QrCode, Building2, Loader2, Save, RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -86,7 +86,7 @@ const PLATFORMS = [
   },
   {
     id: 'feishu',
-    icon: Birds,
+    icon: Bird,
     color: 'text-blue-500',
     bgColor: 'bg-blue-500/10',
     fields: [
