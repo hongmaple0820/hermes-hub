@@ -56,6 +56,9 @@ export async function POST(
         endpointToken: token,
         callbackSecret: secret,
         protocol: 'v1',
+        connectionMode: 'websocket',
+        wsConnectUrl: '/?XTransformPort=3004',
+        wsDirectUrl: 'ws://localhost:3004/',
         skillName: agentSkill.skill.name,
         skillDisplayName: agentSkill.skill.displayName,
       })
@@ -82,6 +85,9 @@ export async function POST(
         endpointToken: token,
         callbackSecret: secret,
         protocol: 'v1',
+        connectionMode: 'websocket',
+        wsConnectUrl: '/?XTransformPort=3004',
+        wsDirectUrl: 'ws://localhost:3004/',
         pluginName: plugin.name,
       })
     }

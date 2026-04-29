@@ -743,41 +743,95 @@ async function handleBuiltinAgent(
           continue
         }
         
-        // Invoke the skill based on handler type
+        // Invoke the skill based on connection method
         let skillResult = ''
-        const targetUrl = matchingSkill.callbackUrl || matchingSkill.handlerUrl
-        if (targetUrl) {
+
+        // First, try WebSocket invocation via skill-ws service
+        const SKILL_WS_URL = process.env.SKILL_WS_URL || 'http://localhost:3004'
+
+        // Check if agent is connected via WebSocket
+        let wsConnected = false
+        try {
+          const statusRes = await fetch(
+            `${SKILL_WS_URL}/internal/status?agentId=${agentConfig.agentId}&skillId=${matchingSkill.skillId}`,
+            { signal: AbortSignal.timeout(3000) }
+          )
+          if (statusRes.ok) {
+            const statusData = await statusRes.json()
+            wsConnected = statusData.connected === true
+          }
+        } catch {
+          // skill-ws service might not be running
+        }
+
+        if (wsConnected) {
+          // Invoke via WebSocket
           try {
-            const skillResponse = await fetch(targetUrl, {
+            const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2)}`
+            const invokeRes = await fetch(`${SKILL_WS_URL}/internal/invoke?wait=true`, {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-Hermes-Agent-Id': agentConfig.agentId,
-                'X-Hermes-Skill-Id': matchingSkill.skillId,
-              },
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 agentId: agentConfig.agentId,
                 skillName,
-                skillDisplayName: matchingSkill.skillDisplayName,
-                arguments: args,
+                params: args,
                 message,
                 conversationId,
-                timestamp: new Date().toISOString(),
+                requestId,
               }),
-              signal: AbortSignal.timeout(15000),
+              signal: AbortSignal.timeout(30000), // 30s timeout for WS response
             })
-            
-            if (skillResponse.ok) {
-              const data = await skillResponse.json().catch(() => ({ response: 'Skill executed' }))
-              skillResult = data.response || data.message || data.content || data.result || JSON.stringify(data)
+
+            if (invokeRes.ok) {
+              const data = await invokeRes.json()
+              if (data.success && data.result) {
+                skillResult = data.result.response || data.result.message || data.result.content ||
+                              data.result.result || JSON.stringify(data.result)
+              } else {
+                skillResult = data.error || `[Skill ${matchingSkill.skillDisplayName}: WS invocation returned no result]`
+              }
             } else {
-              skillResult = `[Skill ${matchingSkill.skillDisplayName} error: ${skillResponse.status}]`
+              skillResult = `[Skill ${matchingSkill.skillDisplayName}: WS invocation failed (${invokeRes.status})]`
             }
           } catch (err: any) {
-            skillResult = `[Skill ${matchingSkill.skillDisplayName} failed: ${err.message}]`
+            skillResult = `[Skill ${matchingSkill.skillDisplayName} WS timeout: ${err.message}]`
           }
         } else {
-          skillResult = `[Skill ${matchingSkill.skillDisplayName}: No callback/handler URL configured]`
+          // Fallback: HTTP callback
+          const targetUrl = matchingSkill.callbackUrl || matchingSkill.handlerUrl
+          if (targetUrl) {
+            try {
+              const skillResponse = await fetch(targetUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-Hermes-Agent-Id': agentConfig.agentId,
+                  'X-Hermes-Skill-Id': matchingSkill.skillId,
+                },
+                body: JSON.stringify({
+                  agentId: agentConfig.agentId,
+                  skillName,
+                  skillDisplayName: matchingSkill.skillDisplayName,
+                  arguments: args,
+                  message,
+                  conversationId,
+                  timestamp: new Date().toISOString(),
+                }),
+                signal: AbortSignal.timeout(15000),
+              })
+
+              if (skillResponse.ok) {
+                const data = await skillResponse.json().catch(() => ({ response: 'Skill executed' }))
+                skillResult = data.response || data.message || data.content || data.result || JSON.stringify(data)
+              } else {
+                skillResult = `[Skill ${matchingSkill.skillDisplayName} error: ${skillResponse.status}]`
+              }
+            } catch (err: any) {
+              skillResult = `[Skill ${matchingSkill.skillDisplayName} failed: ${err.message}]`
+            }
+          } else {
+            skillResult = `[Skill ${matchingSkill.skillDisplayName}: No callback/handler URL configured and not connected via WebSocket]`
+          }
         }
         
         fullResponse += `\n🔧 **${matchingSkill.skillDisplayName}**: ${skillResult}\n`

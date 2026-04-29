@@ -473,7 +473,14 @@ class ApiClient {
 
   // Skill Plugin Protocol
   async generateSkillEndpoint(agentId: string, skillId: string) {
-    return this.post<{ endpointUrl: string; endpointToken: string; callbackSecret: string }>(
+    return this.post<{ 
+      endpointUrl: string; 
+      endpointToken: string; 
+      callbackSecret: string;
+      wsConnectUrl: string;
+      wsDirectUrl: string;
+      connectionMode: string;
+    }>(
       `/agents/${agentId}/generate-skill-endpoint`, { skillId }
     );
   }
@@ -512,6 +519,29 @@ class ApiClient {
 
   async sendSkillEvent(data: { endpointToken: string; event: { type: string; data: any; timestamp?: string } }) {
     return this.post<{ success: boolean; eventId: string }>('/skill-protocol/events', data);
+  }
+
+  // Skill WebSocket Connection
+  async getSkillConnectionInfo(agentId: string, skillId: string) {
+    return this.get<{ 
+      endpointToken: string | null; 
+      callbackUrl: string | null; 
+      callbackSecret: string | null; 
+      wsStatus: { connected: boolean; lastHeartbeat: string | null; socketId: string | null };
+      wsConnectUrl: string | null;
+      connectionMode: string;
+    }>(`/skill-protocol/connection-info?agentId=${agentId}&skillId=${skillId}`);
+  }
+
+  async regenerateSkillEndpoint(agentId: string, skillId: string) {
+    return this.post<{ 
+      endpointUrl: string; 
+      endpointToken: string; 
+      callbackSecret: string;
+      wsConnectUrl: string;
+      wsDirectUrl: string;
+      connectionMode: string;
+    }>(`/agents/${agentId}/generate-skill-endpoint`, { skillId, regenerate: true });
   }
 
   // Context Engine

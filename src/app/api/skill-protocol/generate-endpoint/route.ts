@@ -8,7 +8,7 @@ import { generateEndpointToken, generateCallbackSecret } from '@/lib/skill-proto
  * 
  * Body: { agentId: string, skillId?: string, pluginId?: string }
  * 
- * Returns: { endpointUrl, endpointToken, callbackSecret, protocol }
+ * Returns: { endpointUrl, endpointToken, callbackSecret, protocol, connectionMode, wsConnectUrl, wsDirectUrl, ... }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -57,6 +57,9 @@ export async function POST(request: NextRequest) {
         endpointToken: token,
         callbackSecret: secret,
         protocol: 'v1',
+        connectionMode: 'websocket',
+        wsConnectUrl: '/?XTransformPort=3004',
+        wsDirectUrl: 'ws://localhost:3004/',
         bindingType: 'agent_skill',
         agentId,
         skillId,
@@ -85,6 +88,9 @@ export async function POST(request: NextRequest) {
         endpointToken: token,
         callbackSecret: secret,
         protocol: 'v1',
+        connectionMode: 'websocket',
+        wsConnectUrl: '/?XTransformPort=3004',
+        wsDirectUrl: 'ws://localhost:3004/',
         bindingType: 'agent_plugin',
         agentId,
         pluginId,

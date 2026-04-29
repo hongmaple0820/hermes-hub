@@ -121,3 +121,225 @@ Stage Summary:
 - **UI overhaul**: Both SkillMarketplace and AgentDetail fully redesigned with protocol management
 - **Protocol documentation**: Built into UI with code examples (curl, Python, JavaScript)
 - **What "callback" means now**: The callback URL is where OUR system sends outbound events to the external agent. The endpoint URL is where external agents send events TO our system. This is bidirectional.
+
+---
+Task ID: 2
+Agent: main
+Task: Create Skill WebSocket Service (skill-ws) — Dedicated Socket.IO Server for Skill Plugin Protocol
+
+Work Log:
+- Created `/home/z/my-project/mini-services/skill-ws/package.json` with socket.io dependency
+- Created `/home/z/my-project/mini-services/skill-ws/index.ts` — Full Socket.IO WebSocket server on port 3004:
+  - Authentication middleware: Validates endpointToken via Next.js API on socket connect
+  - Connected agents tracking: Map<agentId:skillId, ConnectedAgent> with socketId, binding info, heartbeat
+  - Event handlers (agent → server):
+    - `skill:register` — Register agent capabilities, update DB, emit `skill:registered`
+    - `skill:heartbeat` — Update lastHeartbeat, forward to DB, emit `skill:heartbeat-ack`
+    - `skill:event` — Process message/tool_result/status/command events, emit `skill:event-ack`
+    - `skill:invoke-response` — Resolve pending tool call promises
+  - Server → agent events:
+    - `skill:invoke` — Sent when chat-service needs to invoke a skill
+    - `skill:notification` — General notifications
+  - Internal HTTP API (for chat-service to call):
+    - `POST /internal/invoke` — Trigger skill invocation on connected agent (with optional wait-for-response)
+    - `GET /internal/status` — Check agent connection status
+    - `POST /internal/notify` — Send notification to connected agent
+    - `GET /internal/agents` — List all connected agents
+  - Disconnect handling: Update DB to 'disconnected', clean up tracking
+  - Pending tool call queue: Map<requestId, Promise> with 30s timeout
+  - Stale heartbeat cleanup: Every 30s, disconnect agents with >90s since last heartbeat
+  - Socket.IO config: path `/`, CORS `*`, pingTimeout 60s, pingInterval 25s
+  - HTTP request handler prepended before Socket.IO to handle /internal/* and /health paths
+- Created `/home/z/my-project/src/app/api/skill-protocol/validate/route.ts`:
+  - GET endpoint to validate endpoint tokens for WebSocket authentication
+  - Returns binding info (agentId, bindingType, skillId/pluginId, isEnabled)
+- Created `/home/z/my-project/src/app/api/skill-protocol/ws-status/route.ts`:
+  - POST endpoint to update WebSocket connection status (connected/disconnected)
+  - Updates AgentSkill/AgentPlugin/AgentConnection records and agent status
+- Installed dependencies and verified service starts correctly
+- All internal API endpoints tested and working:
+  - Health check, status, agents list, invoke (not connected), notify
+- Lint check passes clean
+
+Stage Summary:
+- skill-ws service provides pure WebSocket Skill Plugin communication channel
+- External agents connect via Socket.IO with endpointToken authentication
+- Bidirectional real-time communication: agents receive tool_call invocations and send tool_result responses
+- chat-service can invoke skills on connected agents via HTTP internal API
+- Automatic heartbeat monitoring and stale connection cleanup
+- Service will be auto-started by /start.sh on system boot (in mini-services directory)
+
+---
+Task ID: 4
+Agent: ChatServiceUpdater
+Task: Update chat-service to integrate with skill-ws WebSocket service for skill invocation
+
+Work Log:
+- Updated `handleBuiltinAgent` in `/home/z/my-project/mini-services/chat-service/index.ts`
+- Replaced the direct HTTP callback skill invocation block with WS-first, HTTP-fallback logic:
+  - Added SKILL_WS_URL env variable support (defaults to http://localhost:3004)
+  - Before invoking a skill, checks if the agent is connected via WebSocket by calling `GET /internal/status` on skill-ws
+  - If connected (wsConnected === true), invokes skill via `POST /internal/invoke?wait=true` on skill-ws with a 30s timeout
+  - If not connected, falls back to HTTP POST to callbackUrl/handlerUrl (existing behavior)
+  - Updated error message for no-URL case to also mention WebSocket unavailability
+  - Gracefully handles skill-ws service being down (catch block sets wsConnected = false, falls through to HTTP)
+- No changes to handleCustomApiAgent or handleHermesAgent
+
+Stage Summary:
+- chat-service now supports dual invocation path: WebSocket (priority) → HTTP callback (fallback)
+- External agents connected via skill-ws Socket.IO can receive real-time tool_call invocations
+- HTTP-only agents continue to work unchanged via callbackUrl/handlerUrl
+
+---
+Task ID: 3
+Agent: WsSchemaUpdater
+Task: Update Prisma schema and API routes to support pure WebSocket Skill Plugin connection mode
+
+Work Log:
+- Updated Prisma schema (`prisma/schema.prisma`) with WebSocket connection mode fields:
+  - AgentConnection: added `connectionMode String @default("websocket")`, `wsConnected Boolean @default(false)`, `wsSocketId String?`
+  - Skill: added `connectionMode String @default("websocket")`, `wsConnected Boolean @default(false)`
+  - AgentSkill: added `wsConnected Boolean @default(false)`
+- Ran `bun run db:push` to apply schema changes
+- Updated `/api/skill-protocol/generate-endpoint/route.ts`:
+  - Added `connectionMode: 'websocket'`, `wsConnectUrl: '/?XTransformPort=3004'`, `wsDirectUrl: 'ws://localhost:3004/'` to both skill and plugin responses
+  - These fields allow frontends to construct proper WebSocket connection URLs
+- Updated `/api/agents/[id]/generate-skill-endpoint/route.ts`:
+  - Same WS connection info added: `connectionMode`, `wsConnectUrl`, `wsDirectUrl`
+- Created `/api/skill-protocol/connection-info/route.ts`:
+  - GET endpoint accepting `agentId` and `skillId` query params
+  - Returns endpointToken, callbackUrl, callbackSecret, wsConnected, wsStatus (live from skill-ws service), wsConnectUrl, connectionMode
+  - Queries skill-ws `/internal/status` for real-time WebSocket connection status
+- Verified `/api/skill-protocol/validate/route.ts` exists and works correctly (created by Task 2)
+- Verified `/api/skill-protocol/ws-status/route.ts` exists and works correctly (created by Task 2)
+- Lint check passes clean
+
+Stage Summary:
+- Prisma schema now tracks WebSocket connection state per binding (connectionMode, wsConnected, wsSocketId)
+- All endpoint generation APIs return WebSocket connection details alongside HTTP info
+- New connection-info API provides real-time WS status for any agent+skill binding
+
+---
+Task ID: 6
+Agent: SkillMarketplaceRewriter
+Task: Completely rewrite SkillMarketplace component to support pure WebSocket Skill Plugin connection mode
+
+Work Log:
+- Updated `/home/z/my-project/src/lib/api-client.ts`:
+  - Added `getSkillConnectionInfo(agentId, skillId)` — Returns endpointToken, callbackUrl, callbackSecret, wsStatus (connected, lastHeartbeat, socketId), wsConnectUrl, connectionMode
+  - Added `regenerateSkillEndpoint(agentId, skillId)` — Regenerates endpoint with new token, returns wsConnectUrl, wsDirectUrl, connectionMode
+  - Updated `generateSkillEndpoint()` return type to include wsConnectUrl, wsDirectUrl, connectionMode
+- Complete rewrite of `/home/z/my-project/src/components/views/SkillMarketplace.tsx`:
+  - Tab 1 (Skill Store): Improved grid with handlerType badges (added websocket type), installed indicators, skill detail dialog
+  - Tab 2 (My Skills) — MAJOR REDESIGN:
+    - Connection Mode selector dropdown (WebSocket / HTTP Callback / Hybrid)
+    - WebSocket Section (PRIMARY, shown by default):
+      - Connection URL (wsConnectUrl for Caddy gateway)
+      - Direct URL (ws://localhost:3004/)
+      - Endpoint Token (masked monospace field)
+      - Quick Connect Link (shareable URL + token combo with one-click copy)
+      - Real-time Connection Status (green pulsing dot for connected, gray for disconnected) with last heartbeat time and socket ID
+      - Auto-refresh connection status every 15 seconds
+      - Generate/Regenerate Endpoint buttons
+    - HTTP Callback Section (SECONDARY, collapsed by default):
+      - Collapsible panel with callback URL, events selector, callback secret
+    - Controls: Enable/disable toggle, priority input, test connection, configure skill, uninstall
+  - Tab 3 (Protocol Docs) — REDESIGNED for WebSocket:
+    - Quick Start: 4-step guide (install, generate token, connect WS, register)
+    - Protocol Info Cards: version 2.0.0, 30s heartbeat, WebSocket transport
+    - WebSocket Connection Guide: Code examples in JavaScript (socket.io-client), Python (python-socketio), HTTP API (fallback curl)
+    - Event Types Table: 9 events with direction (Agent→Hub, Hub→Agent) and descriptions
+    - Supported Platforms: hermes-agent (Python), openclaw (open source), Custom (any WS client)
+    - Authentication section with Socket.IO auth example
+    - Heartbeat Protocol section with code example
+    - Message Format section with skill:invoke, skill:invoke-response, skill:event examples
+  - Added new sub-components: StatusDot with pulse animation, ConnectionInfo type
+  - Added new imports: Wifi, WifiOff, Radio, Server, Cable, Globe
+  - Added new handlerType color: websocket (emerald)
+- Added 22 new i18n keys to all 8 locale files (en, zh, ja, ko, de, es, fr, pt):
+  - wsRegistering, wsError, connectionModeUpdated, testingWs
+  - endpointRegenerated, endpointGeneratedDesc, connectLinkCopied
+  - refreshStatus, transport, wsConnectionGuide, wsConnectionGuideDesc
+  - eventTypesDesc, authDesc, heartbeatProtocol, messageFormat
+  - quickStartDesc, quickStartStep1-4, copyUrl, httpCallback
+- Lint check passes clean
+
+Stage Summary:
+- SkillMarketplace completely redesigned with WebSocket-first connection mode
+- Users can browse/install skills, generate WebSocket connection links, and monitor real-time connection status
+- Protocol Docs now shows Socket.IO code examples (JS, Python) instead of HTTP-only examples
+- My Skills tab provides Feishu/DingTalk-style bot management with connection mode selection
+- All 8 i18n locales updated with new WebSocket-related translation keys
+- Frontend can use wsConnectUrl (for Caddy gateway) or wsDirectUrl (direct) to connect external agents
+
+---
+Task ID: 7
+Agent: I18nUpdater
+Task: Update all i18n translation files to add new keys for WebSocket Skill Plugin system
+
+Work Log:
+- Added 50+ new keys under `skillProtocol` namespace to all 8 locale files (en, zh, ja, ko, fr, de, es, pt)
+- New keys cover WebSocket connection mode, connection URLs, platform types, quick start steps, event direction, live status, connection guide, and more
+- Key categories added:
+  - Connection mode: connectionMode, websocketMode, httpCallbackMode, hybridMode
+  - WebSocket URLs: wsConnectUrl, wsDirectUrl, wsGatewayUrl
+  - Quick connect: quickConnectLink, copyConnectLink, connectionLinkCopied
+  - Connection status: wsConnected, wsDisconnected, wsConnecting
+  - Agent platform: agentPlatform, platformHermesAgent, platformOpenClaw, platformCustom
+  - Quick start steps: step1Install, step2Generate, step3Connect, step4Register (with descriptions)
+  - Code examples: codeExampleJS, codeExamplePython, codeExampleCurl
+  - Event info: eventDirection, eventDescription, directionAgentToHub, directionHubToAgent
+  - Sections: wsSection, httpSection
+  - Endpoint management: noEndpointYet, generateToConnect, regenerateEndpoint, regenerateConfirm
+  - Live status: wsStatusLive, lastHeartbeatAgo, connectedVia, agentVersion
+  - Testing: testWsConnection, wsTestSent, wsTestFailed
+  - Connection guide: connectionGuide, viewConnectionGuide, closeConnectionGuide
+- Fixed JSON validity issues:
+  - de.json: Replaced German-style quotes („") with single quotes to avoid JSON parsing errors
+  - zh.json: Replaced Chinese quotes ("") with corner brackets (「」) to avoid JSON parsing errors
+- All 8 locale files validated as valid JSON
+- Lint check passes clean
+
+Stage Summary:
+- All 8 i18n locale files updated with 50+ new WebSocket Skill Plugin keys
+- Translations provided for en, zh, ja, ko, fr, de, es, pt
+- JSON validity verified for all files
+- Existing keys preserved — only new keys added under skillProtocol namespace
+
+---
+Task ID: WS-Integration-Final
+Agent: main
+Task: Complete WebSocket Skill Plugin System - Integration, Testing, and Verification
+
+Work Log:
+- Verified all 3 services running: Next.js (3000), chat-service (3003), skill-ws (3004)
+- Tested API endpoints:
+  - GET /api/skills — returns 12 skills with connectionMode: "websocket" and wsConnected fields
+  - POST /api/skills/[id]/install — installs skill with auto-generated endpointToken and callbackSecret
+  - POST /api/agents/[id]/generate-skill-endpoint — returns endpointToken, wsConnectUrl, wsDirectUrl, connectionMode
+  - GET /api/skill-protocol/validate?token=xxx — validates endpoint tokens for WS auth
+  - GET /api/skill-protocol/connection-info — returns real-time WS status from skill-ws service
+  - POST /api/skill-protocol/ws-status — updates WS connection status in DB
+  - GET /api/skill-protocol/validate — validated tokens for WS authentication
+- Tested skill-ws service:
+  - Health check: /health returns status, connectedAgents count, uptime
+  - Internal API: /internal/status, /internal/agents, /internal/invoke all functional
+  - Socket.IO server ready on port 3004
+- All services verified working and passing lint checks
+
+Stage Summary:
+- **Complete WebSocket Skill Plugin System implemented** — the core feature the user originally requested
+- External agents (hermes-agent, openclaw, etc.) can now connect via pure WebSocket:
+  1. User installs a skill to an agent → gets endpointToken automatically
+  2. User generates/refreshes endpoint → gets wsConnectUrl and wsDirectUrl
+  3. External agent connects via Socket.IO with endpointToken auth
+  4. Agent registers with capabilities, maintains heartbeat
+  5. When LLM calls a skill, chat-service checks WS first, falls back to HTTP
+  6. Bidirectional real-time communication: tool_call → tool_result, events, notifications
+- **No HTTP callback server needed** — agents only need a Socket.IO client
+- **Like Feishu/DingTalk bot WebSocket mode** — persistent connection, auto-heartbeat, real-time events
+- **Graceful degradation** — if WS not connected, falls back to HTTP callback
+- **Service architecture**:
+  - Next.js (3000): Main app + APIs + DB
+  - chat-service (3003): Socket.IO chat + LLM streaming + skill invocation (WS-first, HTTP-fallback)
+  - skill-ws (3004): Socket.IO for external agent WS connections + internal HTTP API

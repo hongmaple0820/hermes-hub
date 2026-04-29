@@ -145,6 +145,10 @@ model Skill {
   lastHeartbeat    DateTime? // last heartbeat from external agent
   registrationInfo String   @default("{}") // JSON: registered agent info (name, version, capabilities)
 
+  // WebSocket connection mode fields
+  connectionMode String  @default("websocket") // websocket, http_callback, hybrid
+  wsConnected    Boolean @default(false) // Whether an external agent is connected via WS
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -165,6 +169,9 @@ model AgentSkill {
   callbackSecret  String?   // secret for signing callbacks
   lastInvokedAt   DateTime? // when this binding was last invoked
   invokeCount     Int       @default(0) // number of times this binding has been invoked
+
+  // WebSocket connection mode fields
+  wsConnected Boolean @default(false) // Whether currently connected via WS for this binding
 
   agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
   skill Skill @relation(fields: [skillId], references: [id])
@@ -220,6 +227,11 @@ model AgentConnection {
   heartbeatInterval Int      @default(30) // seconds between expected heartbeats
   registeredAt      DateTime? // when external agent registered
   registrationInfo  String   @default("{}") // JSON: registered agent info
+
+  // WebSocket connection mode fields
+  connectionMode String  @default("websocket") // websocket, http, hybrid
+  wsConnected    Boolean @default(false) // Whether currently connected via WebSocket
+  wsSocketId     String? // Current WebSocket socket ID
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

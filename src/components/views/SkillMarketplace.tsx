@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api-client';
 import { useI18n } from '@/i18n';
@@ -23,6 +23,7 @@ import {
   BarChart3, Mail, Bell, Volume2, Database, Image, Languages, Zap,
   Copy, Link2, Activity, Settings2, Play, ExternalLink, ChevronRight,
   Shield, Heart, Terminal, BookOpen, ArrowRight, Eye, EyeOff,
+  Wifi, WifiOff, Radio, Server, Cable, Globe as GlobeIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -54,6 +55,7 @@ const categoryBadgeColors: Record<string, string> = {
 const handlerTypeColors: Record<string, string> = {
   builtin: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
   webhook: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  websocket: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
   streaming: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
 };
 
@@ -67,30 +69,46 @@ const CATEGORY_KEYS: Record<string, string> = {
   utility: 'skills.categoryUtility',
 };
 
+// ─── Connection Mode type ────────────────────────────────────
+
+type ConnectionMode = 'websocket' | 'http_callback' | 'hybrid';
+
+interface ConnectionInfo {
+  endpointToken: string | null;
+  callbackUrl: string | null;
+  callbackSecret: string | null;
+  wsStatus: { connected: boolean; lastHeartbeat: string | null; socketId: string | null };
+  wsConnectUrl: string | null;
+  connectionMode: string;
+}
+
 // ─── Status Indicator ──────────────────────────────────────────
 
-function StatusDot({ status }: { status: string }) {
+function StatusDot({ status, pulse }: { status: 'connected' | 'registering' | 'disconnected' | 'error'; pulse?: boolean }) {
   const colorMap: Record<string, string> = {
     connected: 'bg-green-500',
-    registered: 'bg-yellow-500',
+    registering: 'bg-yellow-500',
     disconnected: 'bg-gray-400',
     error: 'bg-red-500',
-    unregistered: 'bg-gray-400',
   };
   const labelMap: Record<string, string> = {
-    connected: 'skillProtocol.connected',
-    registered: 'skillProtocol.registered',
-    disconnected: 'skillProtocol.disconnected',
-    error: 'common.error',
-    unregistered: 'skillProtocol.unregistered',
+    connected: 'skillProtocol.wsConnected',
+    registering: 'skillProtocol.wsRegistering',
+    disconnected: 'skillProtocol.wsDisconnected',
+    error: 'skillProtocol.wsError',
   };
   const { t } = useI18n();
   const color = colorMap[status] || 'bg-gray-400';
-  const label = t(labelMap[status] || 'skillProtocol.unregistered');
+  const label = t(labelMap[status] || 'skillProtocol.wsDisconnected');
 
   return (
     <div className="flex items-center gap-1.5">
-      <span className={cn('w-2 h-2 rounded-full shrink-0', color)} />
+      <span className="relative flex h-2.5 w-2.5">
+        {pulse && status === 'connected' && (
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+        )}
+        <span className={cn('relative inline-flex rounded-full h-2.5 w-2.5 shrink-0', color)} />
+      </span>
       <span className="text-xs text-muted-foreground">{label}</span>
     </div>
   );
@@ -144,7 +162,7 @@ function MonospaceField({ value, masked, label, copyLabel }: { value: string; ma
 // ─── Main Component ────────────────────────────────────────────
 
 export function SkillMarketplace() {
-  const { skills, setSkills, agents } = useAppStore();
+  const { skills, agents } = useAppStore();
   const { t } = useI18n();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -158,15 +176,28 @@ export function SkillMarketplace() {
   const [agentSkills, setAgentSkills] = useState<any[]>([]);
   const [loadingSkills, setLoadingSkills] = useState(false);
   const [generatingEndpoint, setGeneratingEndpoint] = useState<string | null>(null);
-  const [showGenerateEndpoint, setShowGenerateEndpoint] = useState<string | null>(null);
-  const [generatedEndpoint, setGeneratedEndpoint] = useState<{ url: string; token: string; callbackSecret: string } | null>(null);
   const [showConfigDialog, setShowConfigDialog] = useState<string | null>(null);
   const [configJson, setConfigJson] = useState('{}');
+
+  // WebSocket connection info per binding
+  const [connectionInfos, setConnectionInfos] = useState<Record<string, ConnectionInfo>>({});
+  const [loadingConnectionInfo, setLoadingConnectionInfo] = useState<Record<string, boolean>>({});
+  const [httpCallbackExpanded, setHttpCallbackExpanded] = useState<Record<string, boolean>>({});
+
+  // Generate endpoint dialog
+  const [generatedEndpoint, setGeneratedEndpoint] = useState<{
+    url: string; token: string; callbackSecret: string;
+    wsConnectUrl: string; wsDirectUrl: string; connectionMode: string;
+  } | null>(null);
+  const [showEndpointDialog, setShowEndpointDialog] = useState(false);
 
   // Callback editing state
   const [editingCallback, setEditingCallback] = useState<string | null>(null);
   const [callbackUrlValue, setCallbackUrlValue] = useState('');
   const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
+
+  // Refresh interval ref
+  const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const EVENT_OPTIONS = ['message', 'command', 'status', 'heartbeat', 'tool_call', 'tool_result'];
 
@@ -212,11 +243,43 @@ export function SkillMarketplace() {
     }
   }, [selectedAgentFilter, agents]);
 
+  // Load connection info for a specific binding
+  const loadConnectionInfo = useCallback(async (agentId: string, skillId: string) => {
+    const key = `${agentId}-${skillId}`;
+    setLoadingConnectionInfo((prev) => ({ ...prev, [key]: true }));
+    try {
+      const info = await api.getSkillConnectionInfo(agentId, skillId);
+      setConnectionInfos((prev) => ({ ...prev, [key]: info }));
+    } catch {
+      // Connection info may not be available yet
+    } finally {
+      setLoadingConnectionInfo((prev) => ({ ...prev, [key]: false }));
+    }
+  }, []);
+
+  // Load all connection infos for installed skills
+  const loadAllConnectionInfos = useCallback(async () => {
+    for (const as of agentSkills) {
+      await loadConnectionInfo(as.agentId, as.skillId);
+    }
+  }, [agentSkills, loadConnectionInfo]);
+
   useEffect(() => {
     if (activeTab === 'mySkills') {
       loadInstalledSkills();
     }
   }, [activeTab, loadInstalledSkills]);
+
+  // Auto-refresh connection info periodically
+  useEffect(() => {
+    if (activeTab === 'mySkills' && agentSkills.length > 0) {
+      loadAllConnectionInfos();
+      refreshIntervalRef.current = setInterval(loadAllConnectionInfos, 15000);
+      return () => {
+        if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
+      };
+    }
+  }, [activeTab, agentSkills.length, loadAllConnectionInfos]);
 
   const categories = useMemo(() => {
     const cats = new Set(skills.map((s: any) => s.category));
@@ -257,11 +320,20 @@ export function SkillMarketplace() {
     }
   };
 
-  const handleGenerateEndpoint = async (agentId: string, skillId: string, bindingKey: string) => {
+  const handleGenerateEndpoint = async (agentId: string, skillId: string) => {
+    const bindingKey = `${agentId}-${skillId}`;
     setGeneratingEndpoint(bindingKey);
     try {
       const res = await api.generateSkillEndpoint(agentId, skillId);
-      setGeneratedEndpoint(res.endpoint || null);
+      setGeneratedEndpoint({
+        url: res.endpointUrl,
+        token: res.endpointToken,
+        callbackSecret: res.callbackSecret,
+        wsConnectUrl: res.wsConnectUrl || '/?XTransformPort=3004',
+        wsDirectUrl: res.wsDirectUrl || 'ws://localhost:3004/',
+        connectionMode: res.connectionMode || 'websocket',
+      });
+      setShowEndpointDialog(true);
       toast.success(t('skillProtocol.endpointGenerated'));
       loadInstalledSkills();
     } catch (error: any) {
@@ -271,13 +343,37 @@ export function SkillMarketplace() {
     }
   };
 
-  const handleTestConnection = async (endpointToken: string) => {
+  const handleRegenerateEndpoint = async (agentId: string, skillId: string) => {
+    const bindingKey = `${agentId}-${skillId}`;
+    setGeneratingEndpoint(bindingKey);
     try {
-      await api.sendSkillEvent({
-        endpointToken,
-        eventType: 'status',
-        payload: { test: true, timestamp: new Date().toISOString() },
+      const res = await api.regenerateSkillEndpoint(agentId, skillId);
+      setGeneratedEndpoint({
+        url: res.endpointUrl,
+        token: res.endpointToken,
+        callbackSecret: res.callbackSecret,
+        wsConnectUrl: res.wsConnectUrl || '/?XTransformPort=3004',
+        wsDirectUrl: res.wsDirectUrl || 'ws://localhost:3004/',
+        connectionMode: res.connectionMode || 'websocket',
       });
+      setShowEndpointDialog(true);
+      toast.success(t('skillProtocol.endpointRegenerated'));
+      loadInstalledSkills();
+      loadConnectionInfo(agentId, skillId);
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setGeneratingEndpoint(null);
+    }
+  };
+
+  const handleTestConnection = async (agentId: string, skillId: string, endpointToken: string) => {
+    try {
+      const connInfo = connectionInfos[`${agentId}-${skillId}`];
+      if (connInfo?.wsStatus.connected) {
+        toast.info(t('skillProtocol.testingWs'));
+      }
+      await api.testSkillConnection(agentId, skillId);
       toast.success(t('skillProtocol.testSent'));
     } catch (error: any) {
       toast.error(t('skillProtocol.testFailed') + ': ' + error.message);
@@ -393,7 +489,7 @@ export function SkillMarketplace() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <CardTitle className="text-sm group-hover:text-primary transition-colors">{skill.displayName}</CardTitle>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', categoryBadgeColors[skill.category] || '')}>
                           {CATEGORY_KEYS[skill.category] ? t(CATEGORY_KEYS[skill.category]) : skill.category}
                         </Badge>
@@ -466,7 +562,7 @@ export function SkillMarketplace() {
     </div>
   );
 
-  // ─── Tab 2: My Skills ──────────────────────────────────────
+  // ─── Tab 2: My Skills (MAJOR REDESIGN) ──────────────────────
 
   const renderMySkills = () => (
     <div className="space-y-6">
@@ -514,30 +610,38 @@ export function SkillMarketplace() {
                   <h3 className="text-sm font-semibold">{agent?.name || agentId}</h3>
                   <Badge variant="outline" className="text-xs">{skillsList.length} {t('skills.title').toLowerCase()}</Badge>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {skillsList.map((agentSkill: any) => {
                     const skillDef = getSkillById(agentSkill.skillId) || agentSkill;
                     const Icon = iconMap[skillDef.icon] || Puzzle;
                     const bindingKey = `${agentId}-${agentSkill.skillId}`;
-                    const endpointUrl = agentSkill.endpointUrl || '';
                     const endpointToken = agentSkill.endpointToken || '';
                     const callbackSecret = agentSkill.callbackSecret || '';
                     const callbackUrl = agentSkill.callbackUrl || '';
                     const subscribedEvents: string[] = agentSkill.subscribedEvents || [];
-                    const status = agentSkill.status || 'unregistered';
                     const priority = agentSkill.priority ?? 0;
                     const enabled = agentSkill.enabled !== false;
-                    const lastHeartbeat = agentSkill.lastHeartbeat || '';
+                    const hasEndpoint = !!endpointToken;
 
+                    const connInfo = connectionInfos[bindingKey];
+                    const isLoadingConn = loadingConnectionInfo[bindingKey];
+                    const wsConnected = connInfo?.wsStatus?.connected || false;
+                    const wsLastHeartbeat = connInfo?.wsStatus?.lastHeartbeat;
+                    const wsSocketId = connInfo?.wsStatus?.socketId;
+                    const wsConnectUrl = connInfo?.wsConnectUrl || '/?XTransformPort=3004';
+                    const connectionMode = connInfo?.connectionMode || agentSkill.connectionMode || 'websocket';
+                    const isHttpCallbackExpanded = httpCallbackExpanded[bindingKey] || false;
                     const isEditingCallback = editingCallback === bindingKey;
+
+                    const wsStatus: 'connected' | 'registering' | 'disconnected' | 'error' = wsConnected ? 'connected' : (hasEndpoint ? 'disconnected' : 'disconnected');
 
                     return (
                       <Card key={bindingKey} className="overflow-hidden">
                         <CardContent className="p-4 space-y-4">
                           {/* Header row */}
                           <div className="flex items-start gap-3">
-                            <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border', categoryColors[skillDef.category] || 'bg-accent')}>
-                              <Icon className="w-4 h-4" />
+                            <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border', categoryColors[skillDef.category] || 'bg-accent')}>
+                              <Icon className="w-5 h-5" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
@@ -547,14 +651,13 @@ export function SkillMarketplace() {
                                     {skillDef.handlerType}
                                   </Badge>
                                 )}
-                                <StatusDot status={status} />
+                                <StatusDot status={wsStatus} pulse={wsConnected} />
                               </div>
                               {skillDef.description && (
                                 <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{skillDef.description}</p>
                               )}
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              {/* Enable/Disable */}
                               <div className="flex items-center gap-1.5">
                                 <Label className="text-xs text-muted-foreground">{enabled ? t('skillProtocol.enableSkill') : t('skillProtocol.disableSkill')}</Label>
                                 <Switch
@@ -565,111 +668,268 @@ export function SkillMarketplace() {
                             </div>
                           </div>
 
-                          {/* Endpoint & Token section */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {endpointUrl ? (
-                              <MonospaceField
-                                label={t('skillProtocol.endpointUrl')}
-                                value={endpointUrl}
-                                copyLabel={t('skillProtocol.copyEndpoint')}
-                              />
-                            ) : (
-                              <div className="space-y-1">
-                                <Label className="text-xs font-medium text-muted-foreground">{t('skillProtocol.endpointUrl')}</Label>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="gap-1 text-xs w-full"
-                                  disabled={generatingEndpoint === bindingKey}
-                                  onClick={() => {
-                                    setShowGenerateEndpoint(bindingKey);
-                                    handleGenerateEndpoint(agentId, agentSkill.skillId, bindingKey);
-                                  }}
-                                >
-                                  {generatingEndpoint === bindingKey ? (
-                                    <Zap className="w-3 h-3 animate-pulse" />
-                                  ) : (
-                                    <Link2 className="w-3 h-3" />
-                                  )}
-                                  {t('skillProtocol.generateEndpoint')}
-                                </Button>
-                              </div>
-                            )}
-
-                            {endpointToken ? (
-                              <MonospaceField
-                                label={t('skillProtocol.endpointToken')}
-                                value={endpointToken}
-                                masked
-                                copyLabel={t('skillProtocol.copyToken')}
-                              />
-                            ) : (
-                              <div />
-                            )}
-                          </div>
-
-                          {/* Callback URL section */}
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <Label className="text-xs font-medium text-muted-foreground">{t('skillProtocol.callbackUrl')}</Label>
-                              <span className="text-[10px] text-muted-foreground">({t('skillProtocol.callbackDesc').slice(0, 50)}...)</span>
-                            </div>
-                            {isEditingCallback ? (
-                              <div className="space-y-3">
-                                <Input
-                                  value={callbackUrlValue}
-                                  onChange={(e) => setCallbackUrlValue(e.target.value)}
-                                  placeholder="https://your-agent.com/callback"
-                                  className="text-sm"
-                                />
-                                <div className="space-y-2">
-                                  <Label className="text-xs text-muted-foreground">{t('skillProtocol.events')}</Label>
-                                  <div className="flex flex-wrap gap-2">
-                                    {EVENT_OPTIONS.map((evt) => (
-                                      <div key={evt} className="flex items-center gap-1.5">
-                                        <Checkbox
-                                          id={`evt-${bindingKey}-${evt}`}
-                                          checked={selectedEvents.includes(evt)}
-                                          onCheckedChange={(checked) => {
-                                            if (checked) {
-                                              setSelectedEvents([...selectedEvents, evt]);
-                                            } else {
-                                              setSelectedEvents(selectedEvents.filter((e) => e !== evt));
-                                            }
-                                          }}
-                                        />
-                                        <Label htmlFor={`evt-${bindingKey}-${evt}`} className="text-xs cursor-pointer">{evt}</Label>
-                                      </div>
-                                    ))}
+                          {/* Connection Mode Selector */}
+                          <div className="flex items-center gap-3">
+                            <Label className="text-xs font-medium text-muted-foreground shrink-0">{t('skillProtocol.connectionMode')}</Label>
+                            <Select
+                              value={connectionMode}
+                              onValueChange={async (mode) => {
+                                try {
+                                  await api.updateAgentSkill(agentId, agentSkill.skillId, { connectionMode: mode });
+                                  toast.success(t('skillProtocol.connectionModeUpdated'));
+                                  loadInstalledSkills();
+                                  loadConnectionInfo(agentId, agentSkill.skillId);
+                                } catch (error: any) {
+                                  toast.error(error.message);
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="w-48 h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="websocket">
+                                  <div className="flex items-center gap-2">
+                                    <Wifi className="w-3 h-3" />
+                                    <span>WebSocket</span>
                                   </div>
-                                </div>
-                                <div className="flex gap-2">
-                                  <Button size="sm" onClick={() => handleSaveCallback(agentId, agentSkill.skillId)}>{t('skillProtocol.saveCallback')}</Button>
-                                  <Button size="sm" variant="outline" onClick={() => setEditingCallback(null)}>{t('common.cancel')}</Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <code className="flex-1 text-xs bg-muted px-3 py-2 rounded-md font-mono truncate">
-                                  {callbackUrl || '—'}
-                                </code>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="gap-1 text-xs shrink-0"
-                                  onClick={() => {
-                                    setEditingCallback(bindingKey);
-                                    setCallbackUrlValue(callbackUrl);
-                                    setSelectedEvents(subscribedEvents.length > 0 ? subscribedEvents : ['message']);
-                                  }}
-                                >
-                                  <Settings2 className="w-3 h-3" /> {t('skillProtocol.configureCallback')}
-                                </Button>
-                              </div>
-                            )}
+                                </SelectItem>
+                                <SelectItem value="http_callback">
+                                  <div className="flex items-center gap-2">
+                                    <GlobeIcon className="w-3 h-3" />
+                                    <span>HTTP Callback</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="hybrid">
+                                  <div className="flex items-center gap-2">
+                                    <Cable className="w-3 h-3" />
+                                    <span>Hybrid</span>
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
 
-                          {/* Bottom row: priority, test, configure, registration link */}
+                          {/* ─── WebSocket Section (PRIMARY) ─── */}
+                          {(connectionMode === 'websocket' || connectionMode === 'hybrid') && (
+                            <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 space-y-3">
+                              <div className="flex items-center gap-2">
+                                <Wifi className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">{t('skillProtocol.wsConnection')}</span>
+                                {wsConnected && (
+                                  <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 text-[10px] px-1.5 py-0">
+                                    <Radio className="w-2.5 h-2.5 mr-1" /> Live
+                                  </Badge>
+                                )}
+                              </div>
+
+                              {hasEndpoint ? (
+                                <>
+                                  {/* Connection URL */}
+                                  <MonospaceField
+                                    label={t('skillProtocol.wsConnectUrl')}
+                                    value={wsConnectUrl}
+                                    copyLabel={t('skillProtocol.copyUrl')}
+                                  />
+
+                                  {/* Direct URL */}
+                                  <MonospaceField
+                                    label={t('skillProtocol.wsDirectUrl')}
+                                    value="ws://localhost:3004/"
+                                    copyLabel={t('skillProtocol.copyUrl')}
+                                  />
+
+                                  {/* Endpoint Token */}
+                                  <MonospaceField
+                                    label={t('skillProtocol.endpointToken')}
+                                    value={endpointToken}
+                                    masked
+                                    copyLabel={t('skillProtocol.copyToken')}
+                                  />
+
+                                  {/* Quick Connect Link */}
+                                  <div className="space-y-1">
+                                    <Label className="text-xs font-medium text-muted-foreground">{t('skillProtocol.quickConnectLink')}</Label>
+                                    <div className="flex items-center gap-2">
+                                      <code className="flex-1 text-xs bg-muted px-3 py-2 rounded-md font-mono break-all select-all border border-dashed">
+                                        {wsConnectUrl}#token={endpointToken}
+                                      </code>
+                                      <Button
+                                        variant="default"
+                                        size="sm"
+                                        className="gap-1 text-xs shrink-0 bg-emerald-600 hover:bg-emerald-700"
+                                        onClick={() => {
+                                          const link = `${wsConnectUrl}#token=${endpointToken}`;
+                                          navigator.clipboard.writeText(link);
+                                          toast.success(t('skillProtocol.connectLinkCopied'));
+                                        }}
+                                      >
+                                        <Copy className="w-3 h-3" /> {t('skillProtocol.copyConnectLink')}
+                                      </Button>
+                                    </div>
+                                  </div>
+
+                                  {/* Connection Status */}
+                                  <div className="flex items-center gap-4 flex-wrap pt-2 border-t border-emerald-200 dark:border-emerald-800">
+                                    <div className="flex items-center gap-2">
+                                      {wsConnected ? (
+                                        <Wifi className="w-4 h-4 text-emerald-500" />
+                                      ) : (
+                                        <WifiOff className="w-4 h-4 text-gray-400" />
+                                      )}
+                                      <span className="text-xs font-medium">{wsConnected ? t('skillProtocol.wsConnected') : t('skillProtocol.wsDisconnected')}</span>
+                                    </div>
+                                    {wsLastHeartbeat && (
+                                      <div className="flex items-center gap-1">
+                                        <Heart className="w-3 h-3 text-red-400" />
+                                        <span className="text-xs text-muted-foreground">{t('skillProtocol.lastHeartbeat')}: {new Date(wsLastHeartbeat).toLocaleTimeString()}</span>
+                                      </div>
+                                    )}
+                                    {wsSocketId && (
+                                      <div className="flex items-center gap-1">
+                                        <Server className="w-3 h-3 text-muted-foreground" />
+                                        <span className="text-xs text-muted-foreground font-mono">{wsSocketId}</span>
+                                      </div>
+                                    )}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="gap-1 text-xs h-6 px-2"
+                                      onClick={() => loadConnectionInfo(agentId, agentSkill.skillId)}
+                                      disabled={isLoadingConn}
+                                    >
+                                      <Activity className="w-3 h-3" /> {t('skillProtocol.refreshStatus')}
+                                    </Button>
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="flex flex-col items-center gap-3 py-4">
+                                  <Cable className="w-8 h-8 text-muted-foreground" />
+                                  <p className="text-sm text-muted-foreground">{t('skillProtocol.noEndpointYet')}</p>
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    className="gap-1"
+                                    disabled={generatingEndpoint === bindingKey}
+                                    onClick={() => handleGenerateEndpoint(agentId, agentSkill.skillId)}
+                                  >
+                                    {generatingEndpoint === bindingKey ? (
+                                      <Zap className="w-3 h-3 animate-pulse" />
+                                    ) : (
+                                      <Link2 className="w-3 h-3" />
+                                    )}
+                                    {t('skillProtocol.generateEndpoint')}
+                                  </Button>
+                                </div>
+                              )}
+
+                              {/* Regenerate endpoint */}
+                              {hasEndpoint && (
+                                <div className="pt-2 border-t border-emerald-200 dark:border-emerald-800">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-1 text-xs"
+                                    disabled={generatingEndpoint === bindingKey}
+                                    onClick={() => handleRegenerateEndpoint(agentId, agentSkill.skillId)}
+                                  >
+                                    {generatingEndpoint === bindingKey ? (
+                                      <Zap className="w-3 h-3 animate-pulse" />
+                                    ) : (
+                                      <Link2 className="w-3 h-3" />
+                                    )}
+                                    {t('skillProtocol.regenerateEndpoint')}
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* ─── HTTP Callback Section (SECONDARY, collapsed) ─── */}
+                          {(connectionMode === 'http_callback' || connectionMode === 'hybrid') && (
+                            <div className="rounded-lg border border-border bg-muted/30 p-3">
+                              <button
+                                className="flex items-center gap-2 w-full text-left"
+                                onClick={() => setHttpCallbackExpanded((prev) => ({ ...prev, [bindingKey]: !prev[bindingKey] }))}
+                              >
+                                <GlobeIcon className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">{t('skillProtocol.httpCallback')}</span>
+                                <ChevronRight className={cn('w-3 h-3 transition-transform', isHttpCallbackExpanded && 'rotate-90')} />
+                                {callbackUrl && !isHttpCallbackExpanded && (
+                                  <code className="text-xs text-muted-foreground font-mono truncate ml-2">{callbackUrl}</code>
+                                )}
+                              </button>
+                              {isHttpCallbackExpanded && (
+                                <div className="mt-3 space-y-3">
+                                  {isEditingCallback ? (
+                                    <div className="space-y-3">
+                                      <Input
+                                        value={callbackUrlValue}
+                                        onChange={(e) => setCallbackUrlValue(e.target.value)}
+                                        placeholder="https://your-agent.com/callback"
+                                        className="text-sm"
+                                      />
+                                      <div className="space-y-2">
+                                        <Label className="text-xs text-muted-foreground">{t('skillProtocol.events')}</Label>
+                                        <div className="flex flex-wrap gap-2">
+                                          {EVENT_OPTIONS.map((evt) => (
+                                            <div key={evt} className="flex items-center gap-1.5">
+                                              <Checkbox
+                                                id={`evt-${bindingKey}-${evt}`}
+                                                checked={selectedEvents.includes(evt)}
+                                                onCheckedChange={(checked) => {
+                                                  if (checked) {
+                                                    setSelectedEvents([...selectedEvents, evt]);
+                                                  } else {
+                                                    setSelectedEvents(selectedEvents.filter((e) => e !== evt));
+                                                  }
+                                                }}
+                                              />
+                                              <Label htmlFor={`evt-${bindingKey}-${evt}`} className="text-xs cursor-pointer">{evt}</Label>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <Button size="sm" onClick={() => handleSaveCallback(agentId, agentSkill.skillId)}>{t('skillProtocol.saveCallback')}</Button>
+                                        <Button size="sm" variant="outline" onClick={() => setEditingCallback(null)}>{t('common.cancel')}</Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="flex items-center gap-2">
+                                        <code className="flex-1 text-xs bg-muted px-3 py-2 rounded-md font-mono truncate">
+                                          {callbackUrl || '—'}
+                                        </code>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="gap-1 text-xs shrink-0"
+                                          onClick={() => {
+                                            setEditingCallback(bindingKey);
+                                            setCallbackUrlValue(callbackUrl);
+                                            setSelectedEvents(subscribedEvents.length > 0 ? subscribedEvents : ['message']);
+                                          }}
+                                        >
+                                          <Settings2 className="w-3 h-3" /> {t('skillProtocol.configureCallback')}
+                                        </Button>
+                                      </div>
+                                      {callbackSecret && (
+                                        <MonospaceField
+                                          label={t('skillProtocol.callbackSecret')}
+                                          value={callbackSecret}
+                                          masked
+                                          copyLabel={t('skillProtocol.copySecret')}
+                                        />
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* ─── Controls row ─── */}
                           <div className="flex items-center gap-3 flex-wrap pt-1 border-t">
                             {/* Priority */}
                             <div className="flex items-center gap-2">
@@ -684,33 +944,15 @@ export function SkillMarketplace() {
                               />
                             </div>
 
-                            {/* Last Heartbeat */}
-                            {lastHeartbeat && (
-                              <div className="flex items-center gap-1">
-                                <Heart className="w-3 h-3 text-muted-foreground" />
-                                <span className="text-xs text-muted-foreground">{t('skillProtocol.lastHeartbeat')}: {new Date(lastHeartbeat).toLocaleTimeString()}</span>
-                              </div>
-                            )}
-
-                            {/* Callback Secret */}
-                            {callbackSecret && (
-                              <MonospaceField
-                                label={t('skillProtocol.callbackSecret')}
-                                value={callbackSecret}
-                                masked
-                                copyLabel={t('skillProtocol.copySecret')}
-                              />
-                            )}
-
                             <div className="flex-1" />
 
                             {/* Test Connection */}
-                            {endpointToken && (
+                            {hasEndpoint && (
                               <Button
                                 variant="outline"
                                 size="sm"
                                 className="gap-1 text-xs"
-                                onClick={() => handleTestConnection(endpointToken)}
+                                onClick={() => handleTestConnection(agentId, agentSkill.skillId, endpointToken)}
                               >
                                 <Play className="w-3 h-3" /> {t('skillProtocol.testConnection')}
                               </Button>
@@ -732,38 +974,6 @@ export function SkillMarketplace() {
                             >
                               <Settings2 className="w-3 h-3" /> {t('skillProtocol.configureSkill')}
                             </Button>
-
-                            {/* Generate Endpoint (if not yet) */}
-                            {!endpointUrl && (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                className="gap-1 text-xs"
-                                disabled={generatingEndpoint === bindingKey}
-                                onClick={() => {
-                                  setShowGenerateEndpoint(bindingKey);
-                                  handleGenerateEndpoint(agentId, agentSkill.skillId, bindingKey);
-                                }}
-                              >
-                                <Link2 className="w-3 h-3" /> {t('skillProtocol.generateEndpoint')}
-                              </Button>
-                            )}
-
-                            {/* Registration Link */}
-                            {endpointUrl && endpointToken && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-1 text-xs"
-                                onClick={() => {
-                                  const link = `${endpointUrl}?token=${endpointToken}`;
-                                  navigator.clipboard.writeText(link);
-                                  toast.success(t('common.copied'));
-                                }}
-                              >
-                                <ExternalLink className="w-3 h-3" /> {t('skillProtocol.shareRegistrationLink')}
-                              </Button>
-                            )}
 
                             {/* Uninstall */}
                             <Button
@@ -794,20 +1004,36 @@ export function SkillMarketplace() {
         </div>
       )}
 
-      {/* Generate Endpoint Dialog */}
-      <Dialog open={!!showGenerateEndpoint && !!generatedEndpoint} onOpenChange={(v) => { if (!v) { setShowGenerateEndpoint(null); setGeneratedEndpoint(null); } }}>
+      {/* Generate/Regenerate Endpoint Dialog */}
+      <Dialog open={showEndpointDialog} onOpenChange={(v) => { if (!v) { setShowEndpointDialog(false); setGeneratedEndpoint(null); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{t('skillProtocol.generateEndpoint')}</DialogTitle>
-            <DialogDescription>{t('skillProtocol.generateEndpointDesc')}</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              <Wifi className="w-4 h-4 text-emerald-500" />
+              {t('skillProtocol.endpointGenerated')}
+            </DialogTitle>
+            <DialogDescription>{t('skillProtocol.endpointGeneratedDesc')}</DialogDescription>
           </DialogHeader>
           {generatedEndpoint && (
             <div className="space-y-4">
-              <MonospaceField
-                label={t('skillProtocol.endpointUrl')}
-                value={generatedEndpoint.url}
-                copyLabel={t('skillProtocol.copyEndpoint')}
-              />
+              {/* WebSocket Connection URL */}
+              <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Wifi className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">WebSocket</span>
+                </div>
+                <MonospaceField
+                  label={t('skillProtocol.wsConnectUrl')}
+                  value={generatedEndpoint.wsConnectUrl}
+                  copyLabel={t('skillProtocol.copyUrl')}
+                />
+                <MonospaceField
+                  label={t('skillProtocol.wsDirectUrl')}
+                  value={generatedEndpoint.wsDirectUrl}
+                  copyLabel={t('skillProtocol.copyUrl')}
+                />
+              </div>
+
               <MonospaceField
                 label={t('skillProtocol.endpointToken')}
                 value={generatedEndpoint.token}
@@ -823,27 +1049,47 @@ export function SkillMarketplace() {
 
               <Separator />
 
+              {/* Quick Connect Link */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">{t('skillProtocol.quickConnectLink')}</Label>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-xs bg-muted px-3 py-2 rounded-md font-mono break-all select-all">
+                    {generatedEndpoint.wsConnectUrl}#token={generatedEndpoint.token}
+                  </code>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="gap-1 text-xs shrink-0"
+                    onClick={() => {
+                      const link = `${generatedEndpoint.wsConnectUrl}#token=${generatedEndpoint.token}`;
+                      navigator.clipboard.writeText(link);
+                      toast.success(t('skillProtocol.connectLinkCopied'));
+                    }}
+                  >
+                    <Copy className="w-3 h-3" /> {t('skillProtocol.copyConnectLink')}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Code snippet */}
               <div className="space-y-2">
                 <Label className="text-xs font-medium">{t('skillProtocol.codeSnippet')}</Label>
                 <pre className="text-xs bg-muted p-3 rounded-md overflow-x-auto font-mono">
-{`curl -X POST ${generatedEndpoint.url} \\
-  -H "Authorization: Bearer ${generatedEndpoint.token}" \\
-  -H "Content-Type: application/json" \\
-  -d '{"eventType":"message","payload":{"text":"Hello"}}'`}
+{`// Connect via Socket.IO
+import { io } from 'socket.io-client';
+
+const socket = io('${generatedEndpoint.wsConnectUrl}', {
+  auth: { endpointToken: '${generatedEndpoint.token}' }
+});
+
+socket.on('connect', () => {
+  socket.emit('skill:register', {
+    name: 'my-agent',
+    capabilities: ['search']
+  });
+});`}
                 </pre>
               </div>
-
-              <Button
-                variant="outline"
-                className="gap-1 w-full"
-                onClick={() => {
-                  const link = `${generatedEndpoint.url}?token=${generatedEndpoint.token}`;
-                  navigator.clipboard.writeText(link);
-                  toast.success(t('common.copied'));
-                }}
-              >
-                <ExternalLink className="w-3 h-3" /> {t('skillProtocol.shareRegistrationLink')}
-              </Button>
             </div>
           )}
         </DialogContent>
@@ -867,8 +1113,10 @@ export function SkillMarketplace() {
               <Button variant="outline" size="sm" onClick={() => setShowConfigDialog(null)}>{t('common.cancel')}</Button>
               <Button size="sm" onClick={() => {
                 const bindingKey = showConfigDialog!;
-                const [agentId, skillId] = bindingKey.split('-');
-                handleSaveConfig(agentId, skillId);
+                const parts = bindingKey.split('-');
+                const aId = parts[0];
+                const sId = parts.slice(1).join('-');
+                handleSaveConfig(aId, sId);
               }}>{t('common.save')}</Button>
             </div>
           </div>
@@ -877,17 +1125,38 @@ export function SkillMarketplace() {
     </div>
   );
 
-  // ─── Tab 3: Protocol Docs ──────────────────────────────────
+  // ─── Tab 3: Protocol Docs (REDESIGNED for WebSocket) ──────
 
   const renderProtocolDocs = () => (
     <div className="space-y-6 max-w-4xl">
-      {/* Protocol Info */}
+      {/* Quick Start */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-500" />
+            {t('skillProtocol.quickStart')}
+          </CardTitle>
+          <CardDescription>{t('skillProtocol.quickStartDesc')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {['1', '2', '3', '4'].map((step) => (
+            <div key={step} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+              <span className="flex items-center justify-center w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">
+                {step}
+              </span>
+              <p className="text-sm mt-0.5">{t(`skillProtocol.quickStartStep${step}`)}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Protocol Info Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
             <Shield className="w-6 h-6 mx-auto mb-2 text-primary" />
             <p className="text-xs text-muted-foreground">{t('skillProtocol.protocolVersion')}</p>
-            <p className="text-lg font-bold">1.0.0</p>
+            <p className="text-lg font-bold">2.0.0</p>
           </CardContent>
         </Card>
         <Card>
@@ -899,113 +1168,250 @@ export function SkillMarketplace() {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Activity className="w-6 h-6 mx-auto mb-2 text-emerald-500" />
-            <p className="text-xs text-muted-foreground">{t('skillProtocol.eventTypes')}</p>
-            <p className="text-lg font-bold">6</p>
+            <Wifi className="w-6 h-6 mx-auto mb-2 text-emerald-500" />
+            <p className="text-xs text-muted-foreground">{t('skillProtocol.transport')}</p>
+            <p className="text-lg font-bold">WebSocket</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Registration Flow */}
+      {/* WebSocket Connection */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <ArrowRight className="w-4 h-4" />
-            {t('skillProtocol.registrationFlow')}
+            <Cable className="w-4 h-4" />
+            {t('skillProtocol.wsConnectionGuide')}
           </CardTitle>
+          <CardDescription>{t('skillProtocol.wsConnectionGuideDesc')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {['1', '2', '3', '4', '5'].map((step) => (
-            <div key={step} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold shrink-0">
-                {step}
-              </span>
-              <p className="text-sm">{t(`skillProtocol.registrationStep${step}`)}</p>
-            </div>
-          ))}
+        <CardContent>
+          <Accordion type="single" collapsible defaultValue="javascript">
+            <AccordionItem value="javascript">
+              <AccordionTrigger className="text-sm flex items-center gap-2">
+                <Code className="w-4 h-4" /> JavaScript / TypeScript (socket.io-client)
+              </AccordionTrigger>
+              <AccordionContent>
+                <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto font-mono whitespace-pre-wrap">
+{`import { io } from 'socket.io-client';
+
+const socket = io('/?XTransformPort=3004', {
+  auth: {
+    endpointToken: 'sk_your_endpoint_token_here'
+  }
+});
+
+socket.on('connect', () => {
+  console.log('Connected to Hermes Hub!');
+  
+  // Register this agent
+  socket.emit('skill:register', {
+    name: 'my-agent',
+    version: '1.0.0',
+    capabilities: ['search', 'code_generation'],
+    platform: 'hermes-agent'
+  });
+});
+
+// Receive tool calls from the hub
+socket.on('skill:invoke', (data) => {
+  console.log('Tool call received:', data);
+  
+  // Process the tool call...
+  const result = executeSkill(data.skillName, data.params);
+  
+  // Send result back
+  socket.emit('skill:invoke-response', {
+    requestId: data.requestId,
+    result: { response: result }
+  });
+});
+
+// Send heartbeat
+setInterval(() => {
+  socket.emit('skill:heartbeat', {
+    status: 'online',
+    metrics: { uptime: process.uptime() }
+  });
+}, 30000);
+
+// Send proactive messages
+socket.emit('skill:event', {
+  type: 'message',
+  data: {
+    conversationId: 'conv_xxx',
+    content: 'Hello from my agent!'
+  }
+});
+
+socket.on('disconnect', () => {
+  console.log('Disconnected from Hermes Hub');
+});`}
+                </pre>
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="python">
+              <AccordionTrigger className="text-sm flex items-center gap-2">
+                <Terminal className="w-4 h-4" /> Python (python-socketio)
+              </AccordionTrigger>
+              <AccordionContent>
+                <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto font-mono whitespace-pre-wrap">
+{`import socketio
+
+sio = socketio.SimpleClient()
+
+@sio.on('connect')
+def on_connect():
+    print('Connected to Hermes Hub!')
+    sio.emit('skill:register', {
+        'name': 'my-agent',
+        'version': '1.0.0',
+        'capabilities': ['search', 'code_generation'],
+        'platform': 'hermes-agent'
+    })
+
+@sio.on('skill:invoke')
+def on_invoke(data):
+    print(f'Tool call: {data["skillName"]}')
+    result = execute_skill(data['skillName'], data['params'])
+    sio.emit('skill:invoke-response', {
+        'requestId': data['requestId'],
+        'result': {'response': result}
+    })
+
+sio.connect('ws://localhost:3004', 
+    socketio_path='/',
+    auth={'endpointToken': 'sk_your_token_here'})`}
+                </pre>
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="curl">
+              <AccordionTrigger className="text-sm flex items-center gap-2">
+                <Globe className="w-4 h-4" /> HTTP API (fallback)
+              </AccordionTrigger>
+              <AccordionContent>
+                <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto font-mono whitespace-pre-wrap">
+{`# Register a skill endpoint
+curl -X POST https://your-domain/api/skill-protocol/register \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "endpointToken": "sk_your_token_here",
+    "agentInfo": {
+      "name": "my-agent",
+      "callbackUrl": "https://your-agent.com/callback",
+      "capabilities": ["search"]
+    }
+  }'
+
+# Send an event
+curl -X POST https://your-domain/api/skill-protocol/events \\
+  -H "Authorization: Bearer sk_your_token_here" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "event": {
+      "type": "message",
+      "data": {"text": "Hello from external agent"}
+    }
+  }'
+
+# Send heartbeat
+curl -X POST https://your-domain/api/skill-protocol/heartbeat \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "endpointToken": "sk_your_token_here",
+    "status": "alive"
+  }'`}
+                </pre>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </CardContent>
       </Card>
 
-      {/* Event Types */}
+      {/* Event Types Table */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Zap className="w-4 h-4" />
             {t('skillProtocol.eventTypes')}
           </CardTitle>
+          <CardDescription>{t('skillProtocol.eventTypesDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <ScrollArea className="w-full">
+            <div className="min-w-[500px]">
+              <div className="grid grid-cols-[1fr_120px_2fr] gap-2 text-xs font-medium text-muted-foreground pb-2 border-b">
+                <span>Event</span>
+                <span>Direction</span>
+                <span>Description</span>
+              </div>
+              {[
+                { event: 'skill:register', dir: 'Agent → Hub', desc: 'Register agent capabilities after connecting' },
+                { event: 'skill:registered', dir: 'Hub → Agent', desc: 'Registration confirmed with assigned agent ID' },
+                { event: 'skill:heartbeat', dir: 'Agent → Hub', desc: 'Send heartbeat to maintain connection (every 30s)' },
+                { event: 'skill:heartbeat-ack', dir: 'Hub → Agent', desc: 'Heartbeat acknowledged with server time' },
+                { event: 'skill:invoke', dir: 'Hub → Agent', desc: 'Tool call from LLM — agent should process and respond' },
+                { event: 'skill:invoke-response', dir: 'Agent → Hub', desc: 'Tool result response back to the hub' },
+                { event: 'skill:event', dir: 'Agent → Hub', desc: 'General event (message, status update, proactive msg)' },
+                { event: 'skill:event-ack', dir: 'Hub → Agent', desc: 'Event acknowledged with event ID' },
+                { event: 'skill:notification', dir: 'Hub → Agent', desc: 'Notification from hub (config update, system msg)' },
+              ].map(({ event, dir, desc }) => (
+                <div key={event} className="grid grid-cols-[1fr_120px_2fr] gap-2 text-xs py-2 border-b border-border/50 items-center">
+                  <code className="font-mono font-medium text-primary/80">{event}</code>
+                  <Badge variant="outline" className={cn(
+                    'text-[10px] px-1.5 py-0 w-fit',
+                    dir.startsWith('Agent') ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' : 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400'
+                  )}>
+                    {dir}
+                  </Badge>
+                  <span className="text-muted-foreground">{desc}</span>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
+
+      {/* Supported Platforms */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Server className="w-4 h-4" />
+            {t('skillProtocol.supportedPlatforms')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { type: 'message', icon: Mail, color: 'bg-blue-500/10 text-blue-600', desc: 'User messages sent to the agent' },
-              { type: 'command', icon: Terminal, color: 'bg-violet-500/10 text-violet-600', desc: 'Structured commands with parameters' },
-              { type: 'status', icon: Activity, color: 'bg-emerald-500/10 text-emerald-600', desc: 'Status updates and notifications' },
-              { type: 'heartbeat', icon: Heart, color: 'bg-red-500/10 text-red-600', desc: t('skillProtocol.heartbeatDesc') },
-              { type: 'tool_call', icon: Code, color: 'bg-amber-500/10 text-amber-600', desc: 'Tool invocation requests' },
-              { type: 'tool_result', icon: Check, color: 'bg-cyan-500/10 text-cyan-600', desc: 'Tool execution results' },
-            ].map(({ type, icon: Icon, color, desc }) => (
-              <div key={type} className="flex items-start gap-3 p-3 rounded-lg border border-border">
-                <div className={cn('w-8 h-8 rounded-md flex items-center justify-center shrink-0', color)}>
-                  <Icon className="w-4 h-4" />
+              {
+                name: 'hermes-agent',
+                desc: 'Python-based AI agent framework with built-in Socket.IO client',
+                icon: Terminal,
+                color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
+              },
+              {
+                name: 'openclaw',
+                desc: 'Open source agent framework supporting WebSocket connections',
+                icon: Code,
+                color: 'bg-violet-500/10 text-violet-600 border-violet-200',
+              },
+              {
+                name: 'Custom',
+                desc: 'Any WebSocket/Socket.IO client can connect using the protocol',
+                icon: Cable,
+                color: 'bg-amber-500/10 text-amber-600 border-amber-200',
+              },
+            ].map(({ name, desc, icon: PlatformIcon, color }) => (
+              <div key={name} className="flex items-start gap-3 p-4 rounded-lg border border-border">
+                <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border', color)}>
+                  <PlatformIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium font-mono">{type}</p>
-                  <p className="text-xs text-muted-foreground">{desc}</p>
+                  <p className="text-sm font-semibold">{name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
                 </div>
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Request Format */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            {t('skillProtocol.requestFormat')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Accordion type="single" collapsible defaultValue="inbound">
-            <AccordionItem value="inbound">
-              <AccordionTrigger className="text-sm">{t('skillProtocol.inboundFormat')}</AccordionTrigger>
-              <AccordionContent>
-                <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto font-mono">
-{`{
-  "eventType": "message",
-  "eventId": "evt_abc123",
-  "timestamp": "2024-01-15T10:30:00Z",
-  "agentId": "agent_001",
-  "skillId": "skill_web_search",
-  "payload": {
-    "text": "Search for latest news",
-    "metadata": {}
-  }
-}`}
-                </pre>
-              </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="outbound">
-              <AccordionTrigger className="text-sm">{t('skillProtocol.outboundFormat')}</AccordionTrigger>
-              <AccordionContent>
-                <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto font-mono">
-{`{
-  "eventType": "tool_result",
-  "eventId": "evt_abc123",
-  "timestamp": "2024-01-15T10:30:01Z",
-  "agentId": "agent_001",
-  "skillId": "skill_web_search",
-  "payload": {
-    "result": "Latest news results...",
-    "success": true
-  },
-  "signature": "hmac_sha256_signature"
-}`}
-                </pre>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
         </CardContent>
       </Card>
 
@@ -1018,21 +1424,21 @@ export function SkillMarketplace() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">{t('skillProtocol.signWithSecret')}</p>
-          <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto font-mono">
-{`# Python example
-import hmac, hashlib
+          <p className="text-sm text-muted-foreground">{t('skillProtocol.authDesc')}</p>
+          <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto font-mono whitespace-pre-wrap">
+{`// Socket.IO authentication
+const socket = io('/?XTransformPort=3004', {
+  auth: {
+    endpointToken: 'sk_your_endpoint_token_here'
+  }
+});
 
-def sign_request(payload: str, secret: str) -> str:
-    return hmac.new(
-        secret.encode(),
-        payload.encode(),
-        hashlib.sha256
-    ).hexdigest()
+// The token is validated on connection.
+// Invalid tokens will be rejected with a connect_error event.
 
-# Include in request headers:
-# X-Signature: <signature>
-# Authorization: Bearer <endpoint_token>`}
+socket.on('connect_error', (err) => {
+  console.error('Connection failed:', err.message);
+});`}
           </pre>
         </CardContent>
       </Card>
@@ -1042,181 +1448,82 @@ def sign_request(payload: str, secret: str) -> str:
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Heart className="w-4 h-4" />
-            {t('skillProtocol.eventHeartbeat')}
+            {t('skillProtocol.heartbeatProtocol')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">{t('skillProtocol.heartbeatDesc')}</p>
-          <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto font-mono">
-{`# Heartbeat event format
-{
-  "eventType": "heartbeat",
-  "eventId": "hb_abc123",
-  "timestamp": "2024-01-15T10:30:00Z",
-  "agentId": "agent_001",
-  "payload": {
-    "status": "alive",
-    "uptime": 3600
-  }
-}`}
+          <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto font-mono whitespace-pre-wrap">
+{`// Send heartbeat every 30 seconds
+setInterval(() => {
+  socket.emit('skill:heartbeat', {
+    status: 'online',
+    metrics: {
+      uptime: process.uptime(),
+      memoryUsage: process.memoryUsage().heapUsed
+    }
+  });
+}, 30000);
+
+// Receive heartbeat acknowledgement
+socket.on('skill:heartbeat-ack', (data) => {
+  console.log('Heartbeat acknowledged:', data.serverTime);
+});`}
           </pre>
         </CardContent>
       </Card>
 
-      {/* Code Examples */}
+      {/* Message Format */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <BookOpen className="w-4 h-4" />
-            {t('skillProtocol.codeExamples')}
+            <FileText className="w-4 h-4" />
+            {t('skillProtocol.messageFormat')}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Accordion type="single" collapsible defaultValue="curl">
-            <AccordionItem value="curl">
-              <AccordionTrigger className="text-sm">{t('skillProtocol.curlExample')}</AccordionTrigger>
+          <Accordion type="single" collapsible defaultValue="invoke">
+            <AccordionItem value="invoke">
+              <AccordionTrigger className="text-sm">skill:invoke (Hub → Agent)</AccordionTrigger>
               <AccordionContent>
-                <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto font-mono">
-{`# Register a skill endpoint
-curl -X POST https://your-domain/api/skill-protocol/register \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "endpointToken": "sk_your_token_here",
-    "callbackUrl": "https://your-agent.com/callback",
-    "events": ["message", "command"]
-  }'
-
-# Send an event
-curl -X POST https://your-domain/api/skill-protocol/events \\
-  -H "Authorization: Bearer sk_your_token_here" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "eventType": "message",
-    "payload": {"text": "Hello from external agent"}
-  }'
-
-# Send heartbeat
-curl -X POST https://your-domain/api/skill-protocol/heartbeat \\
-  -H "Authorization: Bearer sk_your_token_here" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "endpointToken": "sk_your_token_here"
-  }'`}
+                <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto font-mono whitespace-pre-wrap">
+{`{
+  "requestId": "req_abc123",
+  "skillName": "web_search",
+  "params": {
+    "query": "latest news about AI"
+  },
+  "conversationId": "conv_xxx",
+  "timestamp": "2024-01-15T10:30:00Z"
+}`}
                 </pre>
               </AccordionContent>
             </AccordionItem>
-            <AccordionItem value="python">
-              <AccordionTrigger className="text-sm">{t('skillProtocol.pythonExample')}</AccordionTrigger>
+            <AccordionItem value="invoke-response">
+              <AccordionTrigger className="text-sm">skill:invoke-response (Agent → Hub)</AccordionTrigger>
               <AccordionContent>
-                <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto font-mono">
-{`import requests
-import hmac
-import hashlib
-import json
-import time
-
-ENDPOINT_URL = "https://your-domain/api/skill-protocol/events"
-TOKEN = "sk_your_token_here"
-CALLBACK_SECRET = "cs_your_secret_here"
-
-def sign_payload(payload: dict) -> str:
-    body = json.dumps(payload, separators=(',', ':'))
-    return hmac.new(
-        CALLBACK_SECRET.encode(),
-        body.encode(),
-        hashlib.sha256
-    ).hexdigest()
-
-def send_event(event_type: str, payload: dict):
-    data = {
-        "eventType": event_type,
-        "eventId": f"evt_{int(time.time())}",
-        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "payload": payload
-    }
-    signature = sign_payload(data)
-    headers = {
-        "Authorization": f"Bearer {TOKEN}",
-        "Content-Type": "application/json",
-        "X-Signature": signature,
-    }
-    resp = requests.post(ENDPOINT_URL, json=data, headers=headers)
-    return resp.json()
-
-# Register
-register_resp = requests.post(
-    "https://your-domain/api/skill-protocol/register",
-    json={
-        "endpointToken": TOKEN,
-        "callbackUrl": "https://your-agent.com/callback",
-        "events": ["message", "command"]
-    }
-)
-
-# Send a message event
-result = send_event("message", {"text": "Hello from Python!"})
-print(result)`}
+                <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto font-mono whitespace-pre-wrap">
+{`{
+  "requestId": "req_abc123",
+  "result": {
+    "response": "Search results for AI news...",
+    "sources": ["https://..."]
+  }
+}`}
                 </pre>
               </AccordionContent>
             </AccordionItem>
-            <AccordionItem value="javascript">
-              <AccordionTrigger className="text-sm">{t('skillProtocol.jsExample')}</AccordionTrigger>
+            <AccordionItem value="event">
+              <AccordionTrigger className="text-sm">skill:event (Agent → Hub)</AccordionTrigger>
               <AccordionContent>
-                <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto font-mono">
-{`const crypto = require('crypto');
-
-const ENDPOINT_URL = 'https://your-domain/api/skill-protocol/events';
-const TOKEN = 'sk_your_token_here';
-const CALLBACK_SECRET = 'cs_your_secret_here';
-
-function signPayload(payload) {
-  const body = JSON.stringify(payload);
-  return crypto
-    .createHmac('sha256', CALLBACK_SECRET)
-    .update(body)
-    .digest('hex');
-}
-
-async function sendEvent(eventType, payload) {
-  const data = {
-    eventType,
-    eventId: \`evt_\${Date.now()}\`,
-    timestamp: new Date().toISOString(),
-    payload,
-  };
-  const signature = signPayload(data);
-  const resp = await fetch(ENDPOINT_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': \`Bearer \${TOKEN}\`,
-      'Content-Type': 'application/json',
-      'X-Signature': signature,
-    },
-    body: JSON.stringify(data),
-  });
-  return resp.json();
-}
-
-// Register
-async function register() {
-  const resp = await fetch(
-    'https://your-domain/api/skill-protocol/register',
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        endpointToken: TOKEN,
-        callbackUrl: 'https://your-agent.com/callback',
-        events: ['message', 'command'],
-      }),
-    }
-  );
-  return resp.json();
-}
-
-// Send event
-sendEvent('message', { text: 'Hello from JavaScript!' })
-  .then(console.log);`}
+                <pre className="text-xs bg-muted p-4 rounded-md overflow-x-auto font-mono whitespace-pre-wrap">
+{`{
+  "type": "message",
+  "data": {
+    "conversationId": "conv_xxx",
+    "content": "Hello from my agent!"
+  }
+}`}
                 </pre>
               </AccordionContent>
             </AccordionItem>
@@ -1244,7 +1551,7 @@ sendEvent('message', { text: 'Hello from JavaScript!' })
               </div>
               <div>
                 <span>{skill.displayName}</span>
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <Badge variant="outline" className={cn('text-[10px]', categoryBadgeColors[skill.category] || '')}>
                     {CATEGORY_KEYS[skill.category] ? t(CATEGORY_KEYS[skill.category]) : skill.category}
                   </Badge>
