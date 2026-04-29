@@ -246,6 +246,178 @@ class ApiClient {
     return this.post<{ room: any }>('/chat-rooms', data);
   }
 
+  // Chat Rooms
+  async deleteChatRoom(id: string) {
+    return this.del(`/chat-rooms/${id}`);
+  }
+
+  async getChatRoomMessages(roomId: string) {
+    return this.get<{ messages: any[] }>(`/chat-rooms/${roomId}/messages`);
+  }
+
+  async sendChatRoomMessage(roomId: string, content: string) {
+    return this.post<{ message: any }>(`/chat-rooms/${roomId}/messages`, { content });
+  }
+
+  // Channels
+  async getChannels() {
+    return this.get<{ channels: any[] }>('/channels');
+  }
+
+  async updateChannel(platform: string, data: any) {
+    return this.patch<{ channel: any }>(`/channels/${platform}`, data);
+  }
+
+  // Jobs
+  async getJobs() {
+    return this.get<{ jobs: any[] }>('/jobs');
+  }
+
+  async createJob(data: any) {
+    return this.post<{ job: any }>('/jobs', data);
+  }
+
+  async updateJob(id: string, data: any) {
+    return this.patch<{ job: any }>(`/jobs/${id}`, data);
+  }
+
+  async deleteJob(id: string) {
+    return this.del(`/jobs/${id}`);
+  }
+
+  async pauseJob(id: string) {
+    return this.post(`/jobs/${id}/pause`);
+  }
+
+  async resumeJob(id: string) {
+    return this.post(`/jobs/${id}/resume`);
+  }
+
+  async runJob(id: string) {
+    return this.post(`/jobs/${id}/run`);
+  }
+
+  // Profiles
+  async getProfiles() {
+    return this.get<{ profiles: any[] }>('/profiles');
+  }
+
+  async createProfile(data: any) {
+    return this.post<{ profile: any }>('/profiles', data);
+  }
+
+  async updateProfile(id: string, data: any) {
+    return this.patch<{ profile: any }>(`/profiles/${id}`, data);
+  }
+
+  async deleteProfile(id: string) {
+    return this.del(`/profiles/${id}`);
+  }
+
+  async switchProfile(id: string) {
+    return this.post('/profiles/switch', { profileId: id });
+  }
+
+  async exportProfile(id: string) {
+    return this.post(`/profiles/${id}/export`);
+  }
+
+  async importProfile(data: any) {
+    return this.post('/profiles/import', data);
+  }
+
+  // Memory
+  async getMemory(agentId?: string) {
+    const query = agentId ? `?agentId=${agentId}` : '';
+    return this.get<{ memory: any }>(`/memory${query}`);
+  }
+
+  async updateMemory(section: string, content: string, agentId?: string) {
+    return this.post('/memory', { section, content, agentId });
+  }
+
+  // Usage
+  async getUsage(period?: string) {
+    const query = period ? `?period=${period}` : '';
+    return this.get<{ usage: any }>(`/usage${query}`);
+  }
+
+  async getSessionUsage(sessionId: string) {
+    return this.get<{ usage: any }>(`/usage/${sessionId}`);
+  }
+
+  // Logs
+  async getLogs(type?: string, limit?: number) {
+    const params = new URLSearchParams();
+    if (type) params.set('type', type);
+    if (limit) params.set('limit', String(limit));
+    return this.get<{ logs: any[] }>(`/logs?${params.toString()}`);
+  }
+
+  async getLogFile(name: string) {
+    return this.get<{ entries: any[] }>(`/logs/${name}`);
+  }
+
+  // Files
+  async listFiles(path?: string) {
+    const query = path ? `?path=${encodeURIComponent(path)}` : '';
+    return this.get<{ files: any[] }>(`/files/list${query}`);
+  }
+
+  async readFile(path: string) {
+    return this.get<{ content: string }>(`/files/read?path=${encodeURIComponent(path)}`);
+  }
+
+  async writeFile(path: string, content: string) {
+    return this.put('/files/write', { path, content });
+  }
+
+  async deleteFile(path: string, recursive?: boolean) {
+    return this.del(`/files/delete?path=${encodeURIComponent(path)}${recursive ? '&recursive=true' : ''}`);
+  }
+
+  async renameFile(oldPath: string, newPath: string) {
+    return this.post('/files/rename', { oldPath, newPath });
+  }
+
+  async mkdir(path: string) {
+    return this.post('/files/mkdir', { path });
+  }
+
+  async uploadFile(formData: FormData) {
+    const headers: Record<string, string> = {};
+    if (this.userId) headers['x-user-id'] = this.userId;
+    const res = await fetch(`${API_BASE}/files/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!res.ok) throw new Error('Upload failed');
+    return res.json();
+  }
+
+  private async put<T>(path: string, body: unknown): Promise<T> {
+    const res = await this.request(path, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  }
+
+  // Search
+  async searchSessions(keyword: string) {
+    return this.get<{ results: any[] }>(`/search/sessions?keyword=${encodeURIComponent(keyword)}`);
+  }
+
+  // Settings
+  async getSettings() {
+    return this.get<{ settings: any }>('/settings');
+  }
+
+  async updateSettings(data: any) {
+    return this.patch<{ settings: any }>('/settings', data);
+  }
+
   // Seed
   async seedSkills() {
     return this.post('/seed/skills');

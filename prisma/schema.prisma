@@ -32,6 +32,13 @@ model User {
   friends2       Friendship[]           @relation("FriendAddressee")
   gateways       HermesGateway[]
   roomMemberships ChatRoomMember[]
+  channels        Channel[]
+  jobs            Job[]
+  profiles        Profile[]
+  usageRecords    UsageRecord[]
+  logEntries      LogEntry[]
+  fileEntries     FileEntry[]
+  appSettings     AppSettings[]
 }
 
 model Friendship {
@@ -65,7 +72,9 @@ model LLMProvider {
   updatedAt    DateTime @updatedAt
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agents Agent[]
+  agents  Agent[]
+  jobs    Job[]
+  profiles Profile[]
 
   @@index([userId])
 }
@@ -103,6 +112,9 @@ model Agent {
   conversations Conversation[]
   plugins       AgentPlugin[]
   roomAgents    ChatRoomAgent[]
+  memories      AgentMemory[]
+  usageRecords  UsageRecord[]
+  jobs          Job[]
 }
 
 // ==================== Skill/Plugin System ====================
@@ -213,6 +225,7 @@ model Conversation {
   agent        Agent?                   @relation(fields: [agentId], references: [id])
   participants ConversationParticipant[]
   messages     Message[]
+  usageRecords UsageRecord[]
 }
 
 model ConversationParticipant {
@@ -302,4 +315,181 @@ model ChatRoomMessage {
   room ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   @@index([roomId, createdAt])
+}
+
+// ==================== Platform Channels ====================
+
+model Channel {
+  id         String   @id @default(cuid())
+  userId     String
+  platform   String   @unique // telegram, discord, slack, whatsapp, matrix, feishu, wechat, wecom
+  name       String   // Display name
+  config     String   @default("{}") // JSON: platform-specific config (tokens, ids, etc.)
+  isEnabled  Boolean  @default(false)
+  status     String   @default("disconnected") // connected, disconnected, error, configuring
+  lastSync   DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ==================== Scheduled Jobs ====================
+
+model Job {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  description     String?
+  prompt          String   // The task prompt to execute
+  schedule        String   // Cron expression or interval
+  agentId         String?  // Agent to use for execution
+  skills          String   @default("[]") // JSON: skill IDs
+  model           String?  // Override model
+  providerId      String?  // Override provider
+  deliveryTarget  String   @default("{}") // JSON: {platform, chatId, threadId}
+  repeatLimit     Int?     // Max number of executions (null = unlimited)
+  completedCount  Int      @default(0)
+  status          String   @default("enabled") // enabled, paused, disabled
+  pausedAt        DateTime?
+  pausedReason    String?
+  lastRunAt       DateTime?
+  lastStatus      String?  // success, failed
+  lastError       String?
+  nextRunAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent    Agent?      @relation(fields: [agentId], references: [id])
+  provider LLMProvider? @relation(fields: [providerId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ==================== Multi-Profile System ====================
+
+model Profile {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  path        String?  // Filesystem path to profile directory
+  model       String?  // Default model for this profile
+  providerId  String?  // Default provider
+  gatewayUrl  String?  // Gateway URL for this profile
+  skillCount  Int      @default(0)
+  envStatus   String   @default("{}") // JSON: {hasEnv, hasSoul}
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider LLMProvider? @relation(fields: [providerId], references: [id])
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+// ==================== Memory System ====================
+
+model AgentMemory {
+  id          String   @id @default(cuid())
+  agentId     String
+  section     String   // memory, user, soul
+  content     String   @default("")
+  modifiedAt  DateTime @default(now())
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, section])
+  @@index([agentId])
+}
+
+// ==================== Usage Tracking ====================
+
+model UsageRecord {
+  id              String   @id @default(cuid())
+  userId          String
+  agentId         String?
+  conversationId  String?
+  model           String?
+  provider        String?
+  inputTokens     Int      @default(0)
+  outputTokens    Int      @default(0)
+  cacheReadTokens Int      @default(0)
+  cacheWriteTokens Int     @default(0)
+  reasoningTokens Int      @default(0)
+  estimatedCost   Float    @default(0)
+  billingProvider String?
+  costStatus      String   @default("estimated") // estimated, actual, mixed
+  createdAt       DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent        Agent?        @relation(fields: [agentId], references: [id])
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([agentId])
+}
+
+// ==================== Log System ====================
+
+model LogEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // agent, gateway, error, access
+  level     String   @default("info") // debug, info, warn, error
+  logger    String?  // Source logger name
+  message   String
+  metadata  String   @default("{}") // JSON: additional context
+  sessionId String?  // Related session ID
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, createdAt])
+  @@index([level, createdAt])
+}
+
+// ==================== File System ====================
+
+model FileEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  path      String   // Virtual path
+  type      String   // file, directory
+  size      Int      @default(0)
+  mimeType  String?
+  content   String?  // For small files, stored directly
+  backend   String   @default("local") // local, docker, ssh, singularity
+  backendConfig String @default("{}") // JSON: connection config for remote backends
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, path])
+  @@index([userId, path])
+}
+
+// ==================== App Settings ====================
+
+model AppSettings {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  section   String   // display, agent, memory, session, privacy, model, platform, account
+  key       String
+  value     String   // JSON-encoded value
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, section, key])
+  @@index([userId])
 }

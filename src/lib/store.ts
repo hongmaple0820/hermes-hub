@@ -9,7 +9,15 @@ export type ViewMode =
   | 'hermes'
   | 'chat'
   | 'chat-rooms'
-  | 'settings';
+  | 'settings'
+  | 'channels'
+  | 'jobs'
+  | 'usage'
+  | 'profiles'
+  | 'memory'
+  | 'logs'
+  | 'files'
+  | 'terminal';
 
 interface AppState {
   // Auth
@@ -52,6 +60,20 @@ interface AppState {
   // Chat Rooms
   chatRooms: any[];
   setChatRooms: (rooms: any[]) => void;
+
+  // Channels
+  channels: any[];
+  setChannels: (channels: any[]) => void;
+
+  // Jobs
+  jobs: any[];
+  setJobs: (jobs: any[]) => void;
+
+  // Profiles
+  profiles: any[];
+  setProfiles: (profiles: any[]) => void;
+  activeProfileId: string | null;
+  setActiveProfileId: (id: string | null) => void;
 
   // UI State
   sidebarCollapsed: boolean;
@@ -103,6 +125,20 @@ export const useAppStore = create<AppState>((set) => ({
   // Chat Rooms
   chatRooms: [],
   setChatRooms: (chatRooms) => set({ chatRooms }),
+
+  // Channels
+  channels: [],
+  setChannels: (channels) => set({ channels }),
+
+  // Jobs
+  jobs: [],
+  setJobs: (jobs) => set({ jobs }),
+
+  // Profiles
+  profiles: [],
+  setProfiles: (profiles) => set({ profiles }),
+  activeProfileId: null,
+  setActiveProfileId: (activeProfileId) => set({ activeProfileId }),
 
   // UI
   sidebarCollapsed: false,

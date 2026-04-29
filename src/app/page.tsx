@@ -14,6 +14,15 @@ import { HermesManager } from '@/components/views/HermesManager';
 import { ChatView } from '@/components/views/ChatView';
 import { ChatRoomManager } from '@/components/views/ChatRoomManager';
 import { Settings } from '@/components/views/Settings';
+import { ChannelsView } from '@/components/views/ChannelsView';
+import { JobsView } from '@/components/views/JobsView';
+import { UsageView } from '@/components/views/UsageView';
+import { ProfilesView } from '@/components/views/ProfilesView';
+import { MemoryView } from '@/components/views/MemoryView';
+import { LogsView } from '@/components/views/LogsView';
+import { FilesView } from '@/components/views/FilesView';
+import { TerminalView } from '@/components/views/TerminalView';
+import { SessionSearch } from '@/components/views/SessionSearch';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { Toaster, toast } from 'sonner';
 
@@ -150,6 +159,22 @@ function AppContent() {
         return <ChatView />;
       case 'chat-rooms':
         return <ChatRoomManager />;
+      case 'channels':
+        return <ChannelsView />;
+      case 'jobs':
+        return <JobsView />;
+      case 'usage':
+        return <UsageView />;
+      case 'profiles':
+        return <ProfilesView />;
+      case 'memory':
+        return <MemoryView />;
+      case 'logs':
+        return <LogsView />;
+      case 'files':
+        return <FilesView />;
+      case 'terminal':
+        return <TerminalView />;
       case 'settings':
         return <Settings onLogout={handleLogout} />;
       default:
@@ -172,6 +197,7 @@ function AppContent() {
           renderView()
         )}
       </main>
+      <SessionSearch />
       <Toaster />
     </div>
   );

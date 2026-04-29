@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 
-export type Locale = 'en' | 'zh' | 'ja' | 'ko';
+export type Locale = 'en' | 'zh' | 'ja' | 'ko' | 'de' | 'es' | 'fr' | 'pt';
 
 interface I18nContextType {
   locale: Locale;
@@ -16,6 +16,10 @@ const AVAILABLE_LOCALES: { code: Locale; label: string }[] = [
   { code: 'en', label: 'English' },
   { code: 'ja', label: '日本語' },
   { code: 'ko', label: '한국어' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'es', label: 'Español' },
+  { code: 'fr', label: 'Français' },
+  { code: 'pt', label: 'Português' },
 ];
 
 // Cache loaded messages

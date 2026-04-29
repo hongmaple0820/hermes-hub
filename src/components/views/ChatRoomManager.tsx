@@ -52,7 +52,7 @@ export function ChatRoomManager() {
 
   const handleDelete = async (id: string) => {
     try {
-      await api.deleteAgent(id);
+      await api.deleteChatRoom(id);
       setChatRooms(chatRooms.filter((r: any) => r.id !== id));
       toast.success(t('chatRooms.roomDeleted'));
     } catch (error: any) {

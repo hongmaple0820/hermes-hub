@@ -13,29 +13,48 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Bot, Plus, Trash2, Settings, Eye, MoreHorizontal } from 'lucide-react';
+import { Bot, Plus, Trash2, Settings, Eye, MoreHorizontal, Pencil } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+
+interface AgentForm {
+  name: string;
+  description: string;
+  systemPrompt: string;
+  mode: string;
+  providerId: string;
+  model: string;
+  isPublic: boolean;
+  temperature: number;
+  maxTokens: number;
+  callbackUrl: string;
+  apiKey: string;
+}
+
+const defaultForm: AgentForm = {
+  name: '',
+  description: '',
+  systemPrompt: '',
+  mode: 'builtin',
+  providerId: '',
+  model: '',
+  isPublic: false,
+  temperature: 0.7,
+  maxTokens: 2048,
+  callbackUrl: '',
+  apiKey: '',
+};
 
 export function AgentManager() {
   const { agents, setAgents, providers, setCurrentView, setSelectedAgentId } = useAppStore();
   const { t } = useI18n();
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
-
-  const [form, setForm] = useState({
-    name: '',
-    description: '',
-    systemPrompt: '',
-    mode: 'builtin',
-    providerId: '',
-    model: '',
-    isPublic: false,
-    temperature: 0.7,
-    maxTokens: 2048,
-    callbackUrl: '',
-  });
+  const [showEdit, setShowEdit] = useState(false);
+  const [editingAgent, setEditingAgent] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<AgentForm>({ ...defaultForm });
 
   const handleCreate = async () => {
     if (!form.name.trim()) {
@@ -53,12 +72,54 @@ export function AgentManager() {
       });
       setAgents([result.agent, ...agents]);
       setShowCreate(false);
-      setForm({ name: '', description: '', systemPrompt: '', mode: 'builtin', providerId: '', model: '', isPublic: false, temperature: 0.7, maxTokens: 2048, callbackUrl: '' });
+      setForm({ ...defaultForm });
       toast.success(t('agents.created'));
     } catch (error: any) {
       toast.error(error.message);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleEdit = (agent: any) => {
+    setEditingAgent(agent);
+    setForm({
+      name: agent.name || '',
+      description: agent.description || '',
+      systemPrompt: agent.systemPrompt || '',
+      mode: agent.mode || 'builtin',
+      providerId: agent.providerId || '',
+      model: agent.model || '',
+      isPublic: agent.isPublic || false,
+      temperature: agent.temperature ?? 0.7,
+      maxTokens: agent.maxTokens ?? 2048,
+      callbackUrl: agent.callbackUrl || '',
+      apiKey: agent.apiKey || '',
+    });
+    setShowEdit(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingAgent || !form.name.trim()) {
+      toast.error(t('common.required'));
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await api.updateAgent(editingAgent.id, {
+        ...form,
+        providerId: form.providerId || undefined,
+        model: form.model || undefined,
+      });
+      setAgents(agents.map((a: any) => a.id === editingAgent.id ? result.agent : a));
+      setShowEdit(false);
+      setEditingAgent(null);
+      setForm({ ...defaultForm });
+      toast.success(t('agents.updated'));
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -84,6 +145,101 @@ export function AgentManager() {
     hermes: 'bg-cyan-500/10 text-cyan-600 border-cyan-200',
   };
 
+  const renderFormFields = (isEdit: boolean) => (
+    <div className="space-y-4 mt-4">
+      <div className="space-y-2">
+        <Label>{t('agents.nameLabel')} *</Label>
+        <Input placeholder={t('agents.namePlaceholder')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+      </div>
+      <div className="space-y-2">
+        <Label>{t('agents.descriptionLabel')}</Label>
+        <Textarea placeholder={t('agents.descriptionPlaceholder')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} />
+      </div>
+      <div className="space-y-2">
+        <Label>{t('agents.modeLabel')}</Label>
+        <Select value={form.mode} onValueChange={(v) => setForm({ ...form, mode: v })} disabled={isEdit}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="builtin">{t('agents.modeBuiltin')}</SelectItem>
+            <SelectItem value="custom_api">{t('agents.modeCustomApi')}</SelectItem>
+            <SelectItem value="hermes">{t('agents.modeHermes')}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {form.mode === 'builtin' && (
+        <>
+          <div className="space-y-2">
+            <Label>{t('agents.providerLabel')}</Label>
+            <Select value={form.providerId} onValueChange={(v) => setForm({ ...form, providerId: v })}>
+              <SelectTrigger><SelectValue placeholder={t('agents.providerPlaceholder')} /></SelectTrigger>
+              <SelectContent>
+                {providers.length === 0 ? (
+                  <SelectItem value="none" disabled>{t('agents.noProviders')}</SelectItem>
+                ) : (
+                  providers.map((p: any) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name} ({p.provider})</SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            {providers.length === 0 && (
+              <p className="text-xs text-amber-600">{t('agents.addProviderFirst')}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label>{t('agents.modelOverride')}</Label>
+            <Input placeholder={t('agents.modelOverridePlaceholder')} value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>{t('agents.temperature')}: {form.temperature}</Label>
+              <input type="range" min="0" max="2" step="0.1" value={form.temperature} onChange={(e) => setForm({ ...form, temperature: parseFloat(e.target.value) })} className="w-full" />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('agents.maxTokens')}</Label>
+              <Input type="number" value={form.maxTokens} onChange={(e) => setForm({ ...form, maxTokens: parseInt(e.target.value) || 2048 })} />
+            </div>
+          </div>
+        </>
+      )}
+
+      {form.mode === 'custom_api' && (
+        <div className="space-y-2">
+          <Label>{t('agents.callbackUrl')} *</Label>
+          <Input placeholder={t('agents.callbackUrlPlaceholder')} value={form.callbackUrl} onChange={(e) => setForm({ ...form, callbackUrl: e.target.value })} />
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label>{t('agents.systemPrompt')}</Label>
+        <Textarea placeholder={t('agents.systemPromptPlaceholder')} value={form.systemPrompt} onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })} rows={4} />
+      </div>
+
+      {form.mode === 'builtin' && (
+        <div className="space-y-2">
+          <Label>{t('agents.apiKeyOptional')}</Label>
+          <Input type="password" placeholder={t('agents.apiKeyPlaceholder')} value={form.apiKey} onChange={(e) => setForm({ ...form, apiKey: e.target.value })} />
+        </div>
+      )}
+
+      <div className="flex items-center gap-2">
+        <Switch checked={form.isPublic} onCheckedChange={(v) => setForm({ ...form, isPublic: v })} />
+        <Label>{t('agents.isPublic')}</Label>
+      </div>
+
+      {isEdit ? (
+        <Button onClick={handleUpdate} className="w-full" disabled={saving}>
+          {saving ? t('agents.saving') : t('agents.save')}
+        </Button>
+      ) : (
+        <Button onClick={handleCreate} className="w-full" disabled={creating}>
+          {creating ? t('agents.creating') : t('agents.create')}
+        </Button>
+      )}
+    </div>
+  );
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -101,88 +257,20 @@ export function AgentManager() {
             <DialogHeader>
               <DialogTitle>{t('agents.createTitle')}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>{t('agents.nameLabel')} *</Label>
-                <Input placeholder={t('agents.namePlaceholder')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>{t('agents.descriptionLabel')}</Label>
-                <Textarea placeholder={t('agents.descriptionPlaceholder')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} />
-              </div>
-              <div className="space-y-2">
-                <Label>{t('agents.modeLabel')}</Label>
-                <Select value={form.mode} onValueChange={(v) => setForm({ ...form, mode: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="builtin">{t('agents.modeBuiltin')}</SelectItem>
-                    <SelectItem value="custom_api">{t('agents.modeCustomApi')}</SelectItem>
-                    <SelectItem value="hermes">{t('agents.modeHermes')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {form.mode === 'builtin' && (
-                <>
-                  <div className="space-y-2">
-                    <Label>{t('agents.providerLabel')}</Label>
-                    <Select value={form.providerId} onValueChange={(v) => setForm({ ...form, providerId: v })}>
-                      <SelectTrigger><SelectValue placeholder={t('agents.providerPlaceholder')} /></SelectTrigger>
-                      <SelectContent>
-                        {providers.length === 0 ? (
-                          <SelectItem value="none" disabled>{t('agents.noProviders')}</SelectItem>
-                        ) : (
-                          providers.map((p: any) => (
-                            <SelectItem key={p.id} value={p.id}>{p.name} ({p.provider})</SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    {providers.length === 0 && (
-                      <p className="text-xs text-amber-600">{t('agents.addProviderFirst')}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{t('agents.modelOverride')}</Label>
-                    <Input placeholder={t('agents.modelOverridePlaceholder')} value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>{t('agents.temperature')}: {form.temperature}</Label>
-                      <input type="range" min="0" max="2" step="0.1" value={form.temperature} onChange={(e) => setForm({ ...form, temperature: parseFloat(e.target.value) })} className="w-full" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>{t('agents.maxTokens')}</Label>
-                      <Input type="number" value={form.maxTokens} onChange={(e) => setForm({ ...form, maxTokens: parseInt(e.target.value) || 2048 })} />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {form.mode === 'custom_api' && (
-                <div className="space-y-2">
-                  <Label>{t('agents.callbackUrl')} *</Label>
-                  <Input placeholder={t('agents.callbackUrlPlaceholder')} value={form.callbackUrl} onChange={(e) => setForm({ ...form, callbackUrl: e.target.value })} />
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label>{t('agents.systemPrompt')}</Label>
-                <Textarea placeholder={t('agents.systemPromptPlaceholder')} value={form.systemPrompt} onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })} rows={4} />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Switch checked={form.isPublic} onCheckedChange={(v) => setForm({ ...form, isPublic: v })} />
-                <Label>{t('agents.isPublic')}</Label>
-              </div>
-
-              <Button onClick={handleCreate} className="w-full" disabled={creating}>
-                {creating ? t('agents.creating') : t('agents.create')}
-              </Button>
-            </div>
+            {renderFormFields(false)}
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={showEdit} onOpenChange={(open) => { setShowEdit(open); if (!open) { setEditingAgent(null); setForm({ ...defaultForm }); } }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('agents.editTitle')}</DialogTitle>
+          </DialogHeader>
+          {renderFormFields(true)}
+        </DialogContent>
+      </Dialog>
 
       {agents.length === 0 ? (
         <Card className="border-dashed">
@@ -229,6 +317,9 @@ export function AgentManager() {
                         <DropdownMenuItem onClick={() => { setSelectedAgentId(agent.id); setCurrentView('agent-detail'); }}>
                           <Eye className="w-4 h-4 mr-2" /> {t('common.view')} {t('common.details')}
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEdit(agent)}>
+                          <Pencil className="w-4 h-4 mr-2" /> {t('common.edit')}
+                        </DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(agent.id)}>
                           <Trash2 className="w-4 h-4 mr-2" /> {t('common.delete')}
                         </DropdownMenuItem>
@@ -250,9 +341,9 @@ export function AgentManager() {
                     variant="ghost"
                     size="sm"
                     className="text-xs gap-1"
-                    onClick={() => { setSelectedAgentId(agent.id); setCurrentView('agent-detail'); }}
+                    onClick={() => handleEdit(agent)}
                   >
-                    <Settings className="w-3 h-3" /> {t('common.configure')}
+                    <Pencil className="w-3 h-3" /> {t('common.edit')}
                   </Button>
                 </div>
                 {/* Skills & Connections indicators */}

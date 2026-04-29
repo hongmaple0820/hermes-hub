@@ -5,6 +5,7 @@ import { useI18n } from '@/i18n';
 import {
   LayoutDashboard, Bot, Server, Puzzle, Cable, MessageSquare, Users, Settings,
   LogOut, ChevronLeft, ChevronRight, Zap, Languages,
+  Radio, Clock, BarChart3, UserCircle, Brain, ScrollText, Folder, Terminal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -17,15 +18,43 @@ interface SidebarProps {
   onLogout: () => void;
 }
 
-const navKeys: { id: ViewMode; labelKey: string; icon: React.ElementType }[] = [
-  { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
-  { id: 'agents', labelKey: 'nav.agents', icon: Bot },
-  { id: 'providers', labelKey: 'nav.providers', icon: Server },
-  { id: 'skills', labelKey: 'nav.skills', icon: Puzzle },
-  { id: 'hermes', labelKey: 'nav.hermes', icon: Cable },
-  { id: 'chat', labelKey: 'nav.chat', icon: MessageSquare },
-  { id: 'chat-rooms', labelKey: 'nav.chatRooms', icon: Users },
-  { id: 'settings', labelKey: 'nav.settings', icon: Settings },
+const navSections = [
+  {
+    label: 'main',
+    items: [
+      { id: 'dashboard' as ViewMode, labelKey: 'nav.dashboard', icon: LayoutDashboard },
+      { id: 'agents' as ViewMode, labelKey: 'nav.agents', icon: Bot },
+      { id: 'providers' as ViewMode, labelKey: 'nav.providers', icon: Server },
+      { id: 'skills' as ViewMode, labelKey: 'nav.skills', icon: Puzzle },
+      { id: 'hermes' as ViewMode, labelKey: 'nav.hermes', icon: Cable },
+      { id: 'channels' as ViewMode, labelKey: 'nav.channels', icon: Radio },
+    ],
+  },
+  {
+    label: 'communication',
+    items: [
+      { id: 'chat' as ViewMode, labelKey: 'nav.chat', icon: MessageSquare },
+      { id: 'chat-rooms' as ViewMode, labelKey: 'nav.chatRooms', icon: Users },
+    ],
+  },
+  {
+    label: 'management',
+    items: [
+      { id: 'jobs' as ViewMode, labelKey: 'nav.jobs', icon: Clock },
+      { id: 'usage' as ViewMode, labelKey: 'nav.usage', icon: BarChart3 },
+      { id: 'profiles' as ViewMode, labelKey: 'nav.profiles', icon: UserCircle },
+      { id: 'memory' as ViewMode, labelKey: 'nav.memory', icon: Brain },
+    ],
+  },
+  {
+    label: 'system',
+    items: [
+      { id: 'logs' as ViewMode, labelKey: 'nav.logs', icon: ScrollText },
+      { id: 'files' as ViewMode, labelKey: 'nav.files', icon: Folder },
+      { id: 'terminal' as ViewMode, labelKey: 'nav.terminal', icon: Terminal },
+      { id: 'settings' as ViewMode, labelKey: 'nav.settings', icon: Settings },
+    ],
+  },
 ];
 
 export function Sidebar({ onLogout }: SidebarProps) {
@@ -70,49 +99,60 @@ export function Sidebar({ onLogout }: SidebarProps) {
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-2 px-2">
           <div className="space-y-1">
-            {navKeys.map((item) => {
-              const isActive = currentView === item.id;
-              const Icon = item.icon;
-
-              const button = (
-                <button
-                  key={item.id}
-                  onClick={() => setCurrentView(item.id)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
-                    'hover:bg-accent hover:text-accent-foreground',
-                    isActive
-                      ? 'bg-primary/10 text-primary font-medium'
-                      : 'text-muted-foreground',
-                    sidebarCollapsed && 'justify-center px-0'
-                  )}
-                >
-                  <Icon className={cn('w-[18px] h-[18px] shrink-0', isActive && 'text-primary')} />
-                  {!sidebarCollapsed && <span className="truncate">{t(item.labelKey)}</span>}
-                  {!sidebarCollapsed && item.id === 'agents' && onlineAgents > 0 && (
-                    <span className="ml-auto text-[10px] bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded-full font-medium">
-                      {onlineAgents}
+            {navSections.map((section) => (
+              <div key={section.label}>
+                {navSections.length > 1 && !sidebarCollapsed && section.label !== 'main' && (
+                  <div className="px-3 pt-3 pb-1">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      {section.label}
                     </span>
-                  )}
-                  {!sidebarCollapsed && item.id === 'chat' && unreadConvs > 0 && (
-                    <span className="ml-auto text-[10px] bg-orange-500/10 text-orange-600 px-1.5 py-0.5 rounded-full font-medium">
-                      {unreadConvs}
-                    </span>
-                  )}
-                </button>
-              );
+                  </div>
+                )}
+                {section.items.map((item) => {
+                  const isActive = currentView === item.id;
+                  const Icon = item.icon;
 
-              if (sidebarCollapsed) {
-                return (
-                  <Tooltip key={item.id}>
-                    <TooltipTrigger asChild>{button}</TooltipTrigger>
-                    <TooltipContent side="right" className="font-medium">{t(item.labelKey)}</TooltipContent>
-                  </Tooltip>
-                );
-              }
+                  const button = (
+                    <button
+                      key={item.id}
+                      onClick={() => setCurrentView(item.id)}
+                      className={cn(
+                        'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
+                        'hover:bg-accent hover:text-accent-foreground',
+                        isActive
+                          ? 'bg-primary/10 text-primary font-medium'
+                          : 'text-muted-foreground',
+                        sidebarCollapsed && 'justify-center px-0'
+                      )}
+                    >
+                      <Icon className={cn('w-[18px] h-[18px] shrink-0', isActive && 'text-primary')} />
+                      {!sidebarCollapsed && <span className="truncate">{t(item.labelKey)}</span>}
+                      {!sidebarCollapsed && item.id === 'agents' && onlineAgents > 0 && (
+                        <span className="ml-auto text-[10px] bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded-full font-medium">
+                          {onlineAgents}
+                        </span>
+                      )}
+                      {!sidebarCollapsed && item.id === 'chat' && unreadConvs > 0 && (
+                        <span className="ml-auto text-[10px] bg-orange-500/10 text-orange-600 px-1.5 py-0.5 rounded-full font-medium">
+                          {unreadConvs}
+                        </span>
+                      )}
+                    </button>
+                  );
 
-              return button;
-            })}
+                  if (sidebarCollapsed) {
+                    return (
+                      <Tooltip key={item.id}>
+                        <TooltipTrigger asChild>{button}</TooltipTrigger>
+                        <TooltipContent side="right" className="font-medium">{t(item.labelKey)}</TooltipContent>
+                      </Tooltip>
+                    );
+                  }
+
+                  return button;
+                })}
+              </div>
+            ))}
           </div>
         </nav>
 

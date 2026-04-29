@@ -11,7 +11,10 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Server, Plus, Trash2, CheckCircle2, XCircle, Loader2, Eye, EyeOff, TestTube } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Server, Plus, Trash2, CheckCircle2, XCircle, Loader2, Eye, EyeOff, TestTube, Pencil } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { MoreHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -24,22 +27,36 @@ const PROVIDER_TYPES = [
   { value: 'custom', labelKey: 'providers.typeCustom', icon: '🔧', defaultUrl: 'http://localhost:8080/v1', defaultModel: '' },
 ];
 
+interface ProviderForm {
+  name: string;
+  provider: string;
+  apiKey: string;
+  baseUrl: string;
+  defaultModel: string;
+  isActive: boolean;
+}
+
+const defaultForm: ProviderForm = {
+  name: '',
+  provider: 'openai',
+  apiKey: '',
+  baseUrl: '',
+  defaultModel: '',
+  isActive: true,
+};
+
 export function ProviderManager() {
   const { providers, setProviders } = useAppStore();
   const { t } = useI18n();
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editingProvider, setEditingProvider] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<ProviderForm>({ ...defaultForm });
   const [testing, setTesting] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
   const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({});
-
-  const [form, setForm] = useState({
-    name: '',
-    provider: 'openai',
-    apiKey: '',
-    baseUrl: '',
-    defaultModel: '',
-  });
 
   const handleProviderTypeChange = (type: string) => {
     const pt = PROVIDER_TYPES.find((p) => p.value === type);
@@ -53,7 +70,7 @@ export function ProviderManager() {
 
   const handleCreate = async () => {
     if (!form.name.trim()) {
-      toast.error('Provider name is required');
+      toast.error(t('common.required'));
       return;
     }
     setCreating(true);
@@ -65,12 +82,49 @@ export function ProviderManager() {
       });
       setProviders([result.provider, ...providers]);
       setShowCreate(false);
-      setForm({ name: '', provider: 'openai', apiKey: '', baseUrl: '', defaultModel: '' });
+      setForm({ ...defaultForm });
       toast.success(t('providers.created'));
     } catch (error: any) {
       toast.error(error.message);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleEdit = (provider: any) => {
+    setEditingProvider(provider);
+    setForm({
+      name: provider.name || '',
+      provider: provider.provider || 'openai',
+      apiKey: provider.apiKey || '',
+      baseUrl: provider.baseUrl || '',
+      defaultModel: provider.defaultModel || '',
+      isActive: provider.isActive !== false,
+    });
+    setShowEdit(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingProvider || !form.name.trim()) {
+      toast.error(t('common.required'));
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await api.updateProvider(editingProvider.id, {
+        ...form,
+        models: JSON.stringify([]),
+        config: JSON.stringify({}),
+      });
+      setProviders(providers.map((p: any) => p.id === editingProvider.id ? result.provider : p));
+      setShowEdit(false);
+      setEditingProvider(null);
+      setForm({ ...defaultForm });
+      toast.success(t('providers.updated'));
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -104,6 +158,61 @@ export function ProviderManager() {
 
   const getProviderType = (type: string) => PROVIDER_TYPES.find((p) => p.value === type);
 
+  const renderFormFields = (isEdit: boolean) => (
+    <div className="space-y-4 mt-4">
+      <div className="space-y-2">
+        <Label>{t('providers.providerName')} *</Label>
+        <Input placeholder={t('providers.providerNamePlaceholder')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+      </div>
+      <div className="space-y-2">
+        <Label>{t('providers.providerType')}</Label>
+        <Select value={form.provider} onValueChange={handleProviderTypeChange} disabled={isEdit}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {PROVIDER_TYPES.map((pt) => (
+              <SelectItem key={pt.value} value={pt.value}>
+                {pt.icon} {t(pt.labelKey)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {form.provider !== 'z-ai' && (
+        <>
+          <div className="space-y-2">
+            <Label>{t('providers.apiKey')}</Label>
+            <Input type="password" placeholder="sk-..." value={form.apiKey} onChange={(e) => setForm({ ...form, apiKey: e.target.value })} />
+          </div>
+          {['openai', 'ollama', 'custom'].includes(form.provider) && (
+            <div className="space-y-2">
+              <Label>{t('providers.baseUrl')}</Label>
+              <Input placeholder={getProviderType(form.provider)?.defaultUrl} value={form.baseUrl} onChange={(e) => setForm({ ...form, baseUrl: e.target.value })} />
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label>{t('providers.defaultModel')}</Label>
+            <Input placeholder="e.g., gpt-4o" value={form.defaultModel} onChange={(e) => setForm({ ...form, defaultModel: e.target.value })} />
+          </div>
+        </>
+      )}
+      {isEdit && (
+        <div className="flex items-center gap-2">
+          <Switch checked={form.isActive} onCheckedChange={(v) => setForm({ ...form, isActive: v })} />
+          <Label>{t('providers.isActive')}</Label>
+        </div>
+      )}
+      {isEdit ? (
+        <Button onClick={handleUpdate} className="w-full" disabled={saving}>
+          {saving ? t('providers.saving') : t('providers.save')}
+        </Button>
+      ) : (
+        <Button onClick={handleCreate} className="w-full" disabled={creating}>
+          {creating ? `${t('providers.add')}...` : t('providers.add')}
+        </Button>
+      )}
+    </div>
+  );
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -117,49 +226,18 @@ export function ProviderManager() {
           </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader><DialogTitle>{t('providers.addTitle')}</DialogTitle></DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>{t('providers.providerName')} *</Label>
-                <Input placeholder={t('providers.providerNamePlaceholder')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>{t('providers.providerType')}</Label>
-                <Select value={form.provider} onValueChange={handleProviderTypeChange}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PROVIDER_TYPES.map((pt) => (
-                      <SelectItem key={pt.value} value={pt.value}>
-                        {pt.icon} {t(pt.labelKey)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {form.provider !== 'z-ai' && (
-                <>
-                  <div className="space-y-2">
-                    <Label>{t('providers.apiKey')}</Label>
-                    <Input type="password" placeholder="sk-..." value={form.apiKey} onChange={(e) => setForm({ ...form, apiKey: e.target.value })} />
-                  </div>
-                  {['openai', 'ollama', 'custom'].includes(form.provider) && (
-                    <div className="space-y-2">
-                      <Label>{t('providers.baseUrl')}</Label>
-                      <Input placeholder={getProviderType(form.provider)?.defaultUrl} value={form.baseUrl} onChange={(e) => setForm({ ...form, baseUrl: e.target.value })} />
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                    <Label>{t('providers.defaultModel')}</Label>
-                    <Input placeholder="e.g., gpt-4o" value={form.defaultModel} onChange={(e) => setForm({ ...form, defaultModel: e.target.value })} />
-                  </div>
-                </>
-              )}
-              <Button onClick={handleCreate} className="w-full" disabled={creating}>
-                {creating ? `${t('providers.add')}...` : t('providers.add')}
-              </Button>
-            </div>
+            {renderFormFields(false)}
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={showEdit} onOpenChange={(open) => { setShowEdit(open); if (!open) { setEditingProvider(null); setForm({ ...defaultForm }); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{t('providers.editTitle')}</DialogTitle></DialogHeader>
+          {renderFormFields(true)}
+        </DialogContent>
+      </Dialog>
 
       {/* Provider Type Legend */}
       <div className="flex flex-wrap gap-2 mb-6">
@@ -197,12 +275,29 @@ export function ProviderManager() {
                       </div>
                       <div>
                         <CardTitle className="text-base">{provider.name}</CardTitle>
-                        <Badge variant="outline" className="text-[10px] mt-1">{pt ? t(pt.labelKey) : provider.provider}</Badge>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline" className="text-[10px]">{pt ? t(pt.labelKey) : provider.provider}</Badge>
+                          {provider.isActive === false && (
+                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200">{t('common.inactive')}</Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="w-7 h-7 text-destructive" onClick={() => handleDelete(provider.id)}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="w-7 h-7 opacity-0 group-hover:opacity-100">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEdit(provider)}>
+                          <Pencil className="w-4 h-4 mr-2" /> {t('common.edit')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(provider.id)}>
+                          <Trash2 className="w-4 h-4 mr-2" /> {t('common.delete')}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -249,15 +344,25 @@ export function ProviderManager() {
                         )}
                         {testing === provider.id ? t('providers.testing') : t('providers.testConnection')}
                       </Button>
-                      {testResult && (
-                        <div className="flex items-center gap-1">
-                          {testResult.success ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                          ) : (
-                            <XCircle className="w-4 h-4 text-red-500" />
-                          )}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {testResult && (
+                          <div className="flex items-center gap-1">
+                            {testResult.success ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-red-500" />
+                            )}
+                          </div>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="w-7 h-7"
+                          onClick={() => handleEdit(provider)}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </div>
                     {testResult && !testResult.success && (
                       <p className="text-xs text-red-500 mt-1 line-clamp-2">{testResult.message}</p>
