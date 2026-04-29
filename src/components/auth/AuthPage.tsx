@@ -11,12 +11,13 @@ import { Zap, Languages } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface AuthPageProps {
-  onAuth: (email: string, password: string, isRegister: boolean) => Promise<void>;
+  onAuth: (email: string, password: string, isRegister: boolean, name?: string) => Promise<void>;
 }
 
 export function AuthPage({ onAuth }: AuthPageProps) {
   const { t, locale, setLocale, locales } = useI18n();
   const [isRegister, setIsRegister] = useState(false);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,7 +26,7 @@ export function AuthPage({ onAuth }: AuthPageProps) {
     e.preventDefault();
     setLoading(true);
     try {
-      await onAuth(email, password, isRegister);
+      await onAuth(email, password, isRegister, name);
     } finally {
       setLoading(false);
     }
@@ -87,8 +88,8 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                   <Input
                     id="name"
                     placeholder={t('auth.namePlaceholder')}
-                    value={email.split('@')[0]}
-                    onChange={() => {}}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     required
                   />
                 </div>

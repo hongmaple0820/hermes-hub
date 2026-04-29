@@ -93,10 +93,10 @@ function AppContent() {
     }
   }, [isAuthenticated, loadData]);
 
-  const handleLogin = async (email: string, password: string, isRegister: boolean) => {
+  const handleLogin = async (email: string, password: string, isRegister: boolean, name?: string) => {
     try {
       const result = isRegister
-        ? await api.register(email, email.split('@')[0], password)
+        ? await api.register(email, name || email.split('@')[0], password)
         : await api.login(email, password);
 
       const { user: userData, token } = result;

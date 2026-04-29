@@ -551,3 +551,239 @@ Stage Summary:
 - **Dashboard redesigned**: Richer with system status, architecture diagrams, activity feed
 - **Sidebar enhanced**: Live ACRP connection count badge with pulse animation
 - **All API tests pass**: No more 500 errors
+
+---
+Task ID: 2
+Agent: DashboardEnhancer
+Task: Enhance Dashboard component with more features and better styling
+
+Work Log:
+- Rewrote `/home/z/my-project/src/components/views/Dashboard.tsx` with comprehensive enhancements:
+  - **i18n**: Replaced ALL hardcoded English strings with t() calls (50+ new i18n keys)
+  - **Real health check**: System Online/Offline based on activeProviders and connectedAcrpAgents, not hardcoded
+  - **Quick Stats Grid**: 6-card grid showing Total Agents, Online Agents, Total Skills, Active Skills, Total Conversations, ACRP Connected with colored left borders and circular icon backgrounds
+  - **Enhanced Recent Activity**: Built ActivityItem interface with 6 types (agent_created, conversation_started, acrp_connected, acrp_disconnected, agent_online, agent_offline), timestamps with time-ago formatting, type-specific icons (Plus, MessageSquare, Radio, LogOut, Wifi, WifiOff), type labels as badges, limited to 10 items, "View All" link to logs view
+  - **Enhanced Architecture section**: Gradient borders, numbered flow indicators (1→2→3→4) with colored step badges, sub-labels (builtinModeDesc, acrpModeDesc), animate-pulse on step 4, hover effects
+  - **Styling improvements**: Gradient header area, consistent rounded-xl, border-l-4 colored borders on stat cards, hover:-translate-y-0.5 micro-interactions, shadow transitions, proper dark mode support
+  - Added useMemo for activity feed computation
+  - Added formatTimeAgo helper with i18n for relative timestamps
+  - Removed unused LogIn import
+- Updated ALL 8 i18n locale files with 50+ new dashboard keys:
+  - en.json, zh.json, ja.json, ko.json, de.json, es.json, fr.json, pt.json
+  - New keys: systemStatus, platformHealth, agentArchitecture, howAgentsConnect, recentActivity, latestActivity, noActivity, createAgentToStart, systemOnline, systemOffline, builtinMode, builtinModeDesc, acrpMode, acrpModeDesc, llmProviders, acrpAgents, skillsActive, builtin, chats, online, totalAgents, onlineAgents, totalSkills, activeSkills, totalConversations, acrpConnected, agentsLabel, stepUser, stepHub, stepProvider, stepResponse, stepAgent, stepCapabilityInvoke, supported, active, enabled, connected, rooms, multiAgent, viewAll, justNow, minutesAgo, hoursAgo, daysAgo, conversation, activityAgentCreated, activityConvStarted, activityAcrpConnected, activityAcrpDisconnected, activityAgentOnline, activityAgentOffline
+- Lint check passes clean
+
+Stage Summary:
+- **Dashboard fully i18n-ified**: All hardcoded English text replaced with t() keys
+- **Real health check**: System status badge shows green/red based on active providers and ACRP connections
+- **Quick Stats Grid**: 6 compact stat cards with colored borders and icon circles
+- **Enhanced Activity Feed**: 6 activity types with icons, badges, timestamps, and 10-item limit
+- **Architecture section**: Numbered flow indicators (1→2→3→4) with gradient borders and pulse animation
+- **Styling**: Gradient header, rounded-xl, colored left borders, hover animations, dark mode support
+- **All 8 locales updated**: 50+ new dashboard i18n keys with proper translations
+
+---
+Task ID: 4
+Agent: AgentManagerEnhancer
+Task: Enhance AgentManager component
+
+Work Log:
+- Complete rewrite of `/home/z/my-project/src/components/views/AgentManager.tsx` with 7 enhancements:
+  1. ACRP-specific configuration in create/edit form:
+     - Agent Type selector dropdown (hermes-agent, openclaw, claude-code, codex, trae, custom)
+     - Agent Version text input (optional)
+     - Description textarea (required for ACRP mode)
+     - Conditionally shown when mode="acrp" in a cyan-bordered section
+  2. Generate Token shortcut after creating ACRP agent:
+     - Success dialog with "Agent created successfully!" message
+     - "Generate ACRP Token" button navigates to Agent Control Center
+     - "Generate Later" button dismisses the dialog
+  3. Delete confirmation dialog:
+     - "Delete Agent" title with warning text about irreversible action
+     - Agent name shown in a destructive-colored alert box
+     - Text input requiring exact agent name match to enable delete button
+     - Cancel and Delete buttons
+  4. Agent status indicators:
+     - Colored dot per agent (green=online, gray=offline, amber=busy, red=error)
+     - ACRP agents show "Connected"/"Disconnected" badge with Wifi/WifiOff icon
+     - Auto-refresh status every 30 seconds via ACRP agents API
+  5. Improved agent card design:
+     - Gradient top border matching mode (emerald for builtin, cyan for acrp)
+     - Agent emoji based on agentType (🤖 hermes-agent, 🦞 openclaw, 🧠 claude-code, 💻 codex, ⚡ trae, 🔧 custom)
+     - Skill count badge inline with mode badge
+     - "Last active" timestamp in footer
+     - Hover animation: lift up (-translate-y-0.5) with shadow-lg
+     - Better spacing and typography throughout
+  6. Search/filter functionality:
+     - Search input with magnifying glass icon to filter by name/description
+     - Filter buttons: "All", "Builtin", "ACRP"
+     - Count of filtered results displayed
+     - Empty state with Search icon when no results match
+  7. Added 16 new i18n keys to all 8 locale files (en, zh, ja, ko, de, es, fr, pt):
+     - agents.searchPlaceholder, agents.filterAll, agents.filterBuiltin, agents.filterAcrp
+     - agents.generateToken, agents.generateLater
+     - agents.agentCreated, agents.agentCreatedDesc
+     - agents.deleteConfirmTitle, agents.deleteConfirmDesc, agents.typeAgentName
+     - agents.agentType, agents.agentVersion
+     - agents.lastActive, agents.connected, agents.disconnected
+- All hardcoded English strings replaced with i18n keys
+- Lint check passes clean
+
+Stage Summary:
+- AgentManager fully enhanced with search/filter, ACRP config, delete safety, status indicators, improved cards
+- ACRP agents get dedicated config (type, version, required description) and post-creation token shortcut
+- Delete requires typing agent name for safety confirmation
+- Agent cards show gradient borders, emojis, skill counts, last active timestamps, and live status
+- Status auto-refreshes every 30 seconds for ACRP agents
+- All 16 new i18n keys added to all 8 locale files
+
+---
+Task ID: 3
+Agent: AgentControlEnhancer
+Task: Enhance AgentControlCenter component
+
+Work Log:
+- Complete rewrite of `/home/z/my-project/src/components/views/AgentControlCenter.tsx` with 8 major improvements:
+  1. Fixed duplicate "Remote Control" and "Capabilities" buttons → consolidated into single "Manage" button
+  2. Added auto-refresh for Remote Control tab:
+     - 15-second interval refresh when Remote Control tab is active
+     - "Last refreshed: Xs ago" indicator with live countdown
+     - Manual refresh button with spinning animation during load
+  3. Internationalized formatTimeAgo:
+     - Replaced hardcoded "5s ago", "3m ago", etc. with i18n keys: acrp.timeAgoSeconds, acrp.timeAgoMinutes, acrp.timeAgoHours, acrp.timeAgoDays
+     - Added acrp.justNow key for <5 seconds
+  4. Added Invocation Result Display dialog:
+     - Shows invocation ID, capability name, capability ID, parameters sent, result data (formatted JSON), duration, status (with icon), timestamp
+     - Accessible from invocation result card ("View Details" button) and invocation history items (click)
+     - Status icons: CheckCircle2 for success, XCircle for failed, Hourglass for timeout, Loader2 for executing
+  5. Enhanced Setup Guide tab:
+     - Connection Flow Diagram: visual 5-step flow (Your Agent → Token → WebSocket → Hermes Hub → Capabilities)
+     - Copyable code snippets with dark theme (bg-zinc-950), language badge, and copy button
+     - Step numbers with visual progress indicators and gradient headers per step
+     - "Test Connection" button that validates ACRP token and agent reachability
+     - Collapsible sections for code examples with colored icons
+     - Step descriptions use i18n keys instead of hardcoded English
+  6. Added disconnect confirmation for Revoke Token:
+     - Proper confirmation dialog explaining what will happen
+     - Lists affected items: "Disconnect {agentName}", "Remove all {count} capabilities", "Invalidate token permanently"
+     - Text input requiring exact agent name match to enable confirm button
+     - Replaced basic AlertDialog with full Dialog component for richer UX
+  7. Styling improvements:
+     - Gradient headers on cards (online: emerald→green, offline: gray, agent info: primary gradient)
+     - Consistent card padding and spacing
+     - Hover effects on capability cards (hover:shadow-md, hover:-translate-y-0.5, group-hover:scale-110 on icon)
+     - Status indicators with pulse animations (StatusDot with animate-ping)
+     - Skeleton loading states (SkeletonCard for agent grid, SkeletonDetail for remote control)
+     - Transition animations (duration-200, duration-300)
+     - Improved empty state designs with layered icons (Monitor+Unplug for no agents, Monitor+Radio for select agent)
+     - Color-coded capability categories (already existed, enhanced with hover scale)
+  8. Added missing i18n keys:
+     - Replaced ALL hardcoded English strings with i18n keys
+     - Added 60 new keys to acrp namespace across all 8 locale files
+     - Key categories: protocolDescription, manage, lastRefreshed, timeAgo*, selectAgentToControl, agentDataLoadError, requiresConfirmation, invokedCount, headerSubtitle, tokenDialogDesc, directWsUrl, quickConnectLink, invokeCapabilityDesc, parameters, viewDetails, invocationResultDetail*, invocationId, capabilityName, capabilityId, parametersSent, resultData, duration, timestamp, revokeToken*, whatWillHappen, revokeEffect1-3, typeToConfirm, connectionFlow*, flowYourAgent/Token/Hub/Capabilities, stepNumber, step1Desc-step4Desc, testConnection*, jsExample, pythonExample, registrationPayload, type* (agent types with descriptions), noCapabilitiesHint
+- Added new imports: Skeleton, FileJson, Timer, XCircle, CheckCircle2, Hourglass, Loader2, Search, Layers, Unplug, Plug
+- Added new sub-components: SkeletonCard, SkeletonDetail, statusIcons map
+- Added new state: lastRefreshedAt, refreshAgo, showResultDetail, resultDetailData, showRevokeDialog, revokeAgent, revokeConfirmName, testingConnection, testConnectionResult
+- Lint check passes clean
+- All 8 locale JSON files validated as valid
+
+Stage Summary:
+- AgentControlCenter fully enhanced with 8 major improvements
+- Duplicate buttons consolidated into single "Manage" button
+- Auto-refresh with live "Last refreshed" indicator on Remote Control tab
+- formatTimeAgo fully internationalized with i18n keys
+- Invocation Result Detail dialog shows comprehensive invocation information
+- Setup Guide enhanced with connection flow diagram, test connection, and better code snippets
+- Revoke Token requires typing agent name to confirm (safety mechanism)
+- Styling improved with gradient headers, skeleton loading, hover effects, pulse animations
+- 60 new i18n keys added to all 8 locale files
+
+---
+Task ID: 4
+Agent: SkillMarketplaceEnhancer
+Task: Enhance the SkillMarketplace component with search/filter, card design, detail dialog, My Skills tab, protocol docs, and i18n updates
+
+Work Log:
+- Complete rewrite of `/home/z/my-project/src/components/views/SkillMarketplace.tsx` with 6 enhancement areas:
+  1. **Search and Filter Bar (Tab 1)**:
+     - Search input with Search icon to filter skills by name/description
+     - Category filter pills (All, Communication, Data, Development, Media, Productivity, Utility) — horizontally scrollable on mobile
+     - Handler type filter dropdown (All, Builtin, Webhook, WebSocket) with Filter icon
+     - Filtered count display: "Showing X of Y skills"
+     - Empty state with "No skills found" and "Try a different search term" messages
+  2. **Enhanced Skill Card Design**:
+     - Gradient top border based on handler type: builtin→emerald, webhook→amber, websocket→cyan
+     - Hover lift animation: hover:-translate-y-1 hover:shadow-lg transition
+     - Category shown as colored pill badge
+     - Version number in card footer (v{version})
+     - "Popular" badge with Flame icon (static flag via POPULAR_SKILLS set + invokeCount > 50)
+     - Better typography: displayName larger (text-base font-semibold), description truncated to 2 lines (line-clamp-2)
+     - Installed indicator with green checkmark
+  3. **Better Skill Detail Dialog**:
+     - Large icon display with colored circular background (category-based)
+     - Full description text
+     - Parameter table with columns: Name, Type, Required*, Description (proper HTML table)
+     - "Install to Agent" section with agent dropdown (Select component)
+     - Install button (disabled until agent selected)
+     - If already installed, shows "✓ Installed" with green check in emerald-bordered container
+     - Popular badge in dialog header
+  4. **Improved My Skills Tab (Tab 2)**:
+     - Grouped by agent name with collapsible sections (ChevronDown/ChevronRight toggle)
+     - Each section has agent name as header with skill count badge
+     - WebSocket connection status with animated pulse dot per agent group
+     - "Quick Actions" dropdown per skill (DropdownMenu): Configure, Test Connection, Regenerate Endpoint, Uninstall
+     - Skill enable/disable toggle with smooth CSS transition (background color changes emerald/gray)
+     - Collapsible agent sections via collapsedAgents state
+  5. **Enhanced Protocol Docs (Tab 3)**:
+     - Numbered step circles connected with vertical line (visual flow)
+     - Step 4 has animate-pulse for emphasis
+     - Dark-themed code blocks (CodeBlock component) with:
+       - Language badge in top bar
+       - Optional filename display
+       - Copy button with "Copy Code" / "Copied!" feedback
+       - Dark gray background (bg-gray-900) with light text
+     - Event types table with colored direction badges:
+       - Agent → Hub: blue badge (bg-blue-100 text-blue-700)
+       - Hub → Agent: amber badge (bg-amber-100 text-amber-700)
+     - Collapsible sections for each code example language (Accordion)
+  6. **i18n Updates**:
+     - Added 14 new keys to ALL 8 locale files (en, zh, ja, ko, de, es, fr, pt) under `skills` namespace:
+       - filterAll, handlerTypes, popular, showing, parameters, codeExample, copyCode, copied
+       - quickActions, noResults, tryDifferentSearch, installToAgent, selectAgent, groupByAgent
+- Added new sub-component: CodeBlock (dark-themed code display with copy button)
+- Added new imports: Star, MoreVertical, RefreshCw, Trash2, ChevronDown, ChevronUp, Flame, Filter, DropdownMenu
+- Added POPULAR_SKILLS static set for Popular badge
+- Added handlerTypeGradients map for card top border colors
+- Added detailInstallAgent state for skill detail dialog agent selection
+- Added collapsedAgents state for collapsible agent sections in My Skills tab
+- Lint check passes clean
+
+Stage Summary:
+- **SkillMarketplace fully enhanced** with search/filter, gradient cards, detailed dialog, collapsible My Skills, dark code blocks
+- **Search and Filter**: Search + category pills + handler type dropdown + filtered count
+- **Card Design**: Gradient borders, hover lift, Popular badge, better typography, installed indicator
+- **Detail Dialog**: Circular icon, parameter table, agent install dropdown, installed checkmark
+- **My Skills Tab**: Collapsible agent groups, pulse dot, Quick Actions dropdown, smooth toggle transitions
+- **Protocol Docs**: Connected step circles, dark code blocks with copy, colored direction badges
+- **i18n**: 14 new keys added to all 8 locales
+
+---
+Task ID: 6
+Agent: ChatViewEnhancer
+Task: Enhance the ChatView component with improved UX, message bubbles, typing indicator, input area, agent selector, sidebar, empty state, and styling
+
+Work Log:
+- Complete rewrite of ChatView.tsx with 8 enhancement categories
+- Enhanced Message Bubbles: right-aligned user (primary bg, rounded-br-md), left-aligned agent (card bg with border, rounded-bl-md), centered system messages, avatars, timestamps on hover, message status indicators (Clock/Check/CheckCheck)
+- Typing Indicator: 3 bouncing dots with staggered animation, agent name text, auto-show during API calls, fade-in animation
+- Enhanced Input Area: auto-expanding Textarea (4 lines max), attachment/emoji buttons, character count near limit, Enter to send / Shift+Enter for newline, rounded-xl border container
+- Agent Selector: header with avatar, status dot (green pulse/gray), mode badge (Builtin/ACRP), Select dropdown to switch agents
+- Conversation Sidebar: search conversations, last message preview with timestamp, unread count badge, new conversation button, delete with confirmation dialog, hidden on mobile
+- Empty State: MessageSquare icon, Start a Conversation heading, agent cards grid (up to 4), quick start suggestions (4 cards)
+- Styling: smooth scroll to bottom, fade-in/slide-in animations, hover actions (Copy/Delete), markdown rendering, responsive design
+- i18n Updates: added 11 new chat keys to all 8 locale files (typing, send, newConversation, searchConversations, noConversation, startConversationDesc, selectAgentDesc, sendMessage, copyMessage, deleteMessage, copied)
+- Lint check passes clean
+
+Stage Summary:
+- ChatView completely enhanced with modern messaging UX across all 8 enhancement categories
+- All 8 i18n locales updated with 11 new chat translation keys

@@ -17,12 +17,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Monitor, Wifi, WifiOff, Radio, Copy, Check, Play, RotateCcw, RefreshCw,
   Settings2, ChevronRight, Terminal, Eye, EyeOff, Clock, Zap, Activity,
   Bot, Server, Cable, Globe, Code, BookOpen, ArrowRight, Shield,
   MessageSquare, Database, Brain, Cpu, Heart, Star, Send, AlertTriangle,
-  Key, Link2, ExternalLink,
+  Key, Link2, ExternalLink, FileJson, Timer, XCircle, CheckCircle2,
+  Hourglass, Loader2, Search, Layers, Unplug, Plug,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -33,6 +35,7 @@ const iconMap: Record<string, React.ElementType> = {
   Monitor, Bot, Server, Cable, Globe, Code, BookOpen, Terminal,
   MessageSquare, Database, Brain, Cpu, Heart, Star, Settings2,
   Shield, Activity, Zap, Send, Link2, Key, ExternalLink,
+  FileJson, Timer, Search, Layers,
 };
 
 const agentTypeColors: Record<string, string> = {
@@ -66,6 +69,15 @@ const categoryBadgeColors: Record<string, string> = {
   im: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
   system: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
   general: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400',
+};
+
+const statusIcons: Record<string, { icon: React.ElementType; color: string }> = {
+  success: { icon: CheckCircle2, color: 'text-green-500' },
+  failed: { icon: XCircle, color: 'text-red-500' },
+  timeout: { icon: Hourglass, color: 'text-amber-500' },
+  pending: { icon: Loader2, color: 'text-blue-500' },
+  sent: { icon: Send, color: 'text-sky-500' },
+  executing: { icon: Loader2, color: 'text-indigo-500' },
 };
 
 // ─── Status Dot ──────────────────────────────────────────────
@@ -205,17 +217,93 @@ function SchemaForm({ schema, values, onChange }: {
   );
 }
 
-// ─── Code Block ──────────────────────────────────────────────
+// ─── Code Block with syntax highlighting ─────────────────────
 
 function CodeBlock({ code, language }: { code: string; language: string }) {
+  const { t } = useI18n();
   return (
-    <div className="relative">
-      <div className="absolute top-2 right-2">
-        <CopyButton text={code} />
+    <div className="relative group">
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+        <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-muted/80 backdrop-blur-sm">
+          {language}
+        </Badge>
+        <CopyButton text={code} label={t('common.copied')} />
       </div>
-      <pre className="bg-muted text-xs p-4 rounded-lg overflow-x-auto font-mono leading-relaxed">
+      <pre className="bg-zinc-950 text-zinc-100 text-xs p-4 rounded-lg overflow-x-auto font-mono leading-relaxed border border-zinc-800">
         <code>{code}</code>
       </pre>
+    </div>
+  );
+}
+
+// ─── Skeleton Loader ─────────────────────────────────────────
+
+function SkeletonCard() {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-3">
+          <Skeleton className="w-10 h-10 rounded-lg" />
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-full" />
+        </div>
+        <Skeleton className="h-px w-full" />
+        <div className="flex gap-2">
+          <Skeleton className="h-7 w-20" />
+          <Skeleton className="h-7 w-20" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SkeletonDetail() {
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
+            <Skeleton className="w-12 h-12 rounded-lg" />
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-3 w-60" />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-4 gap-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-24" />
+          </div>
+        </CardContent>
+      </Card>
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-24" />
+        <div className="grid grid-cols-3 gap-3">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -236,6 +324,12 @@ export function AgentControlCenter() {
   const [agentDetail, setAgentDetail] = useState<any>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
+  // Auto-refresh for Remote Control
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const [refreshAgo, setRefreshAgo] = useState<string>('');
+  const controlRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const refreshAgoRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   // Invocation dialog
   const [invocationCapability, setInvocationCapability] = useState<any>(null);
   const [invocationParams, setInvocationParams] = useState<Record<string, any>>({});
@@ -243,8 +337,17 @@ export function AgentControlCenter() {
   const [invocationResult, setInvocationResult] = useState<any>(null);
   const [showInvocationDialog, setShowInvocationDialog] = useState(false);
 
+  // Invocation result detail dialog
+  const [showResultDetail, setShowResultDetail] = useState(false);
+  const [resultDetailData, setResultDetailData] = useState<any>(null);
+
   // Confirm dialog
   const [confirmAction, setConfirmAction] = useState<{ type: string; data: any } | null>(null);
+
+  // Revoke token confirmation
+  const [showRevokeDialog, setShowRevokeDialog] = useState(false);
+  const [revokeAgent, setRevokeAgent] = useState<any>(null);
+  const [revokeConfirmName, setRevokeConfirmName] = useState('');
 
   // Generate token dialog
   const [showTokenDialog, setShowTokenDialog] = useState(false);
@@ -254,6 +357,10 @@ export function AgentControlCenter() {
 
   // Quick commands
   const [sendingCommand, setSendingCommand] = useState<string | null>(null);
+
+  // Test connection (Setup Guide)
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [testConnectionResult, setTestConnectionResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Auto-refresh
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -265,7 +372,6 @@ export function AgentControlCenter() {
       const res = await api.getAcrpAgents();
       setAcrpAgents(res.agents || []);
     } catch {
-      // API may not be available yet
       setAcrpAgents([]);
     } finally {
       setLoadingAgents(false);
@@ -279,6 +385,7 @@ export function AgentControlCenter() {
     try {
       const res = await api.getAcrpAgent(agentId);
       setAgentDetail(res);
+      setLastRefreshedAt(new Date());
     } catch {
       setAgentDetail(null);
     } finally {
@@ -293,7 +400,7 @@ export function AgentControlCenter() {
     }
   }, [activeTab, loadAcrpAgents]);
 
-  // Auto-refresh connected agents
+  // Auto-refresh connected agents (15s)
   useEffect(() => {
     if (activeTab === 'connected') {
       refreshIntervalRef.current = setInterval(loadAcrpAgents, 15000);
@@ -302,6 +409,31 @@ export function AgentControlCenter() {
       };
     }
   }, [activeTab, loadAcrpAgents]);
+
+  // Auto-refresh Remote Control tab (15s) + refresh ago indicator
+  useEffect(() => {
+    if (activeTab === 'control' && selectedAgentId) {
+      controlRefreshRef.current = setInterval(() => {
+        loadAgentDetail(selectedAgentId);
+      }, 15000);
+
+      refreshAgoRef.current = setInterval(() => {
+        if (lastRefreshedAt) {
+          const diff = Math.floor((Date.now() - lastRefreshedAt.getTime()) / 1000);
+          setRefreshAgo(formatRefreshAgo(diff));
+        }
+      }, 1000);
+
+      return () => {
+        if (controlRefreshRef.current) clearInterval(controlRefreshRef.current);
+        if (refreshAgoRef.current) clearInterval(refreshAgoRef.current);
+      };
+    }
+    return () => {
+      if (controlRefreshRef.current) clearInterval(controlRefreshRef.current);
+      if (refreshAgoRef.current) clearInterval(refreshAgoRef.current);
+    };
+  }, [activeTab, selectedAgentId, loadAgentDetail, lastRefreshedAt]);
 
   // Load agent detail when selected
   useEffect(() => {
@@ -336,7 +468,6 @@ export function AgentControlCenter() {
       setTokenAgentId(agentId);
       setShowTokenDialog(true);
       toast.success(t('acrp.generateToken'));
-      // Refresh agents list
       const agentsRes = await api.getAgents();
       setAgents(agentsRes.agents || []);
       loadAcrpAgents();
@@ -354,10 +485,10 @@ export function AgentControlCenter() {
     setInvocationResult(null);
     try {
       const res = await api.invokeCapability(selectedAgentId, invocationCapability.capabilityId, invocationParams);
-      setInvocationResult({ success: true, data: res });
+      setInvocationResult({ success: true, data: res, timestamp: new Date(), capabilityName: invocationCapability.name, capabilityId: invocationCapability.capabilityId, params: invocationParams });
       toast.success(t('acrp.invocationSuccess'));
     } catch (error: any) {
-      setInvocationResult({ success: false, error: error.message });
+      setInvocationResult({ success: false, error: error.message, timestamp: new Date(), capabilityName: invocationCapability.name, capabilityId: invocationCapability.capabilityId, params: invocationParams });
       toast.error(t('acrp.invocationFailed') + ': ' + error.message);
     } finally {
       setInvoking(false);
@@ -389,7 +520,9 @@ export function AgentControlCenter() {
     } catch (error: any) {
       toast.error(error.message);
     }
-    setConfirmAction(null);
+    setShowRevokeDialog(false);
+    setRevokeAgent(null);
+    setRevokeConfirmName('');
   };
 
   // Open invocation dialog
@@ -409,20 +542,50 @@ export function AgentControlCenter() {
     setConfirmAction(null);
   };
 
-  // Format time ago
+  // Test connection (Setup Guide)
+  const handleTestConnection = async () => {
+    if (!tokenAgentId) return;
+    setTestingConnection(true);
+    setTestConnectionResult(null);
+    try {
+      const res = await api.getAcrpAgent(tokenAgentId);
+      if (res && res.agent) {
+        setTestConnectionResult({ success: true, message: t('acrp.testConnectionSuccess') });
+        toast.success(t('acrp.testConnectionSuccess'));
+      } else {
+        setTestConnectionResult({ success: false, message: t('acrp.testConnectionFailed') });
+        toast.error(t('acrp.testConnectionFailed'));
+      }
+    } catch {
+      setTestConnectionResult({ success: false, message: t('acrp.testConnectionFailed') });
+      toast.error(t('acrp.testConnectionFailed'));
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
+  // Format time ago with i18n
   const formatTimeAgo = (dateStr: string | null | undefined) => {
     if (!dateStr) return t('common.noData');
     try {
       const date = new Date(dateStr);
       const now = new Date();
       const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
-      if (diff < 60) return `${diff}s ago`;
-      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-      return date.toLocaleDateString();
+      if (diff < 0) return t('common.noData');
+      if (diff < 60) return t('acrp.timeAgoSeconds', { count: diff });
+      if (diff < 3600) return t('acrp.timeAgoMinutes', { count: Math.floor(diff / 60) });
+      if (diff < 86400) return t('acrp.timeAgoHours', { count: Math.floor(diff / 3600) });
+      return t('acrp.timeAgoDays', { count: Math.floor(diff / 86400) });
     } catch {
       return t('common.noData');
     }
+  };
+
+  // Format refresh ago
+  const formatRefreshAgo = (seconds: number) => {
+    if (seconds < 5) return t('acrp.justNow');
+    if (seconds < 60) return t('acrp.timeAgoSeconds', { count: seconds });
+    return t('acrp.timeAgoMinutes', { count: Math.floor(seconds / 60) });
   };
 
   // ─── Tab 1: Connected Agents ───────────────────────────────
@@ -432,13 +595,11 @@ export function AgentControlCenter() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-lg font-semibold">{t('acrp.connectedAgents')}</h2>
-          <p className="text-sm text-muted-foreground">
-            ACRP (Agent Capability Registration Protocol) — {t('acrp.title')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('acrp.protocolDescription')}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={loadAcrpAgents} className="gap-1">
-            <RefreshCw className="w-3 h-3" /> {t('common.refresh')}
+            <RefreshCw className={cn('w-3 h-3', loadingAgents && 'animate-spin')} /> {t('common.refresh')}
           </Button>
           {agents.length > 0 && (
             <Select value={tokenAgentId} onValueChange={setTokenAgentId}>
@@ -450,7 +611,7 @@ export function AgentControlCenter() {
                   <SelectItem key={agent.id} value={agent.id}>
                     <div className="flex items-center gap-2">
                       <span>{agent.name}</span>
-                      {agent.agentToken && <Badge variant="outline" className="text-[10px] px-1 py-0 bg-emerald-50 text-emerald-600">ACRP</Badge>}
+                      {agent.agentToken && <Badge variant="outline" className="text-[10px] px-1 py-0 bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">ACRP</Badge>}
                     </div>
                   </SelectItem>
                 ))}
@@ -470,18 +631,30 @@ export function AgentControlCenter() {
       </div>
 
       {loadingAgents ? (
-        <div className="flex items-center justify-center py-16">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </div>
       ) : acrpAgents.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16">
-            <Monitor className="w-12 h-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-1">{t('acrp.noAgents')}</h3>
+            <div className="relative">
+              <Monitor className="w-16 h-16 text-muted-foreground/30" />
+              <Unplug className="w-6 h-6 text-muted-foreground/50 absolute -bottom-1 -right-1" />
+            </div>
+            <h3 className="text-lg font-semibold mb-1 mt-4">{t('acrp.noAgents')}</h3>
             <p className="text-muted-foreground text-sm text-center max-w-md">{t('acrp.noAgentsDesc')}</p>
-            <Button variant="outline" size="sm" className="mt-4 gap-1" onClick={() => setActiveTab('setup')}>
-              <BookOpen className="w-3 h-3" /> {t('acrp.setupGuide')}
-            </Button>
+            <div className="flex items-center gap-2 mt-4">
+              <Button variant="outline" size="sm" className="gap-1" onClick={() => setActiveTab('setup')}>
+                <BookOpen className="w-3 h-3" /> {t('acrp.setupGuide')}
+              </Button>
+              {agents.length > 0 && (
+                <Button size="sm" className="gap-1" onClick={() => handleGenerateToken(agents[0]?.id)}>
+                  <Key className="w-3 h-3" /> {t('acrp.generateToken')}
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -493,11 +666,18 @@ export function AgentControlCenter() {
             const agentType = agent.agentType || agent.agentMetadata?.agentType || 'custom';
 
             return (
-              <Card key={agent.id} className="hover:shadow-md transition-all duration-200">
+              <Card key={agent.id} className="hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 group">
+                {/* Gradient header */}
+                <div className={cn(
+                  'h-1.5 rounded-t-lg',
+                  isOnline
+                    ? 'bg-gradient-to-r from-emerald-400 to-green-500'
+                    : 'bg-gradient-to-r from-gray-300 to-gray-400'
+                )} />
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
                         <Bot className="w-5 h-5 text-primary" />
                       </div>
                       <div className="min-w-0">
@@ -539,6 +719,7 @@ export function AgentControlCenter() {
                   <Separator />
 
                   <div className="flex items-center gap-2 flex-wrap">
+                    {/* Consolidated Manage button */}
                     <Button
                       variant="outline"
                       size="sm"
@@ -548,24 +729,17 @@ export function AgentControlCenter() {
                         setActiveTab('control');
                       }}
                     >
-                      <Monitor className="w-3 h-3" /> {t('acrp.remoteControl')}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gap-1 text-xs h-7"
-                      onClick={() => {
-                        setSelectedAgentId(agent.id);
-                        setActiveTab('control');
-                      }}
-                    >
-                      <Activity className="w-3 h-3" /> {t('acrp.capabilities')}
+                      <Settings2 className="w-3 h-3" /> {t('acrp.manage')}
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       className="gap-1 text-xs h-7 text-destructive hover:text-destructive"
-                      onClick={() => setConfirmAction({ type: 'revoke', data: agent })}
+                      onClick={() => {
+                        setRevokeAgent(agent);
+                        setRevokeConfirmName('');
+                        setShowRevokeDialog(true);
+                      }}
                     >
                       <AlertTriangle className="w-3 h-3" /> {t('acrp.revokeToken')}
                     </Button>
@@ -605,43 +779,56 @@ export function AgentControlCenter() {
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-gray-400" />
                     <span>{agent.name}</span>
-                    <span className="text-[10px] text-muted-foreground">(offline)</span>
+                    <span className="text-[10px] text-muted-foreground">({t('common.offline')})</span>
                   </div>
                 </SelectItem>
               ))}
           </SelectContent>
         </Select>
         {selectedAgentId && (
-          <Button variant="outline" size="sm" onClick={() => loadAgentDetail(selectedAgentId)} className="gap-1">
-            <RefreshCw className="w-3 h-3" /> {t('common.refresh')}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => loadAgentDetail(selectedAgentId)} className="gap-1">
+              <RefreshCw className={cn('w-3 h-3', loadingDetail && 'animate-spin')} /> {t('common.refresh')}
+            </Button>
+            {lastRefreshedAt && (
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {t('acrp.lastRefreshed')}: {refreshAgo || formatRefreshAgo(0)}
+              </span>
+            )}
+          </div>
         )}
       </div>
 
       {!selectedAgentId ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16">
-            <Monitor className="w-12 h-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-1">{t('acrp.selectAgent')}</h3>
-            <p className="text-muted-foreground text-sm">Select an ACRP agent to control remotely</p>
+            <div className="relative">
+              <Monitor className="w-16 h-16 text-muted-foreground/30" />
+              <Radio className="w-6 h-6 text-muted-foreground/50 absolute -bottom-1 -right-1" />
+            </div>
+            <h3 className="text-lg font-semibold mb-1 mt-4">{t('acrp.selectAgent')}</h3>
+            <p className="text-muted-foreground text-sm">{t('acrp.selectAgentToControl')}</p>
           </CardContent>
         </Card>
       ) : loadingDetail ? (
-        <div className="flex items-center justify-center py-16">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        </div>
+        <SkeletonDetail />
       ) : !agentDetail ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16">
-            <WifiOff className="w-12 h-12 text-muted-foreground mb-4" />
+            <WifiOff className="w-16 h-16 text-muted-foreground/30 mb-4" />
             <h3 className="text-lg font-semibold mb-1">{t('common.noData')}</h3>
-            <p className="text-muted-foreground text-sm">Agent data could not be loaded</p>
+            <p className="text-muted-foreground text-sm">{t('acrp.agentDataLoadError')}</p>
+            <Button variant="outline" size="sm" className="mt-4 gap-1" onClick={() => loadAgentDetail(selectedAgentId)}>
+              <RefreshCw className="w-3 h-3" /> {t('common.refresh')}
+            </Button>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-6">
           {/* Agent Info Card */}
-          <Card>
+          <Card className="overflow-hidden">
+            <div className="h-1.5 bg-gradient-to-r from-primary/60 via-primary to-primary/60" />
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -738,15 +925,16 @@ export function AgentControlCenter() {
             {Object.keys(groupedCapabilities).length === 0 ? (
               <Card className="border-dashed">
                 <CardContent className="flex flex-col items-center justify-center py-8">
-                  <Zap className="w-8 h-8 text-muted-foreground mb-2" />
+                  <Zap className="w-10 h-10 text-muted-foreground/30 mb-2" />
                   <p className="text-sm text-muted-foreground">{t('acrp.noCapabilities')}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t('acrp.noCapabilitiesHint')}</p>
                 </CardContent>
               </Card>
             ) : (
               <Accordion type="multiple" defaultValue={Object.keys(groupedCapabilities)} className="space-y-2">
                 {Object.entries(groupedCapabilities).map(([category, caps]) => (
-                  <AccordionItem key={category} value={category} className="border rounded-lg">
-                    <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                  <AccordionItem key={category} value={category} className="border rounded-lg overflow-hidden">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', categoryBadgeColors[category] || categoryBadgeColors.general)}>
                           {t(`acrp.category_${category}`)}
@@ -761,12 +949,12 @@ export function AgentControlCenter() {
                           return (
                             <Card
                               key={cap.capabilityId || cap.id}
-                              className="hover:shadow-md transition-all cursor-pointer group border"
+                              className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group border"
                               onClick={() => openInvocationDialog(cap)}
                             >
                               <CardContent className="p-3 space-y-2">
                                 <div className="flex items-start gap-2">
-                                  <div className={cn('w-8 h-8 rounded-md flex items-center justify-center shrink-0 border', categoryColors[category] || categoryColors.general)}>
+                                  <div className={cn('w-8 h-8 rounded-md flex items-center justify-center shrink-0 border group-hover:scale-110 transition-transform', categoryColors[category] || categoryColors.general)}>
                                     <IconComp className="w-4 h-4" />
                                   </div>
                                   <div className="min-w-0 flex-1">
@@ -781,13 +969,13 @@ export function AgentControlCenter() {
                                     {t(`acrp.category_${category}`)}
                                   </Badge>
                                   {cap.invokeCount > 0 && (
-                                    <span className="text-[10px] text-muted-foreground">{cap.invokeCount}x invoked</span>
+                                    <span className="text-[10px] text-muted-foreground">{t('acrp.invokedCount', { count: cap.invokeCount })}</span>
                                   )}
                                 </div>
                                 {cap.uiHints?.confirmRequired && (
-                                  <div className="flex items-center gap-1 text-[10px] text-amber-600">
+                                  <div className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
                                     <AlertTriangle className="w-3 h-3" />
-                                    <span>Requires confirmation</span>
+                                    <span>{t('acrp.requiresConfirmation')}</span>
                                   </div>
                                 )}
                               </CardContent>
@@ -806,45 +994,55 @@ export function AgentControlCenter() {
           {agentDetail.recentInvocations && agentDetail.recentInvocations.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm">{t('acrp.invocationHistory')}</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">{t('acrp.invocationHistory')}</CardTitle>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                    {agentDetail.recentInvocations.length}
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="max-h-96">
                   <div className="space-y-2">
-                    {agentDetail.recentInvocations.map((inv: any, idx: number) => (
-                      <div key={inv.id || idx} className="flex items-center gap-3 p-3 rounded-lg border text-xs">
-                        <div className={cn(
-                          'w-2 h-2 rounded-full shrink-0',
-                          inv.status === 'success' ? 'bg-green-500' :
-                          inv.status === 'failed' ? 'bg-red-500' :
-                          inv.status === 'timeout' ? 'bg-amber-500' :
-                          'bg-blue-500'
-                        )} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{inv.capability?.name || inv.capabilityId}</span>
-                            <Badge variant="outline" className={cn(
-                              'text-[9px] px-1 py-0',
-                              inv.status === 'success' ? 'bg-green-50 text-green-700' :
-                              inv.status === 'failed' ? 'bg-red-50 text-red-700' :
-                              inv.status === 'timeout' ? 'bg-amber-50 text-amber-700' :
-                              'bg-blue-50 text-blue-700'
-                            )}>
-                              {inv.status}
-                            </Badge>
+                    {agentDetail.recentInvocations.map((inv: any, idx: number) => {
+                      const StatusIcon = statusIcons[inv.status]?.icon || Loader2;
+                      const statusColor = statusIcons[inv.status]?.color || 'text-blue-500';
+                      return (
+                        <div
+                          key={inv.id || idx}
+                          className="flex items-center gap-3 p-3 rounded-lg border text-xs hover:bg-muted/50 transition-colors cursor-pointer"
+                          onClick={() => {
+                            setResultDetailData(inv);
+                            setShowResultDetail(true);
+                          }}
+                        >
+                          <StatusIcon className={cn('w-4 h-4 shrink-0', statusColor, inv.status === 'executing' && 'animate-spin')} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{inv.capability?.name || inv.capabilityId}</span>
+                              <Badge variant="outline" className={cn(
+                                'text-[9px] px-1 py-0',
+                                inv.status === 'success' ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                inv.status === 'failed' ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                inv.status === 'timeout' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                              )}>
+                                {inv.status}
+                              </Badge>
+                            </div>
+                            {inv.params && (
+                              <p className="text-muted-foreground truncate mt-0.5">
+                                {typeof inv.params === 'string' ? inv.params : JSON.stringify(inv.params).slice(0, 80)}
+                              </p>
+                            )}
                           </div>
-                          {inv.params && (
-                            <p className="text-muted-foreground truncate mt-0.5">
-                              {typeof inv.params === 'string' ? inv.params : JSON.stringify(inv.params).slice(0, 80)}
-                            </p>
-                          )}
+                          <div className="text-right shrink-0">
+                            {inv.duration && <p className="text-muted-foreground">{inv.duration}ms</p>}
+                            <p className="text-muted-foreground">{formatTimeAgo(inv.createdAt || inv.invokedAt)}</p>
+                          </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          {inv.duration && <p className="text-muted-foreground">{inv.duration}ms</p>}
-                          <p className="text-muted-foreground">{formatTimeAgo(inv.createdAt || inv.invokedAt)}</p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </ScrollArea>
               </CardContent>
@@ -1015,26 +1213,62 @@ sio.wait()`;
       <div className="space-y-6">
         <div>
           <h2 className="text-lg font-semibold">{t('acrp.setupGuide')}</h2>
-          <p className="text-sm text-muted-foreground">
-            ACRP (Agent Capability Registration Protocol) — Connect and control external agents remotely
-          </p>
+          <p className="text-sm text-muted-foreground">{t('acrp.protocolDescription')}</p>
         </div>
 
-        {/* Step-by-step guide */}
+        {/* Connection Flow Diagram */}
+        <Card className="overflow-hidden">
+          <div className="h-1.5 bg-gradient-to-r from-cyan-400 via-primary to-emerald-400" />
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">{t('acrp.connectionFlow')}</CardTitle>
+            <CardDescription className="text-xs">{t('acrp.connectionFlowDesc')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-center gap-2 flex-wrap py-4">
+              <div className="flex flex-col items-center gap-1.5 p-3 rounded-lg border bg-muted/30 min-w-[80px]">
+                <Plug className="w-6 h-6 text-cyan-500" />
+                <span className="text-[10px] font-medium text-center">{t('acrp.flowYourAgent')}</span>
+              </div>
+              <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0 hidden sm:block" />
+              <div className="flex flex-col items-center gap-1.5 p-3 rounded-lg border bg-muted/30 min-w-[80px]">
+                <Key className="w-6 h-6 text-amber-500" />
+                <span className="text-[10px] font-medium text-center">{t('acrp.flowToken')}</span>
+              </div>
+              <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0 hidden sm:block" />
+              <div className="flex flex-col items-center gap-1.5 p-3 rounded-lg border bg-muted/30 min-w-[80px]">
+                <Cable className="w-6 h-6 text-primary" />
+                <span className="text-[10px] font-medium text-center">WebSocket</span>
+              </div>
+              <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0 hidden sm:block" />
+              <div className="flex flex-col items-center gap-1.5 p-3 rounded-lg border bg-primary/10 min-w-[80px]">
+                <Bot className="w-6 h-6 text-primary" />
+                <span className="text-[10px] font-medium text-center">{t('acrp.flowHub')}</span>
+              </div>
+              <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0 hidden sm:block" />
+              <div className="flex flex-col items-center gap-1.5 p-3 rounded-lg border bg-muted/30 min-w-[80px]">
+                <Zap className="w-6 h-6 text-emerald-500" />
+                <span className="text-[10px] font-medium text-center">{t('acrp.flowCapabilities')}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Step-by-step guide with progress indicators */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { step: 1, title: t('acrp.step1'), desc: 'Create an agent in the Agents page first', icon: Bot, color: 'bg-emerald-500/10 text-emerald-600' },
-            { step: 2, title: t('acrp.step2'), desc: 'Generate a connection token for that agent', icon: Key, color: 'bg-violet-500/10 text-violet-600' },
-            { step: 3, title: t('acrp.step3'), desc: 'Copy the connection URL and token', icon: Copy, color: 'bg-amber-500/10 text-amber-600' },
-            { step: 4, title: t('acrp.step4'), desc: 'Configure your agent with the connection info', icon: Cable, color: 'bg-cyan-500/10 text-cyan-600' },
-          ].map(({ step, title, desc, icon: Icon, color }) => (
-            <Card key={step} className="relative">
+            { step: 1, title: t('acrp.step1'), desc: t('acrp.step1Desc'), icon: Bot, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200', gradient: 'from-emerald-400 to-emerald-500' },
+            { step: 2, title: t('acrp.step2'), desc: t('acrp.step2Desc'), icon: Key, color: 'bg-violet-500/10 text-violet-600 border-violet-200', gradient: 'from-violet-400 to-violet-500' },
+            { step: 3, title: t('acrp.step3'), desc: t('acrp.step3Desc'), icon: Copy, color: 'bg-amber-500/10 text-amber-600 border-amber-200', gradient: 'from-amber-400 to-amber-500' },
+            { step: 4, title: t('acrp.step4'), desc: t('acrp.step4Desc'), icon: Cable, color: 'bg-cyan-500/10 text-cyan-600 border-cyan-200', gradient: 'from-cyan-400 to-cyan-500' },
+          ].map(({ step, title, desc, icon: Icon, color, gradient }) => (
+            <Card key={step} className="relative overflow-hidden group hover:shadow-md transition-all">
+              <div className={cn('h-1 bg-gradient-to-r', gradient)} />
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <div className={cn('w-8 h-8 rounded-md flex items-center justify-center border', color)}>
                     <Icon className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-bold text-muted-foreground">STEP {step}</span>
+                  <span className="text-xs font-bold text-muted-foreground">{t('acrp.stepNumber', { number: step })}</span>
                 </div>
                 <h4 className="text-sm font-semibold">{title}</h4>
                 <p className="text-xs text-muted-foreground">{desc}</p>
@@ -1046,13 +1280,70 @@ sio.wait()`;
           ))}
         </div>
 
-        {/* Code Examples */}
+        {/* Test Connection */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Shield className="w-4 h-4 text-primary" />
+              {t('acrp.testConnection')}
+            </CardTitle>
+            <CardDescription className="text-xs">{t('acrp.testConnectionDesc')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3 flex-wrap">
+              <Select value={tokenAgentId} onValueChange={setTokenAgentId}>
+                <SelectTrigger className="w-52 h-9 text-xs">
+                  <SelectValue placeholder={t('acrp.selectAgent')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {agents.map((agent: any) => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{agent.name}</span>
+                        {agent.agentToken && <Badge variant="outline" className="text-[10px] px-1 py-0 bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">ACRP</Badge>}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                disabled={!tokenAgentId || testingConnection}
+                onClick={handleTestConnection}
+              >
+                {testingConnection ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Shield className="w-3.5 h-3.5" />
+                )}
+                {t('acrp.testConnection')}
+              </Button>
+              {testConnectionResult && (
+                <Badge variant="outline" className={cn(
+                  'text-xs px-2 py-0.5',
+                  testConnectionResult.success
+                    ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                )}>
+                  {testConnectionResult.success ? <CheckCircle2 className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+                  {testConnectionResult.message}
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Code Examples - Collapsible by agent type */}
         <Accordion type="multiple" defaultValue={['js-example', 'python-example', 'registration']} className="space-y-2">
-          <AccordionItem value="js-example" className="border rounded-lg">
-            <AccordionTrigger className="px-4 py-3 hover:no-underline">
+          <AccordionItem value="js-example" className="border rounded-lg overflow-hidden">
+            <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50 transition-colors">
               <div className="flex items-center gap-2">
-                <Code className="w-4 h-4 text-amber-500" />
-                <span className="text-sm font-medium">JavaScript (socket.io-client)</span>
+                <div className="w-6 h-6 rounded bg-amber-500/10 flex items-center justify-center">
+                  <Code className="w-3.5 h-3.5 text-amber-500" />
+                </div>
+                <span className="text-sm font-medium">{t('acrp.jsExample')}</span>
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-4 pb-4">
@@ -1060,11 +1351,13 @@ sio.wait()`;
             </AccordionContent>
           </AccordionItem>
 
-          <AccordionItem value="python-example" className="border rounded-lg">
-            <AccordionTrigger className="px-4 py-3 hover:no-underline">
+          <AccordionItem value="python-example" className="border rounded-lg overflow-hidden">
+            <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50 transition-colors">
               <div className="flex items-center gap-2">
-                <Code className="w-4 h-4 text-emerald-500" />
-                <span className="text-sm font-medium">Python (python-socketio)</span>
+                <div className="w-6 h-6 rounded bg-emerald-500/10 flex items-center justify-center">
+                  <Code className="w-3.5 h-3.5 text-emerald-500" />
+                </div>
+                <span className="text-sm font-medium">{t('acrp.pythonExample')}</span>
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-4 pb-4">
@@ -1072,11 +1365,13 @@ sio.wait()`;
             </AccordionContent>
           </AccordionItem>
 
-          <AccordionItem value="registration" className="border rounded-lg">
-            <AccordionTrigger className="px-4 py-3 hover:no-underline">
+          <AccordionItem value="registration" className="border rounded-lg overflow-hidden">
+            <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50 transition-colors">
               <div className="flex items-center gap-2">
-                <FileIcon className="w-4 h-4 text-blue-500" />
-                <span className="text-sm font-medium">Registration Payload</span>
+                <div className="w-6 h-6 rounded bg-blue-500/10 flex items-center justify-center">
+                  <FileJson className="w-3.5 h-3.5 text-blue-500" />
+                </div>
+                <span className="text-sm font-medium">{t('acrp.registrationPayload')}</span>
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-4 pb-4">
@@ -1093,14 +1388,14 @@ sio.wait()`;
           <CardContent>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {[
-                { type: 'hermes-agent', label: 'Hermes Agent', desc: 'Python-based agent' },
-                { type: 'openclaw', label: 'OpenClaw', desc: 'Open source agent' },
-                { type: 'claude-code', label: 'Claude Code', desc: 'Anthropic agent' },
-                { type: 'codex', label: 'Codex', desc: 'OpenAI agent' },
-                { type: 'trae', label: 'Trae', desc: 'AI IDE agent' },
-                { type: 'custom', label: 'Custom', desc: 'Any WS client' },
+                { type: 'hermes-agent', label: 'Hermes Agent', desc: t('acrp.typeHermesAgent') },
+                { type: 'openclaw', label: 'OpenClaw', desc: t('acrp.typeOpenClaw') },
+                { type: 'claude-code', label: 'Claude Code', desc: t('acrp.typeClaudeCode') },
+                { type: 'codex', label: 'Codex', desc: t('acrp.typeCodex') },
+                { type: 'trae', label: 'Trae', desc: t('acrp.typeTrae') },
+                { type: 'custom', label: t('acrp.typeCustom'), desc: t('acrp.typeCustomDesc') },
               ].map(({ type, label, desc }) => (
-                <div key={type} className="flex flex-col items-center gap-2 p-3 rounded-lg border text-center">
+                <div key={type} className="flex flex-col items-center gap-2 p-3 rounded-lg border text-center hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
                   <Badge variant="outline" className={cn('text-[10px] px-2 py-0.5', agentTypeColors[type])}>
                     {type}
                   </Badge>
@@ -1119,15 +1414,16 @@ sio.wait()`;
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="border-b bg-card px-6 py-4">
+      {/* Header with gradient */}
+      <div className="border-b bg-card px-6 py-4 relative overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <Monitor className="w-5 h-5 text-primary" />
           </div>
           <div>
             <h1 className="text-xl font-bold">{t('acrp.title')}</h1>
-            <p className="text-sm text-muted-foreground">ACRP — Agent Capability Registration Protocol</p>
+            <p className="text-sm text-muted-foreground">{t('acrp.headerSubtitle')}</p>
           </div>
         </div>
       </div>
@@ -1170,8 +1466,11 @@ sio.wait()`;
       <Dialog open={showTokenDialog} onOpenChange={setShowTokenDialog}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{t('acrp.connectionToken')}</DialogTitle>
-            <DialogDescription>Use these credentials to connect your agent via ACRP</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="w-4 h-4 text-primary" />
+              {t('acrp.connectionToken')}
+            </DialogTitle>
+            <DialogDescription>{t('acrp.tokenDialogDesc')}</DialogDescription>
           </DialogHeader>
           {generatedToken && (
             <div className="space-y-4">
@@ -1188,13 +1487,13 @@ sio.wait()`;
               />
               {generatedToken.wsDirectUrl && (
                 <MonospaceField
-                  label="Direct WebSocket URL"
+                  label={t('acrp.directWsUrl')}
                   value={generatedToken.wsDirectUrl}
                   copyLabel={t('skillProtocol.copyUrl')}
                 />
               )}
               <div className="space-y-1">
-                <Label className="text-xs font-medium text-muted-foreground">Quick Connect Link</Label>
+                <Label className="text-xs font-medium text-muted-foreground">{t('acrp.quickConnectLink')}</Label>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 text-xs bg-muted px-3 py-2 rounded-md font-mono break-all select-all border border-dashed">
                     {generatedToken.wsConnectUrl || '/?XTransformPort=3004'}#token={generatedToken.agentToken}
@@ -1209,7 +1508,7 @@ sio.wait()`;
                       toast.success(t('skillProtocol.connectLinkCopied'));
                     }}
                   >
-                    <Copy className="w-3 h-3" /> Copy
+                    <Copy className="w-3 h-3" /> {t('common.copied')}
                   </Button>
                 </div>
               </div>
@@ -1222,11 +1521,12 @@ sio.wait()`;
       <Dialog open={showInvocationDialog} onOpenChange={setShowInvocationDialog}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Play className="w-4 h-4 text-primary" />
               {t('acrp.invoke')}: {invocationCapability?.name}
             </DialogTitle>
             <DialogDescription>
-              {invocationCapability?.description || 'Execute this capability on the remote agent'}
+              {invocationCapability?.description || t('acrp.invokeCapabilityDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1240,7 +1540,7 @@ sio.wait()`;
             {/* Parameters form */}
             {invocationCapability?.parameters && invocationCapability.parameters.properties && Object.keys(invocationCapability.parameters.properties).length > 0 && (
               <div className="space-y-1">
-                <Label className="text-xs font-semibold">Parameters</Label>
+                <Label className="text-xs font-semibold">{t('acrp.parameters')}</Label>
                 <SchemaForm
                   schema={invocationCapability.parameters}
                   values={invocationParams}
@@ -1275,21 +1575,32 @@ sio.wait()`;
                   <CardTitle className="text-sm flex items-center gap-2">
                     {invocationResult.success ? (
                       <>
-                        <Check className="w-4 h-4 text-green-500" />
+                        <CheckCircle2 className="w-4 h-4 text-green-500" />
                         {t('acrp.invocationSuccess')}
                       </>
                     ) : (
                       <>
-                        <AlertTriangle className="w-4 h-4 text-red-500" />
+                        <XCircle className="w-4 h-4 text-red-500" />
                         {t('acrp.invocationFailed')}
                       </>
                     )}
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-2">
                   <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-48 font-mono">
                     {JSON.stringify(invocationResult.success ? invocationResult.data : { error: invocationResult.error }, null, 2)}
                   </pre>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1 text-xs"
+                    onClick={() => {
+                      setResultDetailData(invocationResult);
+                      setShowResultDetail(true);
+                    }}
+                  >
+                    <Eye className="w-3 h-3" /> {t('acrp.viewDetails')}
+                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -1297,7 +1608,190 @@ sio.wait()`;
         </DialogContent>
       </Dialog>
 
-      {/* Confirm Dialog */}
+      {/* Invocation Result Detail Dialog */}
+      <Dialog open={showResultDetail} onOpenChange={setShowResultDetail}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileJson className="w-4 h-4 text-primary" />
+              {t('acrp.invocationResultDetail')}
+            </DialogTitle>
+            <DialogDescription>{t('acrp.invocationResultDetailDesc')}</DialogDescription>
+          </DialogHeader>
+          {resultDetailData && (
+            <ScrollArea className="max-h-[60vh]">
+              <div className="space-y-4">
+                {/* Status */}
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground w-24">{t('common.status')}</span>
+                  {(() => {
+                    const status = resultDetailData.status || (resultDetailData.success ? 'success' : 'failed');
+                    const StatusIcon = statusIcons[status]?.icon || Loader2;
+                    const statusColor = statusIcons[status]?.color || 'text-blue-500';
+                    return (
+                      <Badge variant="outline" className={cn(
+                        'text-xs px-2 py-0.5 gap-1',
+                        status === 'success' ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                        status === 'failed' ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                        status === 'timeout' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                        'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                      )}>
+                        <StatusIcon className={cn('w-3 h-3', statusColor)} />
+                        {status}
+                      </Badge>
+                    );
+                  })()}
+                </div>
+
+                {/* Invocation ID */}
+                {resultDetailData.id && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground w-24">{t('acrp.invocationId')}</span>
+                    <code className="text-xs bg-muted px-2 py-1 rounded font-mono">{resultDetailData.id}</code>
+                  </div>
+                )}
+
+                {/* Capability Name */}
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground w-24">{t('acrp.capabilityName')}</span>
+                  <span className="text-sm font-medium">{resultDetailData.capabilityName || resultDetailData.capability?.name || resultDetailData.capabilityId || '-'}</span>
+                </div>
+
+                {/* Capability ID */}
+                {(resultDetailData.capabilityId || resultDetailData.capability?.capabilityId) && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground w-24">{t('acrp.capabilityId')}</span>
+                    <code className="text-xs bg-muted px-2 py-1 rounded font-mono">{resultDetailData.capabilityId || resultDetailData.capability?.capabilityId}</code>
+                  </div>
+                )}
+
+                {/* Parameters */}
+                {resultDetailData.params && (
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground">{t('acrp.parametersSent')}</span>
+                    <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-32 font-mono">
+                      {typeof resultDetailData.params === 'string' ? resultDetailData.params : JSON.stringify(resultDetailData.params, null, 2)}
+                    </pre>
+                  </div>
+                )}
+
+                {/* Result Data */}
+                {(resultDetailData.result || resultDetailData.data || resultDetailData.error) && (
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground">{t('acrp.resultData')}</span>
+                    <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-48 font-mono">
+                      {JSON.stringify(resultDetailData.result || resultDetailData.data || { error: resultDetailData.error }, null, 2)}
+                    </pre>
+                  </div>
+                )}
+
+                {/* Duration */}
+                {resultDetailData.duration && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground w-24">{t('acrp.duration')}</span>
+                    <span className="text-sm font-medium flex items-center gap-1">
+                      <Timer className="w-3 h-3" /> {resultDetailData.duration}ms
+                    </span>
+                  </div>
+                )}
+
+                {/* Timestamp */}
+                {(resultDetailData.timestamp || resultDetailData.createdAt || resultDetailData.invokedAt || resultDetailData.completedAt) && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground w-24">{t('acrp.timestamp')}</span>
+                    <span className="text-sm">
+                      {resultDetailData.timestamp
+                        ? new Date(resultDetailData.timestamp).toLocaleString()
+                        : new Date(resultDetailData.createdAt || resultDetailData.invokedAt || resultDetailData.completedAt).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          )}
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setShowResultDetail(false)}>
+              {t('common.close')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Revoke Token Confirmation Dialog */}
+      <Dialog open={showRevokeDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowRevokeDialog(false);
+          setRevokeAgent(null);
+          setRevokeConfirmName('');
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-4 h-4" />
+              {t('acrp.revokeToken')}
+            </DialogTitle>
+            <DialogDescription>{t('acrp.revokeTokenWarning')}</DialogDescription>
+          </DialogHeader>
+          {revokeAgent && (
+            <div className="space-y-4">
+              {/* What will happen */}
+              <Card className="border-destructive/20 bg-destructive/5">
+                <CardContent className="p-4 space-y-2">
+                  <h4 className="text-sm font-semibold text-destructive">{t('acrp.whatWillHappen')}</h4>
+                  <ul className="text-xs text-muted-foreground space-y-1.5">
+                    <li className="flex items-start gap-2">
+                      <Unplug className="w-3 h-3 mt-0.5 text-destructive shrink-0" />
+                      {t('acrp.revokeEffect1', { agentName: revokeAgent.name })}
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Zap className="w-3 h-3 mt-0.5 text-destructive shrink-0" />
+                      {t('acrp.revokeEffect2', { count: revokeAgent.capabilities?.length || revokeAgent._count?.capabilities || 0 })}
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Key className="w-3 h-3 mt-0.5 text-destructive shrink-0" />
+                      {t('acrp.revokeEffect3')}
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+
+              {/* Confirm by typing agent name */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">
+                  {t('acrp.typeToConfirm', { agentName: revokeAgent.name })}
+                </Label>
+                <Input
+                  value={revokeConfirmName}
+                  onChange={(e) => setRevokeConfirmName(e.target.value)}
+                  placeholder={revokeAgent.name}
+                  className="h-9 text-sm"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => {
+              setShowRevokeDialog(false);
+              setRevokeAgent(null);
+              setRevokeConfirmName('');
+            }}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={!revokeAgent || revokeConfirmName !== revokeAgent.name}
+              onClick={() => revokeAgent && handleRevokeToken(revokeAgent.id)}
+            >
+              <AlertTriangle className="w-3 h-3 mr-1" />
+              {t('acrp.revokeToken')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Dialog (for invoke with confirmRequired) */}
       <AlertDialog open={!!confirmAction} onOpenChange={(open) => { if (!open) setConfirmAction(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1328,15 +1822,5 @@ sio.wait()`;
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  );
-}
-
-// Small helper component for Setup Guide
-function FileIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-    </svg>
   );
 }
