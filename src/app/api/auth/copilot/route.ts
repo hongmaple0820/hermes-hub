@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
+import { handleApiError } from '@/lib/api-handler';
 
 // GET /api/auth/copilot/check-token - Check if Copilot token is valid
 export async function GET(request: NextRequest) {
@@ -48,8 +49,8 @@ export async function GET(request: NextRequest) {
       source: token.status === 'active' ? 'oauth' : 'none',
       status: token.status,
     });
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (error) {
+    return handleApiError(error);
   }
 }
 
@@ -180,12 +181,8 @@ export async function POST(request: NextRequest) {
       expiresIn: data.expires_in,
       interval: data.interval || 5,
     });
-  } catch (error: any) {
-    console.error('Copilot OAuth error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to process Copilot OAuth request' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error);
   }
 }
 
@@ -205,7 +202,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (error) {
+    return handleApiError(error);
   }
 }

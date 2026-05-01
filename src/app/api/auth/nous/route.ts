@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
+import { handleApiError } from '@/lib/api-handler';
 
 // GET /api/auth/nous/status - Check Nous Research OAuth status
 export async function GET(request: NextRequest) {
@@ -16,8 +17,8 @@ export async function GET(request: NextRequest) {
       hasToken: !!token?.accessToken,
       verifiedAt: token?.verifiedAt?.toISOString(),
     });
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (error) {
+    return handleApiError(error);
   }
 }
 
@@ -63,12 +64,8 @@ export async function POST(request: NextRequest) {
       expiresIn,
       interval: 5,
     });
-  } catch (error: any) {
-    console.error('Nous OAuth start error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to start Nous OAuth flow' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error);
   }
 }
 
@@ -88,7 +85,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (error) {
+    return handleApiError(error);
   }
 }

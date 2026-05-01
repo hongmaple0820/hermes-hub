@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
+import { handleApiError } from '@/lib/api-handler';
 
 // GET /api/auth/copilot/poll?deviceCode=xxx - Poll for token
 export async function GET(request: NextRequest) {
@@ -102,7 +103,7 @@ export async function GET(request: NextRequest) {
       console.error('Copilot token poll fetch error:', fetchError);
       return NextResponse.json({ status: 'pending' });
     }
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (error) {
+    return handleApiError(error);
   }
 }

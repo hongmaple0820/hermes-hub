@@ -1,5 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireAuth } from '@/lib/auth';
+import { handleApiError } from '@/lib/api-handler';
 
 const DEFAULT_SKILLS = [
   {
@@ -154,8 +156,10 @@ const DEFAULT_SKILLS = [
   },
 ];
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    await requireAuth(request);
+
     let created = 0;
     let skipped = 0;
 
@@ -180,10 +184,6 @@ export async function POST() {
       total: DEFAULT_SKILLS.length,
     });
   } catch (error) {
-    console.error('Seed skills error:', error);
-    return NextResponse.json(
-      { error: 'Failed to seed skills', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }

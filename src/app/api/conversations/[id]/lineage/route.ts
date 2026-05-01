@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
+import { handleApiError } from '@/lib/api-handler';
 import { getConversationLineage } from '@/lib/conversation-lineage';
 
 export async function GET(
@@ -23,14 +24,7 @@ export async function GET(
       ancestors: lineage.ancestors,
       totalMessages: lineage.totalMessages,
     });
-  } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    console.error('[Lineage API] GET error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Internal server error' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error);
   }
 }

@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
+import { handleApiError } from '@/lib/api-handler';
 import { forceCompress } from '@/lib/context-engine';
 
 export async function POST(
@@ -22,14 +23,7 @@ export async function POST(
       snapshotId: result.snapshotId,
       summaryTokenCount: result.summaryTokenCount,
     });
-  } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    console.error('[Chat Room Compress API] POST error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Internal server error' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error);
   }
 }

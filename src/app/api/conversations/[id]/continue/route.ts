@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
+import { handleApiError } from '@/lib/api-handler';
 import { continueConversation } from '@/lib/conversation-lineage';
 
 export async function POST(
@@ -24,14 +25,7 @@ export async function POST(
       conversationId: result.newConversationId,
       carriedContext: result.carriedContext,
     });
-  } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    console.error('[Continue API] POST error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Internal server error' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error);
   }
 }

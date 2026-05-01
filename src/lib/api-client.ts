@@ -1,6 +1,8 @@
-/**
- * Frontend API Client for Hermes Hub
- */
+import type {
+  User, AuthResponse, Provider, Agent, Skill, AgentSkill,
+  AgentPlugin, AgentConnection, Gateway, Conversation, Message,
+  ChatRoom, Job, Profile, AppSettings, UsageRecord, LogEntry, FileEntry,
+} from '@/lib/types';
 
 const API_BASE = '/api';
 
@@ -64,30 +66,38 @@ class ApiClient {
     return res.json();
   }
 
+  private async put<T>(path: string, body: unknown): Promise<T> {
+    const res = await this.request(path, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  }
+
   // Auth
   async register(email: string, name: string, password: string) {
-    return this.post<{ user: any; token: string }>('/auth/register', { email, name, password });
+    return this.post<AuthResponse>('/auth/register', { email, name, password });
   }
 
   async login(email: string, password: string) {
-    return this.post<{ user: any; token: string }>('/auth/login', { email, password });
+    return this.post<AuthResponse>('/auth/login', { email, password });
   }
 
   async getMe() {
-    return this.get<{ user: any }>('/auth/me');
+    return this.get<{ user: User }>('/auth/me');
   }
 
   // Providers
   async getProviders() {
-    return this.get<{ providers: any[] }>('/providers');
+    return this.get<{ providers: Provider[] }>('/providers');
   }
 
-  async createProvider(data: any) {
-    return this.post<{ provider: any }>('/providers', data);
+  async createProvider(data: Partial<Provider>) {
+    return this.post<{ provider: Provider }>('/providers', data);
   }
 
-  async updateProvider(id: string, data: any) {
-    return this.patch<{ provider: any }>(`/providers/${id}`, data);
+  async updateProvider(id: string, data: Partial<Provider>) {
+    return this.patch<{ provider: Provider }>(`/providers/${id}`, data);
   }
 
   async deleteProvider(id: string) {
@@ -100,15 +110,15 @@ class ApiClient {
 
   // Agents
   async getAgents() {
-    return this.get<{ agents: any[] }>('/agents');
+    return this.get<{ agents: Agent[] }>('/agents');
   }
 
-  async createAgent(data: any) {
-    return this.post<{ agent: any }>('/agents', data);
+  async createAgent(data: Partial<Agent>) {
+    return this.post<{ agent: Agent }>('/agents', data);
   }
 
-  async updateAgent(id: string, data: any) {
-    return this.patch<{ agent: any }>(`/agents/${id}`, data);
+  async updateAgent(id: string, data: Partial<Agent>) {
+    return this.patch<{ agent: Agent }>(`/agents/${id}`, data);
   }
 
   async deleteAgent(id: string) {
@@ -116,15 +126,15 @@ class ApiClient {
   }
 
   async discoverAgents() {
-    return this.get<{ agents: any[] }>('/agents/discover');
+    return this.get<{ agents: Agent[] }>('/agents/discover');
   }
 
   // Agent Skills
   async getAgentSkills(agentId: string) {
-    return this.get<{ skills: any[] }>(`/agents/${agentId}/skills`);
+    return this.get<{ skills: AgentSkill[] }>(`/agents/${agentId}/skills`);
   }
 
-  async updateAgentSkill(agentId: string, skillId: string, data: any) {
+  async updateAgentSkill(agentId: string, skillId: string, data: Partial<AgentSkill>) {
     return this.patch(`/agents/${agentId}/skills/${skillId}`, data);
   }
 
@@ -134,14 +144,14 @@ class ApiClient {
 
   // Agent Plugins
   async getAgentPlugins(agentId: string) {
-    return this.get<{ plugins: any[] }>(`/agents/${agentId}/plugins`);
+    return this.get<{ plugins: AgentPlugin[] }>(`/agents/${agentId}/plugins`);
   }
 
-  async createAgentPlugin(agentId: string, data: any) {
-    return this.post<{ plugin: any }>(`/agents/${agentId}/plugins`, data);
+  async createAgentPlugin(agentId: string, data: Partial<AgentPlugin>) {
+    return this.post<{ plugin: AgentPlugin }>(`/agents/${agentId}/plugins`, data);
   }
 
-  async updateAgentPlugin(agentId: string, pluginId: string, data: any) {
+  async updateAgentPlugin(agentId: string, pluginId: string, data: Partial<AgentPlugin>) {
     return this.patch(`/agents/${agentId}/plugins/${pluginId}`, data);
   }
 
@@ -151,14 +161,14 @@ class ApiClient {
 
   // Agent Connections
   async getAgentConnections(agentId: string) {
-    return this.get<{ connections: any[] }>(`/agents/${agentId}/connections`);
+    return this.get<{ connections: AgentConnection[] }>(`/agents/${agentId}/connections`);
   }
 
-  async createAgentConnection(agentId: string, data: any) {
-    return this.post<{ connection: any }>(`/agents/${agentId}/connections`, data);
+  async createAgentConnection(agentId: string, data: Partial<AgentConnection>) {
+    return this.post<{ connection: AgentConnection }>(`/agents/${agentId}/connections`, data);
   }
 
-  async updateAgentConnection(agentId: string, connectionId: string, data: any) {
+  async updateAgentConnection(agentId: string, connectionId: string, data: Partial<AgentConnection>) {
     return this.patch(`/agents/${agentId}/connections/${connectionId}`, data);
   }
 
@@ -169,15 +179,15 @@ class ApiClient {
   // Skills
   async getSkills(category?: string) {
     const query = category ? `?category=${category}` : '';
-    return this.get<{ skills: any[] }>(`/skills${query}`);
+    return this.get<{ skills: Skill[] }>(`/skills${query}`);
   }
 
-  async createSkill(data: any) {
-    return this.post<{ skill: any }>('/skills', data);
+  async createSkill(data: Partial<Skill>) {
+    return this.post<{ skill: Skill }>('/skills', data);
   }
 
-  async installSkill(skillId: string, data: { agentId: string; config?: any }) {
-    return this.post<{ agentSkill: any }>(`/skills/${skillId}/install`, data);
+  async installSkill(skillId: string, data: { agentId: string; config?: Record<string, unknown> }) {
+    return this.post<{ agentSkill: AgentSkill }>(`/skills/${skillId}/install`, data);
   }
 
   async uninstallSkill(skillId: string, agentId: string) {
@@ -186,14 +196,14 @@ class ApiClient {
 
   // Hermes Gateways
   async getGateways() {
-    return this.get<{ gateways: any[] }>('/hermes/gateways');
+    return this.get<{ gateways: Gateway[] }>('/hermes/gateways');
   }
 
-  async createGateway(data: any) {
-    return this.post<{ gateway: any }>('/hermes/gateways', data);
+  async createGateway(data: Partial<Gateway>) {
+    return this.post<{ gateway: Gateway }>('/hermes/gateways', data);
   }
 
-  async updateGateway(id: string, data: any) {
+  async updateGateway(id: string, data: Partial<Gateway>) {
     return this.patch(`/hermes/gateways/${id}`, data);
   }
 
@@ -215,23 +225,23 @@ class ApiClient {
 
   // Conversations
   async getConversations() {
-    return this.get<{ conversations: any[] }>('/conversations');
+    return this.get<{ conversations: Conversation[] }>('/conversations');
   }
 
   async createConversation(data: { agentId: string; type?: string; name?: string }) {
-    return this.post<{ conversation: any }>('/conversations', data);
+    return this.post<{ conversation: Conversation }>('/conversations', data);
   }
 
   async getConversation(id: string) {
-    return this.get<{ conversation: any }>(`/conversations/${id}`);
+    return this.get<{ conversation: Conversation }>(`/conversations/${id}`);
   }
 
   async getMessages(conversationId: string) {
-    return this.get<{ messages: any[] }>(`/conversations/${conversationId}/messages`);
+    return this.get<{ messages: Message[] }>(`/conversations/${conversationId}/messages`);
   }
 
   async sendMessage(conversationId: string, content: string, type?: string) {
-    return this.post<{ message: any; agentReply?: { content: string } | null }>(
+    return this.post<{ message: Message; agentReply?: { content: string } | null }>(
       `/conversations/${conversationId}/messages`,
       { content, type }
     );
@@ -239,46 +249,45 @@ class ApiClient {
 
   // Chat Rooms
   async getChatRooms() {
-    return this.get<{ rooms: any[] }>('/chat-rooms');
+    return this.get<{ rooms: ChatRoom[] }>('/chat-rooms');
   }
 
-  async createChatRoom(data: any) {
-    return this.post<{ room: any }>('/chat-rooms', data);
+  async createChatRoom(data: Partial<ChatRoom> & { agentIds?: string[] }) {
+    return this.post<{ room: ChatRoom }>('/chat-rooms', data);
   }
 
-  // Chat Rooms
   async deleteChatRoom(id: string) {
     return this.del(`/chat-rooms/${id}`);
   }
 
   async getChatRoomMessages(roomId: string) {
-    return this.get<{ messages: any[] }>(`/chat-rooms/${roomId}/messages`);
+    return this.get<{ messages: Message[] }>(`/chat-rooms/${roomId}/messages`);
   }
 
   async sendChatRoomMessage(roomId: string, content: string) {
-    return this.post<{ message: any }>(`/chat-rooms/${roomId}/messages`, { content });
+    return this.post<{ message: Message }>(`/chat-rooms/${roomId}/messages`, { content });
   }
 
   // Channels
   async getChannels() {
-    return this.get<{ channels: any[] }>('/channels');
+    return this.get<{ channels: unknown[] }>('/channels');
   }
 
-  async updateChannel(platform: string, data: any) {
-    return this.patch<{ channel: any }>(`/channels/${platform}`, data);
+  async updateChannel(platform: string, data: Record<string, unknown>) {
+    return this.patch<{ channel: unknown }>(`/channels/${platform}`, data);
   }
 
   // Jobs
   async getJobs() {
-    return this.get<{ jobs: any[] }>('/jobs');
+    return this.get<{ jobs: Job[] }>('/jobs');
   }
 
-  async createJob(data: any) {
-    return this.post<{ job: any }>('/jobs', data);
+  async createJob(data: Partial<Job>) {
+    return this.post<{ job: Job }>('/jobs', data);
   }
 
-  async updateJob(id: string, data: any) {
-    return this.patch<{ job: any }>(`/jobs/${id}`, data);
+  async updateJob(id: string, data: Partial<Job>) {
+    return this.patch<{ job: Job }>(`/jobs/${id}`, data);
   }
 
   async deleteJob(id: string) {
@@ -299,15 +308,15 @@ class ApiClient {
 
   // Profiles
   async getProfiles() {
-    return this.get<{ profiles: any[] }>('/profiles');
+    return this.get<{ profiles: Profile[] }>('/profiles');
   }
 
-  async createProfile(data: any) {
-    return this.post<{ profile: any }>('/profiles', data);
+  async createProfile(data: Partial<Profile>) {
+    return this.post<{ profile: Profile }>('/profiles', data);
   }
 
-  async updateProfile(id: string, data: any) {
-    return this.patch<{ profile: any }>(`/profiles/${id}`, data);
+  async updateProfile(id: string, data: Partial<Profile>) {
+    return this.patch<{ profile: Profile }>(`/profiles/${id}`, data);
   }
 
   async deleteProfile(id: string) {
@@ -322,14 +331,14 @@ class ApiClient {
     return this.post(`/profiles/${id}/export`);
   }
 
-  async importProfile(data: any) {
+  async importProfile(data: Record<string, unknown>) {
     return this.post('/profiles/import', data);
   }
 
   // Memory
   async getMemory(agentId?: string) {
     const query = agentId ? `?agentId=${agentId}` : '';
-    return this.get<{ memory: any }>(`/memory${query}`);
+    return this.get<{ memory: unknown }>(`/memory${query}`);
   }
 
   async updateMemory(section: string, content: string, agentId?: string) {
@@ -339,11 +348,11 @@ class ApiClient {
   // Usage
   async getUsage(period?: string) {
     const query = period ? `?period=${period}` : '';
-    return this.get<{ usage: any }>(`/usage${query}`);
+    return this.get<{ usage: UsageRecord[] }>(`/usage${query}`);
   }
 
   async getSessionUsage(sessionId: string) {
-    return this.get<{ usage: any }>(`/usage/${sessionId}`);
+    return this.get<{ usage: UsageRecord }>(`/usage/${sessionId}`);
   }
 
   // Logs
@@ -351,17 +360,17 @@ class ApiClient {
     const params = new URLSearchParams();
     if (type) params.set('type', type);
     if (limit) params.set('limit', String(limit));
-    return this.get<{ logs: any[] }>(`/logs?${params.toString()}`);
+    return this.get<{ logs: LogEntry[] }>(`/logs?${params.toString()}`);
   }
 
   async getLogFile(name: string) {
-    return this.get<{ entries: any[] }>(`/logs/${name}`);
+    return this.get<{ entries: LogEntry[] }>(`/logs/${name}`);
   }
 
   // Files
   async listFiles(path?: string) {
     const query = path ? `?path=${encodeURIComponent(path)}` : '';
-    return this.get<{ files: any[] }>(`/files/list${query}`);
+    return this.get<{ files: FileEntry[] }>(`/files/list${query}`);
   }
 
   async readFile(path: string) {
@@ -396,26 +405,18 @@ class ApiClient {
     return res.json();
   }
 
-  private async put<T>(path: string, body: unknown): Promise<T> {
-    const res = await this.request(path, {
-      method: 'PUT',
-      body: JSON.stringify(body),
-    });
-    return res.json();
-  }
-
   // Search
   async searchSessions(keyword: string) {
-    return this.get<{ results: any[] }>(`/search/sessions?keyword=${encodeURIComponent(keyword)}`);
+    return this.get<{ results: unknown[] }>(`/search/sessions?keyword=${encodeURIComponent(keyword)}`);
   }
 
   // Settings
   async getSettings() {
-    return this.get<{ settings: any }>('/settings');
+    return this.get<{ settings: AppSettings[] }>('/settings');
   }
 
-  async updateSettings(data: any) {
-    return this.patch<{ settings: any }>('/settings', data);
+  async updateSettings(data: Record<string, unknown>) {
+    return this.patch<{ settings: AppSettings[] }>('/settings', data);
   }
 
   // Seed
@@ -473,7 +474,7 @@ class ApiClient {
 
   // Context Engine
   async getContext(type: 'conversation' | 'room', id: string) {
-    return this.get<{ context: string; wasCompressed: boolean; snapshotId?: string; tokenCount: number; stats: any }>(`/context?type=${type}&id=${id}`);
+    return this.get<{ context: string; wasCompressed: boolean; snapshotId?: string; tokenCount: number; stats: unknown }>(`/context?type=${type}&id=${id}`);
   }
 
   async forceCompress(type: 'conversation' | 'room', id: string) {
@@ -490,7 +491,7 @@ class ApiClient {
 
   // Conversation Lineage
   async getConversationLineage(conversationId: string) {
-    return this.get<{ current: any; ancestors: any[]; totalMessages: number }>(`/conversations/${conversationId}/lineage`);
+    return this.get<{ current: unknown; ancestors: unknown[]; totalMessages: number }>(`/conversations/${conversationId}/lineage`);
   }
 
   async continueConversation(conversationId: string, agentId?: string) {

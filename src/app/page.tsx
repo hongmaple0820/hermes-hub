@@ -38,17 +38,21 @@ function AppContent() {
 
   // Check for existing session on mount
   useEffect(() => {
-    const token = localStorage.getItem('hermes_token');
-    const userData = localStorage.getItem('hermes_user');
-    if (token && userData) {
-      try {
-        const parsed = JSON.parse(userData);
-        api.setUserId(token);
-        setUser(parsed);
-      } catch {
-        localStorage.removeItem('hermes_token');
-        localStorage.removeItem('hermes_user');
+    try {
+      const token = localStorage.getItem('hermes_token');
+      const userData = localStorage.getItem('hermes_user');
+      if (token && userData) {
+        try {
+          const parsed = JSON.parse(userData);
+          api.setUserId(token);
+          setUser(parsed);
+        } catch {
+          localStorage.removeItem('hermes_token');
+          localStorage.removeItem('hermes_user');
+        }
       }
+    } catch {
+      // localStorage unavailable (SSR / disabled storage)
     }
     setInitialized(true);
   }, [setUser]);
@@ -107,8 +111,8 @@ function AppContent() {
       localStorage.setItem('hermes_token', token);
       localStorage.setItem('hermes_user', JSON.stringify(userData));
       toast.success(isRegister ? 'Account created!' : 'Welcome back!');
-    } catch (error: any) {
-      toast.error(error.message || 'Authentication failed');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Authentication failed');
       throw error;
     }
   };
