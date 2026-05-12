@@ -1095,3 +1095,92 @@ Stage Summary:
 - **Animations**: framer-motion for tab transitions, field animations, and left panel feature reveals
 - **i18n**: 12 new translation keys added to all 8 locales
 - **Dark mode**: Fully supported via Tailwind CSS variables
+
+---
+Task ID: REVIEW-1
+Agent: main
+Task: Agent Skills specification compliance, bug fixes, and UI enhancements
+
+Work Log:
+- Read worklog.md and analyzed current project status
+- Used agent-browser + VLM to test the app and identify bugs:
+  - Settings page showing Channels view instead of Settings (React reconciliation bug)
+  - Missing Provider Test API endpoint
+  - OAuth API route mismatches (codex/start vs codex)
+  - Login page needs visual improvements
+- Read AgentSkills specification from https://agentskills.io/specification
+  - SKILL.md format: YAML frontmatter (name, description, license, compatibility, metadata, allowedTools) + Markdown body
+  - Directory structure: .agents/skills/*/SKILL.md
+  - Name must match ^[a-z0-9]+(-[a-z0-9]+)*$
+
+Skills System Refactoring (via sub-agent Task 12):
+- Updated Prisma Skill model with AgentSkills spec fields:
+  - license, compatibility, metadata (JSON with author/version), allowedTools, instructions
+  - sourceType, sourceUrl, sourcePath, installedAt for source tracking
+- Replaced 12 old skills with 12 AgentSkills-compliant skills:
+  - commit-helper, code-review, test-writer, doc-generator, api-designer
+  - db-analyzer, security-scanner, perf-optimizer, i18n-helper
+  - deploy-manager, debug-assistant, data-analyst
+- Updated Skills API routes with AgentSkills spec validation (name regex, description length, etc.)
+- Created /api/skills/import-skill endpoint for importing from git repos
+- Added js-yaml dependency for YAML frontmatter parsing
+- Updated SkillMarketplace.tsx for metadata.version instead of version field
+
+Bug Fixes (via sub-agent Task 4):
+- Fixed Settings navigation: Added key={currentView} to renderView() wrapper
+- Created Provider Test API: /api/providers/[id]/test with testProviderConnection()
+- Fixed OAuth routes: Changed /auth/codex/start → /auth/codex (and nous, copilot)
+
+SkillMarketplace UI Update (via sub-agent Task 13):
+- Added license badges (MIT=emerald, Apache=amber, Proprietary=red)
+- Added source type badges (built-in=emerald, agentskills-registry=cyan, custom=amber, git=purple)
+- Added Import from Git dialog with URL input and skill path
+- Added instructions preview (line-clamp-3), allowed tools badges
+- Added AgentSkills Specification section in Protocol Docs tab
+- Added importSkill() method to api-client.ts
+- Added 18 new i18n keys to all 8 locale files
+
+AuthPage Enhancement (via sub-agent Task 6):
+- Complete rewrite with desktop split layout:
+  - Left panel (40%): emerald-to-teal gradient, animated blur circles, feature highlights
+  - Right panel (60%): login/register form
+- Added password visibility toggle (Eye/EyeOff)
+- Added "Forgot Password?" link with "Coming soon" toast
+- Added "Remember me" checkbox on login tab
+- Added client-side form validation with inline error messages
+- Added framer-motion animations (staggered fade-in, tab transitions)
+- Added 12 new i18n keys to all 8 locale files
+- Full responsive design (mobile: form only, desktop: split layout)
+- Full dark mode support
+
+Stage Summary:
+- **Skills system now complies with AgentSkills specification**
+  - SKILL.md format with frontmatter + instructions
+  - 12 built-in skills properly seeded with all required fields
+  - Import from git repos supported
+  - UI shows license, source type, compatibility, allowed tools
+- **3 bugs fixed**: Settings navigation, Provider test API, OAuth routes
+- **AuthPage completely redesigned** with professional split layout
+- **30+ i18n keys added** across all 8 locales
+- **Lint checks pass clean**
+- **Pushed to dev branch**: cd1972f
+
+### Project Current Status
+- All core services functional (Next.js 3000, chat-service 3003, skill-ws 3004)
+- Skills system compliant with AgentSkills open specification
+- Known issue: Next.js dev server unstable in sandbox (terminates after ~30s idle)
+
+### Unresolved Issues
+1. Next.js dev server crashes frequently in sandbox environment (not a code bug)
+2. Some old skills (code-execution, data-analysis, etc.) still have null AgentSkills fields (they were seeded before the refactor)
+3. Provider test endpoint only works for OpenAI-compatible providers
+4. Terminal service needs verification
+
+### Next Priority Recommendations
+1. Re-seed or migrate old skills to have proper AgentSkills fields
+2. Add more Provider test implementations (Anthropic, Google, etc.)
+3. Test end-to-end chat flow with an actual LLM provider
+4. Add skill execution tracking and analytics
+5. Implement skill versioning and update mechanism
+6. Add more visual polish: loading skeletons, page transitions
+7. Consider production build testing for stability
