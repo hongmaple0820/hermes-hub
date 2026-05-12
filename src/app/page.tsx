@@ -121,11 +121,53 @@ function AppContent() {
 
   if (!initialized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted-foreground text-sm">Loading Hermes Hub...</p>
-        </div>
+      <div className="min-h-screen flex bg-background">
+        {/* Sidebar skeleton */}
+        <aside className="w-64 h-screen flex flex-col border-r border-border bg-card shrink-0">
+          <div className="flex items-center gap-3 p-4 border-b border-border">
+            <div className="w-9 h-9 rounded-lg bg-muted animate-pulse" />
+            <div className="flex flex-col gap-1.5">
+              <div className="w-24 h-3.5 rounded bg-muted animate-pulse" />
+              <div className="w-16 h-2.5 rounded bg-muted animate-pulse" />
+            </div>
+          </div>
+          <nav className="flex-1 p-2 space-y-1">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg">
+                <div className="w-[18px] h-[18px] rounded bg-muted animate-pulse" />
+                <div className="w-20 h-3 rounded bg-muted animate-pulse" />
+              </div>
+            ))}
+          </nav>
+          <div className="p-3 border-t border-border">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-muted animate-pulse" />
+              <div className="flex flex-col gap-1.5 flex-1">
+                <div className="w-16 h-3 rounded bg-muted animate-pulse" />
+                <div className="w-24 h-2.5 rounded bg-muted animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </aside>
+        {/* Main content skeleton */}
+        <main className="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
+          <div className="h-24 rounded-xl bg-muted animate-pulse" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-36 rounded-xl bg-muted animate-pulse" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="h-64 rounded-xl bg-muted animate-pulse" />
+            <div className="h-64 rounded-xl bg-muted animate-pulse" />
+            <div className="h-64 rounded-xl bg-muted animate-pulse" />
+          </div>
+        </main>
       </div>
     );
   }
@@ -186,14 +228,26 @@ function AppContent() {
       <Sidebar onLogout={handleLogout} />
       <main className="flex-1 overflow-auto">
         {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-              <p className="text-muted-foreground text-sm">Loading...</p>
+          <div className="p-6 max-w-7xl mx-auto space-y-6">
+            <div className="h-24 rounded-xl bg-muted animate-pulse" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
+              ))}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-36 rounded-xl bg-muted animate-pulse" />
+              ))}
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="h-64 rounded-xl bg-muted animate-pulse" />
+              <div className="h-64 rounded-xl bg-muted animate-pulse" />
+              <div className="h-64 rounded-xl bg-muted animate-pulse" />
             </div>
           </div>
         ) : (
-          <div key={currentView}>{renderView()}</div>
+          <div key={currentView} className="animate-in fade-in">{renderView()}</div>
         )}
       </main>
       <SessionSearch />

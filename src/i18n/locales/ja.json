@@ -72,7 +72,16 @@
     "welcomeBack": "おかえりなさい",
     "createAccount": "アカウントを作成",
     "showPassword": "パスワードを表示",
-    "hidePassword": "パスワードを隠す"
+    "hidePassword": "パスワードを隠す",
+    "github": "GitHub",
+    "google": "Google",
+    "passwordStrength": "パスワード強度",
+    "weak": "弱い",
+    "fair": "普通",
+    "strong": "強い",
+    "termsOfService": "利用規約",
+    "privacyPolicy": "プライバシーポリシー",
+    "agreeToTerms": "サインアップすることで、以下に同意したことになります"
   },
   "nav": {
     "dashboard": "ダッシュボード",
@@ -167,7 +176,14 @@
     "activityAcrpConnected": "ACRP接続",
     "activityAcrpDisconnected": "ACRP切断",
     "activityAgentOnline": "エージェントオンライン",
-    "activityAgentOffline": "エージェントオフライン"
+    "activityAgentOffline": "エージェントオフライン",
+    "systemHealth": "システムヘルス",
+    "apiResponseTime": "API応答時間",
+    "memoryUsage": "メモリ使用率",
+    "cpuLoad": "CPU負荷",
+    "newConversation": "新規会話",
+    "systemSettings": "システム設定",
+    "activityTimeline": "アクティビティタイムライン"
   },
   "agents": {
     "title": "エージェント",
@@ -388,6 +404,7 @@
     "installTo": "{skill} をどのエージェントにインストールしますか？",
     "noAgents": "利用可能なエージェントがありません。先にエージェントを作成してください。",
     "installed": "スキルをインストールしました！",
+    "alreadyInstalled": "エージェントにインストール済み",
     "categoryAll": "すべて",
     "categoryCommunication": "コミュニケーション",
     "categoryProductivity": "生産性",
@@ -483,7 +500,10 @@
     "sendMessage": "メッセージを入力...",
     "copyMessage": "コピー",
     "deleteMessage": "削除",
-    "copied": "コピーしました！"
+    "copied": "コピーしました！",
+    "thinking": "考え中...",
+    "noConversationsFound": "会話が見つかりません",
+    "clearSearch": "検索をクリア"
   },
   "chatRooms": {
     "title": "チャットルーム",
@@ -663,6 +683,20 @@
     "support": "サポート",
     "accentCyan": "シアン"
   },
+  "settings": {
+    "accountInfo": "アカウント情報",
+    "editProfile": "プロフィール編集",
+    "changePassword": "パスワード変更",
+    "notifications": "通知設定",
+    "emailNotifications": "メール通知",
+    "pushNotifications": "プッシュ通知",
+    "soundAlerts": "サウンドアラート",
+    "dataPrivacy": "データとプライバシー",
+    "exportData": "データをエクスポート",
+    "deleteAccount": "アカウント削除",
+    "deleteAccountConfirm": "この操作は取り消せません。すべてのデータが完全に削除されます。",
+    "privacyMode": "プライバシーモード"
+  },
   "language": {
     "switch": "言語",
     "zh": "中文",
@@ -766,6 +800,16 @@
     "dailyTrendDesc": "選択期間のコスト推移",
     "cacheHitRate": "キャッシュヒット率",
     "cacheHitRateDesc": "キャッシュから提供されたリクエストの割合"
+  },
+  "analytics": {
+    "skillAnalytics": "スキル分析",
+    "totalInvocations": "総呼び出し回数",
+    "successRate": "成功率",
+    "recentInvocations": "最近の呼び出し",
+    "noData": "データがありません",
+    "topSkills": "上位スキル",
+    "overview": "概要",
+    "invocationStatus": "呼び出しステータス"
   },
   "profiles": {
     "title": "プロファイル",

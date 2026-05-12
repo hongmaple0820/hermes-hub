@@ -72,7 +72,16 @@
     "welcomeBack": "다시 오셨군요",
     "createAccount": "계정 만들기",
     "showPassword": "비밀번호 표시",
-    "hidePassword": "비밀번호 숨기기"
+    "hidePassword": "비밀번호 숨기기",
+    "github": "GitHub",
+    "google": "Google",
+    "passwordStrength": "비밀번호 강도",
+    "weak": "약함",
+    "fair": "보통",
+    "strong": "강함",
+    "termsOfService": "서비스 약관",
+    "privacyPolicy": "개인정보 처리방침",
+    "agreeToTerms": "가입하면 다음에 동의하게 됩니다"
   },
   "nav": {
     "dashboard": "대시보드",
@@ -167,7 +176,14 @@
     "activityAcrpConnected": "ACRP 연결",
     "activityAcrpDisconnected": "ACRP 연결 해제",
     "activityAgentOnline": "에이전트 온라인",
-    "activityAgentOffline": "에이전트 오프라인"
+    "activityAgentOffline": "에이전트 오프라인",
+    "systemHealth": "시스템 상태",
+    "apiResponseTime": "API 응답 시간",
+    "memoryUsage": "메모리 사용량",
+    "cpuLoad": "CPU 부하",
+    "newConversation": "새 대화",
+    "systemSettings": "시스템 설정",
+    "activityTimeline": "활동 타임라인"
   },
   "agents": {
     "title": "에이전트",
@@ -388,6 +404,7 @@
     "installTo": "{skill}을(를) 어느 에이전트에 설치하시겠습니까?",
     "noAgents": "사용 가능한 에이전트가 없습니다. 먼저 에이전트를 생성하세요.",
     "installed": "스킬 설치됨!",
+    "alreadyInstalled": "에이전트에 이미 설치됨",
     "categoryAll": "전체",
     "categoryCommunication": "커뮤니케이션",
     "categoryProductivity": "생산성",
@@ -483,7 +500,10 @@
     "sendMessage": "메시지를 입력하세요...",
     "copyMessage": "복사",
     "deleteMessage": "삭제",
-    "copied": "복사됨!"
+    "copied": "복사됨!",
+    "thinking": "생각 중...",
+    "noConversationsFound": "대화를 찾을 수 없습니다",
+    "clearSearch": "검색 지우기"
   },
   "chatRooms": {
     "title": "채팅방",
@@ -663,6 +683,20 @@
     "support": "지원",
     "accentCyan": "시안"
   },
+  "settings": {
+    "accountInfo": "계정 정보",
+    "editProfile": "프로필 편집",
+    "changePassword": "비밀번호 변경",
+    "notifications": "알림 설정",
+    "emailNotifications": "이메일 알림",
+    "pushNotifications": "푸시 알림",
+    "soundAlerts": "소리 알림",
+    "dataPrivacy": "데이터 및 개인정보",
+    "exportData": "내 데이터 내보내기",
+    "deleteAccount": "계정 삭제",
+    "deleteAccountConfirm": "이 작업은 취소할 수 없습니다. 모든 데이터가 영구적으로 삭제됩니다.",
+    "privacyMode": "개인정보 보호 모드"
+  },
   "language": {
     "switch": "언어",
     "zh": "中文",
@@ -766,6 +800,16 @@
     "dailyTrendDesc": "선택 기간의 비용 추이",
     "cacheHitRate": "캐시 적중률",
     "cacheHitRateDesc": "캐시에서 제공된 요청 비율"
+  },
+  "analytics": {
+    "skillAnalytics": "스킬 분석",
+    "totalInvocations": "총 호출 수",
+    "successRate": "성공률",
+    "recentInvocations": "최근 호출",
+    "noData": "데이터 없음",
+    "topSkills": "상위 스킬",
+    "overview": "개요",
+    "invocationStatus": "호출 상태"
   },
   "profiles": {
     "title": "프로필",

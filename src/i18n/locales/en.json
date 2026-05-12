@@ -72,7 +72,16 @@
     "welcomeBack": "Welcome back",
     "createAccount": "Create your account",
     "showPassword": "Show password",
-    "hidePassword": "Hide password"
+    "hidePassword": "Hide password",
+    "github": "GitHub",
+    "google": "Google",
+    "passwordStrength": "Password strength",
+    "weak": "Weak",
+    "fair": "Fair",
+    "strong": "Strong",
+    "termsOfService": "Terms of Service",
+    "privacyPolicy": "Privacy Policy",
+    "agreeToTerms": "By signing up, you agree to our"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -167,7 +176,14 @@
     "activityAcrpConnected": "ACRP Connected",
     "activityAcrpDisconnected": "ACRP Disconnected",
     "activityAgentOnline": "Agent Online",
-    "activityAgentOffline": "Agent Offline"
+    "activityAgentOffline": "Agent Offline",
+    "systemHealth": "System Health",
+    "apiResponseTime": "API Response Time",
+    "memoryUsage": "Memory Usage",
+    "cpuLoad": "CPU Load",
+    "newConversation": "New Conversation",
+    "systemSettings": "System Settings",
+    "activityTimeline": "Activity Timeline"
   },
   "agents": {
     "title": "Agents",
@@ -388,6 +404,7 @@
     "installTo": "Install {skill} to which agent?",
     "noAgents": "No agents available. Create an agent first.",
     "installed": "Skill installed!",
+    "alreadyInstalled": "Already installed to an agent",
     "categoryAll": "all",
     "categoryCommunication": "communication",
     "categoryProductivity": "productivity",
@@ -483,7 +500,10 @@
     "sendMessage": "Type a message...",
     "copyMessage": "Copy",
     "deleteMessage": "Delete",
-    "copied": "Copied!"
+    "copied": "Copied!",
+    "thinking": "is thinking...",
+    "noConversationsFound": "No conversations found",
+    "clearSearch": "Clear search"
   },
   "chatRooms": {
     "title": "Chat Rooms",
@@ -663,6 +683,20 @@
     "support": "Support",
     "accentCyan": "Cyan"
   },
+  "settings": {
+    "accountInfo": "Account Information",
+    "editProfile": "Edit Profile",
+    "changePassword": "Change Password",
+    "notifications": "Notification Preferences",
+    "emailNotifications": "Email Notifications",
+    "pushNotifications": "Push Notifications",
+    "soundAlerts": "Sound Alerts",
+    "dataPrivacy": "Data & Privacy",
+    "exportData": "Export My Data",
+    "deleteAccount": "Delete Account",
+    "deleteAccountConfirm": "This action cannot be undone. All your data will be permanently deleted.",
+    "privacyMode": "Privacy Mode"
+  },
   "language": {
     "switch": "Language",
     "zh": "中文",
@@ -766,6 +800,16 @@
     "dailyTrendDesc": "Cost trend over selected period",
     "cacheHitRate": "Cache Hit Rate",
     "cacheHitRateDesc": "Percentage of requests served from cache"
+  },
+  "analytics": {
+    "skillAnalytics": "Skill Analytics",
+    "totalInvocations": "Total Invocations",
+    "successRate": "Success Rate",
+    "recentInvocations": "Recent Invocations",
+    "noData": "No data available",
+    "topSkills": "Top Skills",
+    "overview": "Overview",
+    "invocationStatus": "Invocation Status"
   },
   "profiles": {
     "title": "Profiles",

@@ -583,7 +583,7 @@ export function AgentManager() {
             return (
               <Card
                 key={agent.id}
-                className="group relative overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5"
+                className="group relative overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-1 hover:scale-[1.01]"
               >
                 {/* Gradient top border */}
                 <div className={cn('h-1 w-full', modeGradients[agent.mode] || 'bg-gradient-to-r from-gray-400 to-gray-300')} />

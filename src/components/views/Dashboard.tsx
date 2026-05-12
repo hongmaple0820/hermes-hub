@@ -10,7 +10,7 @@ import {
   Bot, Server, Puzzle, Monitor, MessageSquare, Users,
   Activity, ArrowUpRight, Zap, Wifi, WifiOff, TrendingUp,
   Clock, Cpu, Globe, Shield, Sparkles, BarChart3, Radio,
-  CheckCircle, Eye, LogOut, Plus
+  CheckCircle, Eye, LogOut, Plus, Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,51 @@ interface ActivityItem {
   name: string;
   timestamp: string;
   detail?: string;
+}
+
+// Sparkline component - simple CSS-based mini chart
+function Sparkline({ values, color }: { values: number[]; color: string }) {
+  const max = Math.max(...values, 1);
+  return (
+    <div className="flex items-end gap-[2px] h-6">
+      {values.map((v, i) => (
+        <div
+          key={i}
+          className={cn('w-1 rounded-t-sm transition-all', color)}
+          style={{ height: `${Math.max((v / max) * 100, 8)}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Health bar with color coding
+function HealthBar({ value, label, unit }: { value: number; label: string; unit: string }) {
+  const getColor = (v: number) => {
+    if (v < 50) return 'bg-emerald-500';
+    if (v < 80) return 'bg-amber-500';
+    return 'bg-red-500';
+  };
+  const getTextColor = (v: number) => {
+    if (v < 50) return 'text-emerald-600 dark:text-emerald-400';
+    if (v < 80) return 'text-amber-600 dark:text-amber-400';
+    return 'text-red-600 dark:text-red-400';
+  };
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">{label}</span>
+        <span className={cn('font-medium', getTextColor(value))}>{value}{unit}</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+        <div
+          className={cn('h-full rounded-full transition-all duration-500', getColor(value))}
+          style={{ width: `${Math.min(value, 100)}%` }}
+        />
+      </div>
+    </div>
+  );
 }
 
 export function Dashboard() {
@@ -37,6 +82,13 @@ export function Dashboard() {
 
   // Real health check: system online only if providers exist and are active
   const isSystemOnline = activeProviders.length > 0 || connectedAcrpAgents.length > 0;
+
+  // Mock system health data
+  const systemHealth = {
+    apiResponseTime: 45,
+    memoryUsage: 62,
+    cpuLoad: 23,
+  };
 
   // Build activity feed
   const activityItems: ActivityItem[] = useMemo(() => {
@@ -156,6 +208,23 @@ export function Dashboard() {
     }
   };
 
+  const getActivityDotColor = (type: ActivityItem['type']) => {
+    switch (type) {
+      case 'agent_created':
+        return 'bg-emerald-500';
+      case 'conversation_started':
+        return 'bg-rose-500';
+      case 'acrp_connected':
+        return 'bg-cyan-500';
+      case 'acrp_disconnected':
+        return 'bg-gray-400';
+      case 'agent_online':
+        return 'bg-emerald-500';
+      case 'agent_offline':
+        return 'bg-red-400';
+    }
+  };
+
   const stats = [
     {
       title: t('dashboard.agents'),
@@ -167,6 +236,8 @@ export function Dashboard() {
       borderColor: 'border-l-emerald-500',
       view: 'agents' as const,
       detail: `${builtinAgents.length} builtin · ${acrpAgents.length} ACRP`,
+      sparkline: [3, 5, 4, 7, agents.length],
+      sparklineColor: 'bg-emerald-500/60',
     },
     {
       title: t('dashboard.providers'),
@@ -178,6 +249,8 @@ export function Dashboard() {
       borderColor: 'border-l-violet-500',
       view: 'providers' as const,
       detail: `${activeProviders.length} ${t('dashboard.active')}`,
+      sparkline: [1, 2, 2, 3, providers.length],
+      sparklineColor: 'bg-violet-500/60',
     },
     {
       title: t('dashboard.skills'),
@@ -189,6 +262,8 @@ export function Dashboard() {
       borderColor: 'border-l-amber-500',
       view: 'skills' as const,
       detail: `${enabledSkills.length} ${t('dashboard.enabled')}`,
+      sparkline: [6, 8, 10, 11, skills.length],
+      sparklineColor: 'bg-amber-500/60',
     },
     {
       title: t('dashboard.gateways'),
@@ -200,6 +275,8 @@ export function Dashboard() {
       borderColor: 'border-l-cyan-500',
       view: 'agent-control' as const,
       detail: `${connectedAcrpAgents.length} ${t('dashboard.connected')}`,
+      sparkline: [0, 1, 1, 2, acrpAgents.length],
+      sparklineColor: 'bg-cyan-500/60',
     },
     {
       title: t('dashboard.conversations'),
@@ -211,6 +288,8 @@ export function Dashboard() {
       borderColor: 'border-l-rose-500',
       view: 'chat' as const,
       detail: `${chatRooms.length} ${t('dashboard.rooms')}`,
+      sparkline: [5, 8, 12, 10, conversations.length],
+      sparklineColor: 'bg-rose-500/60',
     },
     {
       title: t('dashboard.chatRooms'),
@@ -222,6 +301,8 @@ export function Dashboard() {
       borderColor: 'border-l-orange-500',
       view: 'chat-rooms' as const,
       detail: t('dashboard.multiAgent'),
+      sparkline: [1, 2, 3, 2, chatRooms.length],
+      sparklineColor: 'bg-orange-500/60',
     },
   ];
 
@@ -233,6 +314,46 @@ export function Dashboard() {
     { label: t('dashboard.activeSkills'), value: enabledSkills.length, icon: CheckCircle, color: 'text-amber-500', bgColor: 'bg-amber-500/10', borderColor: 'border-l-amber-400' },
     { label: t('dashboard.totalConversations'), value: conversations.length, icon: MessageSquare, color: 'text-rose-600', bgColor: 'bg-rose-500/10', borderColor: 'border-l-rose-500' },
     { label: t('dashboard.acrpConnected'), value: connectedAcrpAgents.length, icon: Radio, color: 'text-cyan-600', bgColor: 'bg-cyan-500/10', borderColor: 'border-l-cyan-500' },
+  ];
+
+  // Quick Actions Grid data
+  const quickActionItems = [
+    {
+      label: t('dashboard.newConversation'),
+      icon: MessageSquare,
+      color: 'text-emerald-600 dark:text-emerald-400',
+      bgColor: 'bg-emerald-500/10 dark:bg-emerald-500/15',
+      borderColor: 'border-emerald-200 dark:border-emerald-800',
+      hoverBorder: 'hover:border-emerald-400 dark:hover:border-emerald-600',
+      view: 'chat' as const,
+    },
+    {
+      label: t('dashboard.createAgent'),
+      icon: Plus,
+      color: 'text-violet-600 dark:text-violet-400',
+      bgColor: 'bg-violet-500/10 dark:bg-violet-500/15',
+      borderColor: 'border-violet-200 dark:border-violet-800',
+      hoverBorder: 'hover:border-violet-400 dark:hover:border-violet-600',
+      view: 'agents' as const,
+    },
+    {
+      label: t('dashboard.browseSkills'),
+      icon: Puzzle,
+      color: 'text-amber-600 dark:text-amber-400',
+      bgColor: 'bg-amber-500/10 dark:bg-amber-500/15',
+      borderColor: 'border-amber-200 dark:border-amber-800',
+      hoverBorder: 'hover:border-amber-400 dark:hover:border-amber-600',
+      view: 'skills' as const,
+    },
+    {
+      label: t('dashboard.systemSettings'),
+      icon: Settings,
+      color: 'text-amber-600 dark:text-amber-400',
+      bgColor: 'bg-amber-500/10 dark:bg-amber-500/15',
+      borderColor: 'border-amber-200 dark:border-amber-800',
+      hoverBorder: 'hover:border-amber-400 dark:hover:border-amber-600',
+      view: 'settings' as const,
+    },
   ];
 
   return (
@@ -277,7 +398,7 @@ export function Dashboard() {
           <Card
             key={stat.label}
             className={cn(
-              'border-l-4 rounded-xl shadow-sm transition-all duration-300 cursor-pointer group hover:shadow-md hover:-translate-y-0.5',
+              'border-l-4 rounded-xl shadow-sm transition-all duration-300 cursor-pointer group hover:shadow-md hover:scale-[1.02]',
               stat.borderColor
             )}
           >
@@ -294,7 +415,7 @@ export function Dashboard() {
         ))}
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid with sparklines */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {stats.map((stat) => (
           <Card
@@ -302,7 +423,7 @@ export function Dashboard() {
             className={cn(
               'hover:shadow-lg transition-all duration-300 cursor-pointer group rounded-xl',
               'border-l-4', stat.borderColor,
-              'hover:-translate-y-0.5'
+              'hover:-translate-y-0.5 hover:scale-[1.02]'
             )}
             onClick={() => setCurrentView(stat.view)}
           >
@@ -313,20 +434,25 @@ export function Dashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold tracking-tight">{stat.value}</div>
-              <div className="flex items-center justify-between mt-2">
-                <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
-                <ArrowUpRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="flex items-end justify-between">
+                <div>
+                  <div className="text-3xl font-bold tracking-tight">{stat.value}</div>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
+                    <ArrowUpRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1 opacity-60">{stat.detail}</p>
+                </div>
+                <Sparkline values={stat.sparkline} color={stat.sparklineColor} />
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1 opacity-60">{stat.detail}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Middle Row: Quick Actions + Agent Overview + System Status */}
+      {/* Middle Row: Quick Actions Grid + Agent Activity Timeline + System Health */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick Actions */}
+        {/* Quick Actions Grid - 4-card grid */}
         <Card className="hover:shadow-md transition-shadow rounded-xl">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -335,24 +461,159 @@ export function Dashboard() {
             </CardTitle>
             <CardDescription>{t('dashboard.quickActionsDesc')}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <Button variant="outline" className="w-full justify-start gap-2 h-10 rounded-lg" onClick={() => setCurrentView('providers')}>
-              <Server className="w-4 h-4 text-violet-500" /> {t('dashboard.configureProvider')}
-            </Button>
-            <Button variant="outline" className="w-full justify-start gap-2 h-10 rounded-lg" onClick={() => setCurrentView('agents')}>
-              <Bot className="w-4 h-4 text-emerald-500" /> {t('dashboard.createAgent')}
-            </Button>
-            <Button variant="outline" className="w-full justify-start gap-2 h-10 rounded-lg" onClick={() => setCurrentView('skills')}>
-              <Puzzle className="w-4 h-4 text-amber-500" /> {t('dashboard.browseSkills')}
-            </Button>
-            <Button variant="outline" className="w-full justify-start gap-2 h-10 rounded-lg" onClick={() => setCurrentView('agent-control')}>
-              <Monitor className="w-4 h-4 text-cyan-500" /> {t('dashboard.connectHermes')}
-            </Button>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              {quickActionItems.map((action) => (
+                <button
+                  key={action.label}
+                  className={cn(
+                    'flex flex-col items-center gap-2 p-4 rounded-xl border transition-all duration-200',
+                    action.borderColor, action.hoverBorder,
+                    'hover:shadow-md hover:scale-[1.03] active:scale-[0.98]'
+                  )}
+                  onClick={() => setCurrentView(action.view)}
+                >
+                  <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', action.bgColor)}>
+                    <action.icon className={cn('w-5 h-5', action.color)} />
+                  </div>
+                  <span className="text-xs font-medium text-center leading-tight">{action.label}</span>
+                </button>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
-        {/* Recent Agents */}
+        {/* Agent Activity Timeline */}
         <Card className="hover:shadow-md transition-shadow rounded-xl">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-rose-500" />
+                  {t('dashboard.activityTimeline')}
+                </CardTitle>
+                <CardDescription>{t('dashboard.latestActivity')}</CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7 gap-1"
+                onClick={() => setCurrentView('logs')}
+              >
+                <Eye className="w-3 h-3" />
+                {t('dashboard.viewAll')}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {activityItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8">
+                <TrendingUp className="w-8 h-8 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">{t('dashboard.noActivity')}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">{t('dashboard.createAgentToStart')}</p>
+              </div>
+            ) : (
+              <div className="relative max-h-72 overflow-y-auto">
+                {/* Timeline connecting line */}
+                <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
+                <div className="space-y-0">
+                  {activityItems.slice(0, 5).map((item, index) => (
+                    <div key={item.id} className="flex items-start gap-3 p-2 relative">
+                      {/* Colored dot on timeline */}
+                      <div className={cn(
+                        'w-[7px] h-[7px] rounded-full shrink-0 mt-1.5 z-10 ring-2 ring-background',
+                        getActivityDotColor(item.type)
+                      )} />
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-medium truncate">{item.name}</span>
+                          <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 shrink-0 rounded">
+                            {getActivityLabel(item.type)}
+                          </Badge>
+                        </div>
+                        {item.detail && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{item.detail}</p>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground shrink-0 ml-1">
+                        {formatTimeAgo(item.timestamp)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* System Health Card */}
+        <Card className="hover:shadow-md transition-shadow rounded-xl">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="w-4 h-4 text-emerald-500" />
+              {t('dashboard.systemHealth')}
+            </CardTitle>
+            <CardDescription>{t('dashboard.platformHealth')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Health metrics */}
+            <div className="space-y-3">
+              <HealthBar
+                value={systemHealth.apiResponseTime}
+                label={t('dashboard.apiResponseTime')}
+                unit="ms"
+              />
+              <HealthBar
+                value={systemHealth.memoryUsage}
+                label={t('dashboard.memoryUsage')}
+                unit="%"
+              />
+              <HealthBar
+                value={systemHealth.cpuLoad}
+                label={t('dashboard.cpuLoad')}
+                unit="%"
+              />
+            </div>
+
+            <Separator className="my-2" />
+
+            {/* System status indicators */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <Server className="w-3 h-3" /> {t('dashboard.llmProviders')}
+                </span>
+                <span className="font-medium">{activeProviders.length}/{providers.length}</span>
+              </div>
+              <Progress value={providers.length > 0 ? (activeProviders.length / providers.length) * 100 : 0} className="h-1.5" />
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <Monitor className="w-3 h-3" /> {t('dashboard.acrpAgents')}
+                </span>
+                <span className="font-medium">{connectedAcrpAgents.length}/{acrpAgents.length}</span>
+              </div>
+              <Progress value={acrpAgents.length > 0 ? (connectedAcrpAgents.length / acrpAgents.length) * 100 : 0} className="h-1.5" />
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <Puzzle className="w-3 h-3" /> {t('dashboard.skillsActive')}
+                </span>
+                <span className="font-medium">{enabledSkills.length}/{skills.length}</span>
+              </div>
+              <Progress value={skills.length > 0 ? (enabledSkills.length / skills.length) * 100 : 0} className="h-1.5" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bottom Row: Recent Agents + Architecture */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Agents */}
+        <Card className="rounded-xl">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Bot className="w-4 h-4 text-emerald-500" />
@@ -422,80 +683,6 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* System Status */}
-        <Card className="hover:shadow-md transition-shadow rounded-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="w-4 h-4 text-emerald-500" />
-              {t('dashboard.systemStatus')}
-            </CardTitle>
-            <CardDescription>{t('dashboard.platformHealth')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* LLM Providers */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Server className="w-3 h-3" /> {t('dashboard.llmProviders')}
-                </span>
-                <span className="font-medium">{activeProviders.length}/{providers.length}</span>
-              </div>
-              <Progress value={providers.length > 0 ? (activeProviders.length / providers.length) * 100 : 0} className="h-1.5" />
-            </div>
-
-            {/* ACRP Connections */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Monitor className="w-3 h-3" /> {t('dashboard.acrpAgents')}
-                </span>
-                <span className="font-medium">{connectedAcrpAgents.length}/{acrpAgents.length}</span>
-              </div>
-              <Progress value={acrpAgents.length > 0 ? (connectedAcrpAgents.length / acrpAgents.length) * 100 : 0} className="h-1.5" />
-            </div>
-
-            {/* Skills */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Puzzle className="w-3 h-3" /> {t('dashboard.skillsActive')}
-                </span>
-                <span className="font-medium">{enabledSkills.length}/{skills.length}</span>
-              </div>
-              <Progress value={skills.length > 0 ? (enabledSkills.length / skills.length) * 100 : 0} className="h-1.5" />
-            </div>
-
-            <Separator className="my-2" />
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="flex items-center gap-1.5 p-2 rounded-md bg-muted/50">
-                <Cpu className="w-3 h-3 text-violet-500" />
-                <span className="text-muted-foreground">{t('dashboard.builtin')}</span>
-                <span className="ml-auto font-medium">{builtinAgents.length}</span>
-              </div>
-              <div className="flex items-center gap-1.5 p-2 rounded-md bg-muted/50">
-                <Globe className="w-3 h-3 text-cyan-500" />
-                <span className="text-muted-foreground">ACRP</span>
-                <span className="ml-auto font-medium">{acrpAgents.length}</span>
-              </div>
-              <div className="flex items-center gap-1.5 p-2 rounded-md bg-muted/50">
-                <MessageSquare className="w-3 h-3 text-rose-500" />
-                <span className="text-muted-foreground">{t('dashboard.chats')}</span>
-                <span className="ml-auto font-medium">{conversations.length}</span>
-              </div>
-              <div className="flex items-center gap-1.5 p-2 rounded-md bg-muted/50">
-                <Shield className="w-3 h-3 text-emerald-500" />
-                <span className="text-muted-foreground">{t('dashboard.online')}</span>
-                <span className="ml-auto font-medium">{onlineAgents.length}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Bottom Row: Activity Feed + Architecture */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Agent Architecture Overview */}
         <Card className="rounded-xl">
           <CardHeader className="pb-3">
@@ -603,63 +790,6 @@ export function Dashboard() {
                 ))}
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity - Enhanced */}
-        <Card className="rounded-xl">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-rose-500" />
-                  {t('dashboard.recentActivity')}
-                </CardTitle>
-                <CardDescription>{t('dashboard.latestActivity')}</CardDescription>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs h-7 gap-1"
-                onClick={() => setCurrentView('logs')}
-              >
-                <Eye className="w-3 h-3" />
-                {t('dashboard.viewAll')}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {activityItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8">
-                <TrendingUp className="w-8 h-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">{t('dashboard.noActivity')}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">{t('dashboard.createAgentToStart')}</p>
-              </div>
-            ) : (
-              <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                {activityItems.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 p-2 rounded-lg border text-xs hover:bg-accent/50 transition-colors">
-                    <div className="w-7 h-7 rounded-full bg-muted/50 flex items-center justify-center shrink-0">
-                      {getActivityIcon(item.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-medium truncate">{item.name}</span>
-                        <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 shrink-0 rounded">
-                          {getActivityLabel(item.type)}
-                        </Badge>
-                      </div>
-                      {item.detail && (
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{item.detail}</p>
-                      )}
-                    </div>
-                    <span className="text-[10px] text-muted-foreground shrink-0 ml-1">
-                      {formatTimeAgo(item.timestamp)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>

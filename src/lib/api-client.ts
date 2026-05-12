@@ -553,6 +553,30 @@ class ApiClient {
     return this.del(`/acrp/agents/${agentId}/token`);
   }
 
+  // Analytics
+  async getSkillAnalytics() {
+    return this.get<{
+      totalInvocations: number;
+      invocationsBySkill: { capabilityId: string; name: string; count: number }[];
+      invocationsByStatus: Record<string, number>;
+      recentInvocations: { id: string; capabilityId: string; capabilityName: string; status: string; duration: number | null; error: string | null; createdAt: string; completedAt: string | null }[];
+      topSkills: { capabilityId: string; name: string; total: number; successCount: number; successRate: number }[];
+    }>('/analytics/skills');
+  }
+
+  async getOverviewAnalytics() {
+    return this.get<{
+      totalAgents: number;
+      onlineAgents: number;
+      totalConversations: number;
+      totalSkills: number;
+      activeSkills: number;
+      totalProviders: number;
+      activeProviders: number;
+      recentActivityCount: number;
+    }>('/analytics/overview');
+  }
+
   // Context Engine
   async getContext(type: 'conversation' | 'room', id: string) {
     return this.get<{ context: string; wasCompressed: boolean; snapshotId?: string; tokenCount: number; stats: any }>(`/context?type=${type}&id=${id}`);

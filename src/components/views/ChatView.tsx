@@ -58,13 +58,15 @@ function TypingIndicator({ agentName }: { agentName: string }) {
         </AvatarFallback>
       </Avatar>
       <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-3">
-        <p className="text-xs text-muted-foreground mb-1.5">
-          {agentName} {t('chat.typing')}
-        </p>
-        <div className="flex gap-1.5 items-center h-4">
-          <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '0ms' }} />
-          <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '150ms' }} />
-          <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+        <div className="flex items-center gap-2">
+          <p className="text-xs text-muted-foreground">
+            {agentName} {t('chat.thinking')}
+          </p>
+          <div className="flex gap-1 items-center h-4">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '0ms' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '150ms' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
         </div>
       </div>
     </div>
@@ -643,8 +645,17 @@ function ConversationsPanel() {
               placeholder={t('chat.searchConversations')}
               value={sidebarSearch}
               onChange={(e) => setSidebarSearch(e.target.value)}
-              className="pl-8 h-8 text-xs"
+              className="pl-8 pr-7 h-8 text-xs"
             />
+            {sidebarSearch && (
+              <button
+                onClick={() => setSidebarSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label={t('chat.clearSearch')}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -701,7 +712,13 @@ function ConversationsPanel() {
                 </Button>
               </div>
             ))}
-            {conversations.length === 0 && (
+            {filteredConversations.length === 0 && sidebarSearch.trim() && (
+              <div className="py-8 text-center">
+                <Search className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">{t('chat.noConversationsFound')}</p>
+              </div>
+            )}
+            {conversations.length === 0 && !sidebarSearch.trim() && (
               <div className="py-8 text-center">
                 <MessageSquare className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">{t('chat.noConversations')}</p>

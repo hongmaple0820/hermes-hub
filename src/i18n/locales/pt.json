@@ -72,7 +72,16 @@
     "welcomeBack": "Bem-vindo de volta",
     "createAccount": "Crie sua conta",
     "showPassword": "Mostrar senha",
-    "hidePassword": "Ocultar senha"
+    "hidePassword": "Ocultar senha",
+    "github": "GitHub",
+    "google": "Google",
+    "passwordStrength": "Força da senha",
+    "weak": "Fraca",
+    "fair": "Razoável",
+    "strong": "Forte",
+    "termsOfService": "Termos de serviço",
+    "privacyPolicy": "Política de privacidade",
+    "agreeToTerms": "Ao se inscrever, você concorda com nossos"
   },
   "nav": {
     "dashboard": "Painel",
@@ -167,7 +176,14 @@
     "activityAcrpConnected": "ACRP Conectado",
     "activityAcrpDisconnected": "ACRP Desconectado",
     "activityAgentOnline": "Agente Online",
-    "activityAgentOffline": "Agente Offline"
+    "activityAgentOffline": "Agente Offline",
+    "systemHealth": "Saúde do Sistema",
+    "apiResponseTime": "Tempo de Resposta da API",
+    "memoryUsage": "Uso de Memória",
+    "cpuLoad": "Carga de CPU",
+    "newConversation": "Nova Conversa",
+    "systemSettings": "Configurações do Sistema",
+    "activityTimeline": "Linha do Tempo de Atividades"
   },
   "agents": {
     "title": "Agentes",
@@ -388,6 +404,7 @@
     "installTo": "Instalar {skill} em qual agente?",
     "noAgents": "Nenhum agente disponível. Crie um agente primeiro.",
     "installed": "Skill instalado!",
+    "alreadyInstalled": "Já instalado em um agente",
     "categoryAll": "todos",
     "categoryCommunication": "comunicação",
     "categoryProductivity": "produtividade",
@@ -483,7 +500,10 @@
     "sendMessage": "Digite uma mensagem...",
     "copyMessage": "Copiar",
     "deleteMessage": "Excluir",
-    "copied": "Copiado!"
+    "copied": "Copiado!",
+    "thinking": "está pensando...",
+    "noConversationsFound": "Nenhuma conversa encontrada",
+    "clearSearch": "Limpar busca"
   },
   "chatRooms": {
     "title": "Salas de Chat",
@@ -663,6 +683,20 @@
     "support": "Suporte",
     "accentCyan": "Ciano"
   },
+  "settings": {
+    "accountInfo": "Informações da conta",
+    "editProfile": "Editar perfil",
+    "changePassword": "Alterar senha",
+    "notifications": "Preferências de notificação",
+    "emailNotifications": "Notificações por e-mail",
+    "pushNotifications": "Notificações push",
+    "soundAlerts": "Alertas sonoros",
+    "dataPrivacy": "Dados e privacidade",
+    "exportData": "Exportar meus dados",
+    "deleteAccount": "Excluir conta",
+    "deleteAccountConfirm": "Esta ação não pode ser desfeita. Todos os seus dados serão excluídos permanentemente.",
+    "privacyMode": "Modo de privacidade"
+  },
   "language": {
     "switch": "Idioma",
     "zh": "中文",
@@ -766,6 +800,16 @@
     "dailyTrendDesc": "Tendência de custos no período selecionado",
     "cacheHitRate": "Taxa de Acerto do Cache",
     "cacheHitRateDesc": "Porcentagem de requisições atendidas pelo cache"
+  },
+  "analytics": {
+    "skillAnalytics": "Análise de Habilidades",
+    "totalInvocations": "Invocações Totais",
+    "successRate": "Taxa de Sucesso",
+    "recentInvocations": "Invocações Recentes",
+    "noData": "Nenhum dado disponível",
+    "topSkills": "Habilidades Principais",
+    "overview": "Visão Geral",
+    "invocationStatus": "Status de Invocação"
   },
   "profiles": {
     "title": "Perfis",

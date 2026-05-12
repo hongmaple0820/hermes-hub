@@ -72,7 +72,16 @@
     "welcomeBack": "欢迎回来",
     "createAccount": "创建您的账号",
     "showPassword": "显示密码",
-    "hidePassword": "隐藏密码"
+    "hidePassword": "隐藏密码",
+    "github": "GitHub",
+    "google": "Google",
+    "passwordStrength": "密码强度",
+    "weak": "弱",
+    "fair": "一般",
+    "strong": "强",
+    "termsOfService": "服务条款",
+    "privacyPolicy": "隐私政策",
+    "agreeToTerms": "注册即表示您同意我们的"
   },
   "nav": {
     "dashboard": "仪表盘",
@@ -167,7 +176,14 @@
     "activityAcrpConnected": "ACRP 已连接",
     "activityAcrpDisconnected": "ACRP 已断开",
     "activityAgentOnline": "智能体在线",
-    "activityAgentOffline": "智能体离线"
+    "activityAgentOffline": "智能体离线",
+    "systemHealth": "系统健康",
+    "apiResponseTime": "API 响应时间",
+    "memoryUsage": "内存使用率",
+    "cpuLoad": "CPU 负载",
+    "newConversation": "新建对话",
+    "systemSettings": "系统设置",
+    "activityTimeline": "活动时间线"
   },
   "agents": {
     "title": "智能体",
@@ -388,6 +404,7 @@
     "installTo": "将 {skill} 安装到哪个智能体？",
     "noAgents": "暂无可用智能体，请先创建一个智能体。",
     "installed": "技能安装成功！",
+    "alreadyInstalled": "已安装到智能体",
     "categoryAll": "全部",
     "categoryCommunication": "通讯",
     "categoryProductivity": "效率",
@@ -483,7 +500,10 @@
     "sendMessage": "输入消息...",
     "copyMessage": "复制",
     "deleteMessage": "删除",
-    "copied": "已复制！"
+    "copied": "已复制！",
+    "thinking": "正在思考...",
+    "noConversationsFound": "未找到对话",
+    "clearSearch": "清除搜索"
   },
   "chatRooms": {
     "title": "聊天室",
@@ -663,6 +683,20 @@
     "support": "支持",
     "accentCyan": "青色"
   },
+  "settings": {
+    "accountInfo": "账户信息",
+    "editProfile": "编辑资料",
+    "changePassword": "修改密码",
+    "notifications": "通知偏好",
+    "emailNotifications": "邮件通知",
+    "pushNotifications": "推送通知",
+    "soundAlerts": "声音提醒",
+    "dataPrivacy": "数据与隐私",
+    "exportData": "导出我的数据",
+    "deleteAccount": "删除账户",
+    "deleteAccountConfirm": "此操作无法撤销。您的所有数据将被永久删除。",
+    "privacyMode": "隐私模式"
+  },
   "language": {
     "switch": "语言",
     "zh": "中文",
@@ -766,6 +800,16 @@
     "dailyTrendDesc": "所选时间段的费用趋势",
     "cacheHitRate": "缓存命中率",
     "cacheHitRateDesc": "从缓存中响应的请求占比"
+  },
+  "analytics": {
+    "skillAnalytics": "技能分析",
+    "totalInvocations": "总调用次数",
+    "successRate": "成功率",
+    "recentInvocations": "最近调用",
+    "noData": "暂无数据",
+    "topSkills": "热门技能",
+    "overview": "概览",
+    "invocationStatus": "调用状态"
   },
   "profiles": {
     "title": "配置管理",

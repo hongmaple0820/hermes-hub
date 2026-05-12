@@ -569,31 +569,628 @@ When the user asks for data analysis, follow this workflow:
     ]),
     sourceType: 'built-in',
   },
+  {
+    name: 'email-sender',
+    displayName: 'Email Sender',
+    description: 'Sends emails via webhook integration with popular email services. Supports templated emails, attachments, and batch sending through providers like SendGrid, Mailgun, or SMTP.',
+    category: 'communication',
+    icon: 'Mail',
+    license: 'MIT',
+    compatibility: 'Works with SendGrid, Mailgun, AWS SES, or any SMTP relay. Requires webhook endpoint configured.',
+    metadata: JSON.stringify({ author: 'lisa', version: '1.0' }),
+    allowedTools: 'Bash(curl:*)',
+    instructions: `## Instructions
+
+When the user asks to send an email, follow these steps:
+
+1. **Collect Required Information**:
+   - Recipient email address(es)
+   - Subject line
+   - Email body (plain text or HTML)
+   - Optional: CC, BCC, attachments
+
+2. **Template Support**:
+   - If the user provides a template name, look it up and fill in variables
+   - Support common template variables: {{name}}, {{date}}, {{company}}
+   - Validate all required variables are provided
+
+3. **Sending**:
+   - Use the configured webhook endpoint to dispatch the email
+   - For batch sending, respect rate limits (max 100 per batch)
+   - Include a preview of the email before sending when possible
+
+4. **Validation**:
+   - Validate email addresses before sending
+   - Confirm with the user before sending to large distributions
+   - Never send to more than 1000 recipients without explicit confirmation
+
+5. **Error Handling**:
+   - If the webhook fails, report the error clearly
+   - Suggest checking webhook configuration if persistent failures`,
+    handlerType: 'webhook',
+    parameters: JSON.stringify([
+      { name: 'to', type: 'string', required: true, description: 'Recipient email address(es), comma-separated' },
+      { name: 'subject', type: 'string', required: true, description: 'Email subject line' },
+      { name: 'body', type: 'string', required: true, description: 'Email body content (plain text or HTML)' },
+      { name: 'template', type: 'string', required: false, description: 'Template name to use' },
+    ]),
+    sourceType: 'built-in',
+  },
+  {
+    name: 'translation',
+    displayName: 'Translation',
+    description: 'Translates text between languages with context-aware accuracy. Supports 100+ languages with automatic language detection, formal/informal tone adjustment, and domain-specific terminology.',
+    category: 'communication',
+    icon: 'Languages',
+    license: 'MIT',
+    compatibility: 'Works with any text input. Supports 100+ languages including CJK, RTL, and Latin scripts.',
+    metadata: JSON.stringify({ author: 'yuki', version: '1.1' }),
+    allowedTools: 'Read',
+    instructions: `## Instructions
+
+When the user asks for translation, follow these guidelines:
+
+1. **Language Detection**: If the source language is not specified, detect it automatically.
+
+2. **Translation Quality**:
+   - Translate meaning and intent, not just word-by-word
+   - Preserve the original tone (formal, casual, technical)
+   - Maintain formatting (headers, lists, code blocks)
+   - Keep proper nouns and technical terms untranslated when appropriate
+
+3. **Context Awareness**:
+   - Consider the domain (technical, legal, medical, casual)
+   - Use domain-appropriate terminology
+   - When ambiguous, provide multiple translations with notes
+
+4. **Cultural Adaptation**:
+   - Adjust idioms to target language equivalents
+   - Respect cultural conventions (formality levels, honorifics)
+   - Flag culturally sensitive content that may need adaptation
+
+5. **Output Format**:
+   - Present the translation clearly
+   - Note any ambiguous terms with alternatives
+   - Include pronunciation guides for non-Latin scripts when helpful`,
+    handlerType: 'builtin',
+    parameters: JSON.stringify([
+      { name: 'text', type: 'string', required: true, description: 'Text to translate' },
+      { name: 'from', type: 'string', required: false, description: 'Source language code (auto-detect if omitted)' },
+      { name: 'to', type: 'string', required: true, description: 'Target language code' },
+    ]),
+    sourceType: 'built-in',
+  },
+  {
+    name: 'web-search',
+    displayName: 'Web Search',
+    description: 'Searches the web for real-time information, news, and resources. Returns curated results with summaries, source URLs, and relevance rankings. Supports advanced search operators.',
+    category: 'communication',
+    icon: 'Search',
+    license: 'MIT',
+    compatibility: 'Works with any text query. Supports advanced operators: site:, filetype:, intitle:, etc.',
+    metadata: JSON.stringify({ author: 'marco', version: '1.2' }),
+    allowedTools: 'Bash(curl:*)',
+    instructions: `## Instructions
+
+When the user asks to search the web, follow these steps:
+
+1. **Query Construction**:
+   - Transform the user's natural language request into an effective search query
+   - Apply relevant search operators when the user specifies constraints
+   - Use multiple queries for complex research tasks
+
+2. **Result Curation**:
+   - Return the most relevant and authoritative results
+   - Summarize each result with key information
+   - Include source URLs for verification
+   - Rank results by relevance and recency
+
+3. **Deep Research**:
+   - For complex questions, perform multiple searches with different queries
+   - Cross-reference information from multiple sources
+   - Flag contradictory information
+   - Provide a synthesized answer with citations
+
+4. **Verification**:
+   - Prioritize authoritative sources (official docs, academic papers)
+   - Note the publication date of information
+   - Flag potentially outdated or unreliable sources
+
+5. **Privacy**:
+   - Never log or store search queries permanently
+   - Respect robots.txt and rate limits`,
+    handlerType: 'builtin',
+    parameters: JSON.stringify([
+      { name: 'query', type: 'string', required: true, description: 'Search query string' },
+      { name: 'maxResults', type: 'number', required: false, description: 'Maximum number of results (default: 10)' },
+      { name: 'dateRange', type: 'string', required: false, description: 'Date range filter: day, week, month, year' },
+    ]),
+    sourceType: 'built-in',
+  },
+  {
+    name: 'data-analysis',
+    displayName: 'Data Analysis',
+    description: 'Performs statistical analysis, data transformation, and predictive modeling on datasets. Supports regression, classification, clustering, and time-series forecasting with automated feature engineering.',
+    category: 'data',
+    icon: 'BarChart3',
+    license: 'MIT',
+    compatibility: 'Works with CSV, JSON, Parquet, and database sources. Requires Python with pandas, scikit-learn, and numpy.',
+    metadata: JSON.stringify({ author: 'raj', version: '2.0' }),
+    allowedTools: 'Read Write Bash(python:*) Bash(node:*)',
+    instructions: `## Instructions
+
+When the user asks for data analysis, follow this structured approach:
+
+1. **Data Assessment**:
+   - Load and inspect the dataset structure
+   - Check data quality: missing values, duplicates, outliers
+   - Determine data types and distributions
+   - Assess dataset size and memory requirements
+
+2. **Statistical Analysis**:
+   - Compute descriptive statistics for all variables
+   - Run appropriate hypothesis tests (t-test, chi-square, ANOVA)
+   - Calculate confidence intervals
+   - Identify significant correlations and associations
+
+3. **Predictive Modeling** (when requested):
+   - Select appropriate model type based on the problem
+   - Perform feature engineering and selection
+   - Split data into train/test sets
+   - Train model and evaluate with cross-validation
+   - Report metrics: accuracy, precision, recall, F1, RMSE
+
+4. **Data Transformation**:
+   - Clean and normalize data
+   - Handle missing values (imputation strategies)
+   - Encode categorical variables
+   - Scale numerical features
+
+5. **Reporting**:
+   - Present results with clear visualizations
+   - Explain findings in non-technical language
+   - Note assumptions and limitations
+   - Provide reproducible code snippets`,
+    handlerType: 'builtin',
+    parameters: JSON.stringify([
+      { name: 'source', type: 'string', required: true, description: 'Data source path or SQL query' },
+      { name: 'analysisType', type: 'string', required: false, description: 'Type: descriptive, predictive, clustering, timeseries' },
+      { name: 'targetColumn', type: 'string', required: false, description: 'Target variable for predictive analysis' },
+    ]),
+    sourceType: 'built-in',
+  },
+  {
+    name: 'database-query',
+    displayName: 'Database Query',
+    description: 'Executes and optimizes SQL and NoSQL database queries. Supports schema exploration, query building, migration generation, and performance analysis for SQLite, PostgreSQL, MySQL, and MongoDB.',
+    category: 'data',
+    icon: 'Database',
+    license: 'MIT',
+    compatibility: 'Works with SQLite, PostgreSQL, MySQL, MongoDB. Requires appropriate driver or Prisma client.',
+    metadata: JSON.stringify({ author: 'carlos', version: '1.5' }),
+    allowedTools: 'Read Bash(npx:prisma:*)',
+    instructions: `## Instructions
+
+When the user asks about database queries, follow these guidelines:
+
+1. **Schema Exploration**:
+   - Read and understand the database schema before writing queries
+   - Identify table relationships, indexes, and constraints
+   - Document the schema for the user if needed
+
+2. **Query Building**:
+   - Write efficient, well-structured queries
+   - Use parameterized queries to prevent SQL injection
+   - Add appropriate WHERE clauses to limit result sets
+   - Use JOINs efficiently — avoid unnecessary Cartesian products
+
+3. **Query Optimization**:
+   - Suggest indexes for slow queries
+   - Rewrite queries for better performance
+   - Use EXPLAIN/EXPLAIN ANALYZE to understand query plans
+   - Recommend denormalization when appropriate
+
+4. **Migration Support**:
+   - Generate safe migration scripts
+   - Plan zero-downtime migrations
+   - Include rollback strategies
+
+5. **Safety**:
+   - Always warn before executing destructive operations (DROP, DELETE without WHERE)
+   - Require explicit confirmation for production database changes
+   - Never expose credentials in query output`,
+    handlerType: 'builtin',
+    parameters: JSON.stringify([
+      { name: 'query', type: 'string', required: false, description: 'SQL or NoSQL query to execute' },
+      { name: 'database', type: 'string', required: false, description: 'Database connection name or URL' },
+      { name: 'action', type: 'string', required: false, description: 'Action: explore, query, optimize, migrate' },
+    ]),
+    sourceType: 'built-in',
+  },
+  {
+    name: 'code-execution',
+    displayName: 'Code Execution',
+    description: 'Executes code snippets in sandboxed environments. Supports Python, JavaScript/TypeScript, and shell commands with output capture, timeout handling, and resource limits.',
+    category: 'development',
+    icon: 'Terminal',
+    license: 'Apache-2.0',
+    compatibility: 'Supports Python 3.x, Node.js 20+, and Bash. Code runs in sandboxed containers with 30s timeout.',
+    metadata: JSON.stringify({ author: 'alex', version: '1.3' }),
+    allowedTools: 'Bash(node:*) Bash(python:*) Bash(bash:*)',
+    instructions: `## Instructions
+
+When the user asks to execute code, follow these safety guidelines:
+
+1. **Code Review Before Execution**:
+   - Review the code for safety issues before running
+   - Reject code that attempts file system destruction or network attacks
+   - Sanitize user inputs embedded in code strings
+
+2. **Execution Environment**:
+   - Code runs in a sandboxed environment with limited resources
+   - Default timeout: 30 seconds (configurable up to 120s)
+   - Memory limit: 512MB
+   - Network access: restricted to whitelisted domains
+
+3. **Output Handling**:
+   - Capture stdout and stderr separately
+   - Truncate output exceeding 10,000 characters
+   - Format output for readability
+   - Include execution time in the response
+
+4. **Error Reporting**:
+   - Provide clear error messages with line numbers
+   - Suggest fixes for common errors
+   - Include stack traces for debugging
+
+5. **Security**:
+   - Never execute code that accesses sensitive system files
+   - Block network requests to internal IPs
+   - Prevent privilege escalation attempts
+   - Log all code executions for audit`,
+    handlerType: 'builtin',
+    parameters: JSON.stringify([
+      { name: 'code', type: 'string', required: true, description: 'Code to execute' },
+      { name: 'language', type: 'string', required: true, description: 'Programming language: python, javascript, bash' },
+      { name: 'timeout', type: 'number', required: false, description: 'Execution timeout in seconds (default: 30, max: 120)' },
+    ]),
+    sourceType: 'built-in',
+  },
+  {
+    name: 'http-request',
+    displayName: 'HTTP Request',
+    description: 'Makes HTTP requests to external APIs and services. Supports all HTTP methods, custom headers, authentication, and response parsing. Includes rate limiting and retry logic.',
+    category: 'development',
+    icon: 'Globe',
+    license: 'MIT',
+    compatibility: 'Works with any HTTP/HTTPS endpoint. Supports Bearer, Basic, API Key, and OAuth2 authentication.',
+    metadata: JSON.stringify({ author: 'sam', version: '1.1' }),
+    allowedTools: 'Bash(curl:*)',
+    instructions: `## Instructions
+
+When the user asks to make an HTTP request, follow these guidelines:
+
+1. **Request Construction**:
+   - Validate the URL format before making the request
+   - Set appropriate Content-Type headers
+   - Include authentication headers when credentials are provided
+   - Add User-Agent header for API compliance
+
+2. **Authentication**:
+   - Support Bearer token, Basic auth, API key (header/query)
+   - Never log or expose authentication credentials
+   - Use environment variables for sensitive tokens
+
+3. **Response Handling**:
+   - Parse JSON responses automatically
+   - Handle XML responses with appropriate parsing
+   - Report HTTP status codes clearly
+   - Include response headers when relevant
+
+4. **Error Handling**:
+   - Retry on 429 (rate limit) with exponential backoff
+   - Retry on 5xx errors up to 3 times
+   - Report timeout errors clearly with the configured timeout
+   - Provide actionable error messages for 4xx errors
+
+5. **Safety**:
+   - Never make requests to internal/private IP addresses
+   - Respect rate limits indicated by response headers
+   - Limit request body size to 10MB
+   - Maximum 10 redirects followed`,
+    handlerType: 'builtin',
+    parameters: JSON.stringify([
+      { name: 'url', type: 'string', required: true, description: 'Target URL' },
+      { name: 'method', type: 'string', required: false, description: 'HTTP method: GET, POST, PUT, PATCH, DELETE' },
+      { name: 'headers', type: 'object', required: false, description: 'Custom headers as key-value pairs' },
+      { name: 'body', type: 'string', required: false, description: 'Request body (JSON string or plain text)' },
+    ]),
+    sourceType: 'built-in',
+  },
+  {
+    name: 'image-generation',
+    displayName: 'Image Generation',
+    description: 'Generates images from text descriptions using AI models. Supports various styles, sizes, and aspect ratios with prompt engineering for optimal results.',
+    category: 'media',
+    icon: 'Image',
+    license: 'MIT',
+    compatibility: 'Works with DALL-E, Stable Diffusion, and Midjourney APIs. Supports PNG, JPEG, and WebP output.',
+    metadata: JSON.stringify({ author: 'olivia', version: '1.2' }),
+    allowedTools: 'Bash(curl:*)',
+    instructions: `## Instructions
+
+When the user asks to generate an image, follow these guidelines:
+
+1. **Prompt Engineering**:
+   - Enhance the user's description with relevant style details
+   - Include medium, style, lighting, and composition suggestions
+   - Add quality modifiers: "high quality", "detailed", "professional"
+   - Avoid ambiguous or contradictory descriptions
+
+2. **Size and Format**:
+   - Default: 1024x1024 (square)
+   - Available sizes: 256x256, 512x512, 1024x1024, 1792x1024, 1024x1792
+   - Output format: PNG (default), JPEG, WebP
+
+3. **Style Options**:
+   - Photorealistic, illustration, digital art, oil painting
+   - Watercolor, sketch, pixel art, 3D render
+   - Apply style modifiers based on user preference
+
+4. **Content Policy**:
+   - Reject requests for harmful, violent, or explicit content
+   - Do not generate images of real people without consent
+   - Respect copyright and trademark concerns
+   - Flag potentially problematic requests
+
+5. **Iteration**:
+   - Offer to regenerate with modifications
+   - Suggest prompt variations for different results
+   - Allow specifying what to change in follow-up requests`,
+    handlerType: 'builtin',
+    parameters: JSON.stringify([
+      { name: 'prompt', type: 'string', required: true, description: 'Image description' },
+      { name: 'size', type: 'string', required: false, description: 'Image size: 256x256, 512x512, 1024x1024, 1792x1024, 1024x1792' },
+      { name: 'style', type: 'string', required: false, description: 'Art style: photorealistic, illustration, digital-art, oil-painting' },
+    ]),
+    sourceType: 'built-in',
+  },
+  {
+    name: 'text-to-speech',
+    displayName: 'Text to Speech',
+    description: 'Converts text to natural-sounding speech using AI voice synthesis. Supports multiple languages, voice styles, speaking rates, and audio format outputs.',
+    category: 'media',
+    icon: 'Volume2',
+    license: 'Apache-2.0',
+    compatibility: 'Works with OpenAI TTS, Google Cloud TTS, and Azure Speech. Supports MP3, WAV, and OGG output.',
+    metadata: JSON.stringify({ author: 'zara', version: '1.0' }),
+    allowedTools: 'Bash(curl:*)',
+    instructions: `## Instructions
+
+When the user asks to convert text to speech, follow these steps:
+
+1. **Voice Selection**:
+   - Offer voice options: alloy, echo, fable, onyx, nova, shimmer
+   - Match voice to content type (narration, conversation, announcement)
+   - Support language-specific voices when available
+
+2. **Text Preparation**:
+   - Clean up text: remove markdown formatting, fix punctuation
+   - Add appropriate pauses with SSML when needed
+   - Handle abbreviations and numbers (expand or keep as-is based on context)
+   - Split long text into chunks under 4096 characters
+
+3. **Audio Settings**:
+   - Default format: MP3 (widely compatible)
+   - Available formats: MP3, WAV, OGG, PCM
+   - Speaking rate: 0.5x to 2.0x (default 1.0x)
+   - Sample rate: 24kHz (default)
+
+4. **Quality Control**:
+   - Verify the output audio matches the input text
+   - Flag words that may be mispronounced
+   - Suggest alternative phrasings for better speech output
+
+5. **Accessibility**:
+   - Prioritize clear, natural-sounding output
+   - Support slow speech mode for accessibility needs
+   - Generate captions/subtitles when requested`,
+    handlerType: 'builtin',
+    parameters: JSON.stringify([
+      { name: 'text', type: 'string', required: true, description: 'Text to convert to speech' },
+      { name: 'voice', type: 'string', required: false, description: 'Voice: alloy, echo, fable, onyx, nova, shimmer' },
+      { name: 'speed', type: 'number', required: false, description: 'Speaking rate (0.5 to 2.0, default: 1.0)' },
+    ]),
+    sourceType: 'built-in',
+  },
+  {
+    name: 'document-processing',
+    displayName: 'Document Processing',
+    description: 'Processes, parses, and transforms documents in various formats including PDF, DOCX, XLSX, and CSV. Extracts text, tables, metadata, and structured data from documents.',
+    category: 'productivity',
+    icon: 'FileText',
+    license: 'MIT',
+    compatibility: 'Supports PDF, DOCX, XLSX, CSV, TXT, HTML, and Markdown formats. Requires appropriate parsing libraries.',
+    metadata: JSON.stringify({ author: 'emma', version: '1.4' }),
+    allowedTools: 'Read Write Bash(node:*) Bash(python:*)',
+    instructions: `## Instructions
+
+When the user asks to process a document, follow these guidelines:
+
+1. **Format Detection**:
+   - Auto-detect document format from file extension and content
+   - Handle multi-format documents (e.g., PDF with embedded images)
+   - Support batch processing of multiple files
+
+2. **Text Extraction**:
+   - Extract clean text preserving structure (headings, paragraphs, lists)
+   - Handle OCR for scanned PDFs when possible
+   - Preserve table structures as markdown or CSV
+   - Extract metadata (author, date, page count)
+
+3. **Data Extraction**:
+   - Parse tables into structured data (JSON, CSV, arrays)
+   - Extract form fields and their values
+   - Identify and extract key-value pairs
+   - Handle merged cells and nested tables
+
+4. **Transformation**:
+   - Convert between document formats (PDF→MD, DOCX→HTML, etc.)
+   - Apply templates for consistent formatting
+   - Generate summaries and abstracts
+   - Redact sensitive information when requested
+
+5. **Quality Assurance**:
+   - Validate extracted data completeness
+   - Flag potential parsing errors
+   - Compare page counts before/after extraction
+   - Preserve original formatting where possible`,
+    handlerType: 'builtin',
+    parameters: JSON.stringify([
+      { name: 'filePath', type: 'string', required: true, description: 'Path to the document file' },
+      { name: 'action', type: 'string', required: false, description: 'Action: extract, convert, summarize, redact' },
+      { name: 'outputFormat', type: 'string', required: false, description: 'Output format: text, markdown, json, csv, html' },
+    ]),
+    sourceType: 'built-in',
+  },
+  {
+    name: 'reminder',
+    displayName: 'Reminder',
+    description: 'Sets reminders and scheduled notifications with flexible recurrence patterns. Supports one-time and recurring reminders, timezone-aware scheduling, and multi-channel delivery.',
+    category: 'productivity',
+    icon: 'Bell',
+    license: 'MIT',
+    compatibility: 'Works with any timezone. Supports cron expressions and natural language time specifications.',
+    metadata: JSON.stringify({ author: 'jordan', version: '1.0' }),
+    allowedTools: 'Read Write Bash(node:*)',
+    instructions: `## Instructions
+
+When the user asks to set a reminder, follow these steps:
+
+1. **Parse the Request**:
+   - Extract the reminder message/text
+   - Parse the time specification (absolute, relative, or recurring)
+   - Determine the timezone (default to user's timezone if available)
+
+2. **Time Parsing**:
+   - Support natural language: "in 30 minutes", "tomorrow at 3pm", "every Monday"
+   - Support cron expressions: "0 9 * * 1-5" (weekdays at 9am)
+   - Handle timezone conversions correctly
+   - Validate that the time is in the future
+
+3. **Recurrence**:
+   - One-time reminders: fire once at the specified time
+   - Recurring: daily, weekly, monthly, custom intervals
+   - Support end conditions: "until December", "for 10 times"
+   - Allow skipping specific dates
+
+4. **Delivery Channels**:
+   - Default: in-app notification
+   - Optional: email, webhook, desktop notification
+   - Support multiple channels per reminder
+   - Include snooze functionality
+
+5. **Management**:
+   - List all active reminders
+   - Allow editing and deleting reminders
+   - Show next occurrence for recurring reminders
+   - Provide reminder history`,
+    handlerType: 'builtin',
+    parameters: JSON.stringify([
+      { name: 'message', type: 'string', required: true, description: 'Reminder message' },
+      { name: 'time', type: 'string', required: true, description: 'When to remind (natural language or ISO 8601)' },
+      { name: 'recurrence', type: 'string', required: false, description: 'Recurrence pattern: once, daily, weekly, monthly, or cron expression' },
+    ]),
+    sourceType: 'built-in',
+  },
+  {
+    name: 'weather-query',
+    displayName: 'Weather Query',
+    description: 'Queries current weather conditions and forecasts for any location worldwide. Provides temperature, humidity, wind, precipitation, and severe weather alerts with historical comparisons.',
+    category: 'utility',
+    icon: 'CloudSun',
+    license: 'MIT',
+    compatibility: 'Works with any city or coordinates. Supports OpenWeatherMap, WeatherAPI, and National Weather Service.',
+    metadata: JSON.stringify({ author: 'marco', version: '1.1' }),
+    allowedTools: 'Bash(curl:*)',
+    instructions: `## Instructions
+
+When the user asks about weather, follow these guidelines:
+
+1. **Location Resolution**:
+   - Accept city names, zip codes, coordinates, or landmarks
+   - Resolve ambiguous locations by asking for clarification
+   - Support "my location" if the user's location is available
+
+2. **Current Conditions**:
+   - Temperature (actual and feels-like)
+   - Humidity and dew point
+   - Wind speed, direction, and gusts
+   - Precipitation (type, intensity, probability)
+   - Visibility and UV index
+   - Air quality index when available
+
+3. **Forecast**:
+   - Hourly forecast for next 24 hours
+   - Daily forecast for next 7 days
+   - Include high/low temperatures and conditions
+   - Note significant weather events (storms, heat waves, etc.)
+
+4. **Severe Weather**:
+   - Check for active weather alerts in the area
+   - Present alert severity, type, and timing clearly
+   - Include safety recommendations for severe conditions
+
+5. **Presentation**:
+   - Use clear, human-readable formatting
+   - Include units based on user preference (C/F, km/h/mph)
+   - Add context (seasonal norms, record comparisons) when helpful`,
+    handlerType: 'builtin',
+    parameters: JSON.stringify([
+      { name: 'location', type: 'string', required: true, description: 'City name, zip code, or coordinates' },
+      { name: 'type', type: 'string', required: false, description: 'Query type: current, forecast, alerts, all' },
+      { name: 'units', type: 'string', required: false, description: 'Units: metric, imperial (default: metric)' },
+    ]),
+    sourceType: 'built-in',
+  },
 ];
 
 export async function POST() {
   try {
     let created = 0;
-    let skipped = 0;
+    let updated = 0;
 
     for (const skillData of DEFAULT_SKILLS) {
-      const existing = await db.skill.findUnique({
+      const result = await db.skill.upsert({
         where: { name: skillData.name },
+        update: {
+          displayName: skillData.displayName,
+          description: skillData.description,
+          category: skillData.category,
+          icon: skillData.icon,
+          license: skillData.license,
+          compatibility: skillData.compatibility,
+          metadata: skillData.metadata,
+          allowedTools: skillData.allowedTools,
+          instructions: skillData.instructions,
+          handlerType: skillData.handlerType,
+          parameters: skillData.parameters,
+          sourceType: skillData.sourceType,
+        },
+        create: skillData,
       });
 
-      if (existing) {
-        skipped++;
-        continue;
+      if (result.createdAt.getTime() === result.updatedAt.getTime()) {
+        created++;
+      } else {
+        updated++;
       }
-
-      await db.skill.create({ data: skillData });
-      created++;
     }
 
     return NextResponse.json({
-      message: `Skills seeded: ${created} created, ${skipped} already existed`,
+      message: `Skills seeded: ${created} created, ${updated} updated`,
       created,
-      skipped,
+      updated,
       total: DEFAULT_SKILLS.length,
     });
   } catch (error) {

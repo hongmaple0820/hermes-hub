@@ -787,7 +787,7 @@ function buildPrompt(session: TerminalSession): string {
 // WebSocket Server & Session Management
 // ---------------------------------------------------------------------------
 
-const PORT = 3004;
+const PORT = 3005;
 const wss = new WebSocketServer({ port: PORT });
 const clients = new Map<WebSocket, AuthenticatedClient>();
 let pidCounter = 1000;

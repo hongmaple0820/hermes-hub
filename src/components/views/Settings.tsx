@@ -96,10 +96,31 @@ export function Settings({ onLogout }: SettingsProps) {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
+  // Notification preferences (localStorage)
+  const [emailNotifications, setEmailNotifications] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('hermes-emailNotifications') !== 'false';
+    return true;
+  });
+  const [pushNotifications, setPushNotifications] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('hermes-pushNotifications') !== 'false';
+    return true;
+  });
+  const [soundAlerts, setSoundAlerts] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('hermes-soundAlerts') === 'true';
+    return false;
+  });
+  const [privacyMode, setPrivacyMode] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('hermes-privacyMode') === 'true';
+    return false;
+  });
+
   // Danger zone state
   const [deleteConfirmType, setDeleteConfirmType] = useState<'conversations' | 'agents' | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [clearing, setClearing] = useState(false);
+
+  // Delete account dialog
+  const [deleteAccountDialogOpen, setDeleteAccountDialogOpen] = useState(false);
 
   // Import state
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -352,6 +373,12 @@ export function Settings({ onLogout }: SettingsProps) {
   };
 
   // Accent color handler
+  const handleNotificationToggle = (key: string, value: boolean, setter: (v: boolean) => void) => {
+    setter(value);
+    localStorage.setItem(`hermes-${key}`, String(value));
+    toast.success(t('settingsPage.saved'));
+  };
+
   const handleAccentChange = (accentId: string) => {
     updateSetting('accentColor', accentId);
     // Apply accent color CSS variable
@@ -857,29 +884,41 @@ export function Settings({ onLogout }: SettingsProps) {
               </CardContent>
             </Card>
 
-            {/* Account Settings */}
+            {/* Account Information */}
             <Card>
               <CardHeader className="pb-3">
                 <SectionHeader
                   icon={User}
-                  title={t('settingsPage.accountTab')}
+                  title={t('settings.accountInfo')}
                 />
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Profile */}
-                <div className="flex items-center gap-4">
-                  <Avatar className="w-16 h-16">
-                    <AvatarFallback className="text-xl bg-primary text-primary-foreground">
+                <div className="flex items-center gap-5">
+                  <Avatar className="w-20 h-20">
+                    <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
                       {user?.name?.[0]?.toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
-                  <div>
-                    <p className="font-semibold">{user?.name || 'User'}</p>
+                  <div className="flex-1">
+                    <p className="text-lg font-semibold">{user?.name || 'User'}</p>
                     <p className="text-sm text-muted-foreground">{user?.email}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{t('settingsPage.role')}: {user?.role || 'user'}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant="secondary" className="text-xs">{user?.role || 'user'}</Badge>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.info(t('auth.comingSoon'))}>
+                      <User className="w-3.5 h-3.5" /> {t('settings.editProfile')}
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.info(t('auth.comingSoon'))}>
+                      <Lock className="w-3.5 h-3.5" /> {t('settings.changePassword')}
+                    </Button>
                   </div>
                 </div>
+
                 <Separator />
+
                 <div className="space-y-3">
                   <div className="space-y-2">
                     <Label>{t('settingsPage.username')}</Label>
@@ -964,6 +1003,99 @@ export function Settings({ onLogout }: SettingsProps) {
                 <Button variant="destructive" onClick={onLogout} className="gap-2">
                   <LogOut className="w-4 h-4" /> {t('settingsPage.signOut')}
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Notification Preferences */}
+            <Card>
+              <CardHeader className="pb-3">
+                <SectionHeader
+                  icon={Bell}
+                  title={t('settings.notifications')}
+                  description={t('settings.notifications')}
+                />
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <SettingRow
+                  label={t('settings.emailNotifications')}
+                  description={t('settings.emailNotifications')}
+                >
+                  <Switch
+                    checked={emailNotifications}
+                    onCheckedChange={(v) => handleNotificationToggle('emailNotifications', v, setEmailNotifications)}
+                  />
+                </SettingRow>
+                <Separator />
+                <SettingRow
+                  label={t('settings.pushNotifications')}
+                  description={t('settings.pushNotifications')}
+                >
+                  <Switch
+                    checked={pushNotifications}
+                    onCheckedChange={(v) => handleNotificationToggle('pushNotifications', v, setPushNotifications)}
+                  />
+                </SettingRow>
+                <Separator />
+                <SettingRow
+                  label={t('settings.soundAlerts')}
+                  description={t('settings.soundAlerts')}
+                >
+                  <Switch
+                    checked={soundAlerts}
+                    onCheckedChange={(v) => handleNotificationToggle('soundAlerts', v, setSoundAlerts)}
+                  />
+                </SettingRow>
+              </CardContent>
+            </Card>
+
+            {/* Data & Privacy */}
+            <Card>
+              <CardHeader className="pb-3">
+                <SectionHeader
+                  icon={Shield}
+                  title={t('settings.dataPrivacy')}
+                  description={t('settings.dataPrivacy')}
+                />
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <SettingRow
+                  label={t('settings.privacyMode')}
+                  description={t('settings.privacyMode')}
+                >
+                  <Switch
+                    checked={privacyMode}
+                    onCheckedChange={(v) => handleNotificationToggle('privacyMode', v, setPrivacyMode)}
+                  />
+                </SettingRow>
+                <Separator />
+                <div className="flex items-center justify-between py-3">
+                  <div className="flex-1 mr-4">
+                    <p className="text-sm font-medium">{t('settings.exportData')}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => toast.info(t('auth.comingSoon'))}
+                  >
+                    <Download className="w-3.5 h-3.5" /> {t('settings.exportData')}
+                  </Button>
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between py-3">
+                  <div className="flex-1 mr-4">
+                    <p className="text-sm font-medium text-destructive">{t('settings.deleteAccount')}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t('settings.deleteAccountConfirm')}</p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => setDeleteAccountDialogOpen(true)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> {t('settings.deleteAccount')}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -1355,6 +1487,33 @@ export function Settings({ onLogout }: SettingsProps) {
               }}
             >
               {t('common.confirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Account Confirmation Dialog */}
+      <AlertDialog open={deleteAccountDialogOpen} onOpenChange={setDeleteAccountDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              {t('settings.deleteAccount')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('settings.deleteAccountConfirm')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                setDeleteAccountDialogOpen(false);
+                toast.info(t('auth.comingSoon'));
+              }}
+            >
+              {t('settings.deleteAccount')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
