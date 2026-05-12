@@ -182,7 +182,21 @@
     "cpuLoad": "CPU 负载",
     "newConversation": "新建对话",
     "systemSettings": "系统设置",
-    "activityTimeline": "活动时间线"
+    "activityTimeline": "活动时间线",
+    "conversationsPerDay": "每日对话数",
+    "last7Days": "最近7天",
+    "skillUsageRanking": "技能使用排行",
+    "topSkills": "使用最多的5个技能",
+    "noSkillData": "暂无技能使用数据",
+    "systemIndicators": "系统指标",
+    "systemIndicatorsDesc": "实时系统性能指标",
+    "systemUptime": "系统运行时间",
+    "last30Days": "最近30天",
+    "operational": "运行正常",
+    "agentResponseTime": "Agent响应时间",
+    "avgResponse": "平均响应",
+    "normal": "正常",
+    "activeConnections": "活跃连接"
   },
   "agents": {
     "title": "智能体",
@@ -502,7 +516,14 @@
     "copied": "已复制！",
     "thinking": "正在思考...",
     "noConversationsFound": "未找到对话",
-    "clearSearch": "清除搜索"
+    "clearSearch": "清除搜索",
+    "title": "聊天",
+    "exportConversation": "导出对话",
+    "importConversation": "导入对话",
+    "exportSuccess": "对话导出成功",
+    "importSuccess": "对话导入成功",
+    "importFailed": "对话导入失败",
+    "importInvalidFormat": "无效的对话文件格式"
   },
   "chatRooms": {
     "title": "聊天室",
@@ -1389,5 +1410,31 @@
     "sectionManagement": "管理",
     "sectionSystem": "系统",
     "newBadge": "新"
+  },
+  "commandPalette": {
+    "placeholder": "搜索命令、视图、Agent...",
+    "noResults": "未找到结果",
+    "recent": "最近",
+    "navigation": "导航",
+    "quickActions": "快速操作",
+    "dashboard": "仪表盘",
+    "agents": "Agent",
+    "providers": "LLM 提供商",
+    "skills": "技能",
+    "agentControl": "Agent 控制",
+    "channels": "频道",
+    "chat": "聊天",
+    "chatRooms": "聊天室",
+    "settings": "设置",
+    "createAgent": "创建 Agent",
+    "createAgentDesc": "创建新的 AI Agent",
+    "newChat": "新聊天",
+    "newChatDesc": "开始新的对话",
+    "createRoom": "创建房间",
+    "createRoomDesc": "创建新的聊天室",
+    "exportData": "导出数据",
+    "exportDataDesc": "将数据导出为 JSON",
+    "importData": "导入数据",
+    "importDataDesc": "从 JSON 文件导入数据"
   }
 }

@@ -182,7 +182,21 @@
     "cpuLoad": "CPU負荷",
     "newConversation": "新規会話",
     "systemSettings": "システム設定",
-    "activityTimeline": "アクティビティタイムライン"
+    "activityTimeline": "アクティビティタイムライン",
+    "conversationsPerDay": "1日あたりの会話数",
+    "last7Days": "過去7日間",
+    "skillUsageRanking": "スキル使用ランキング",
+    "topSkills": "使用頻度の高いスキル上位5",
+    "noSkillData": "スキル使用データがありません",
+    "systemIndicators": "システム指標",
+    "systemIndicatorsDesc": "リアルタイムシステムパフォーマンス指標",
+    "systemUptime": "システム稼働時間",
+    "last30Days": "過去30日間",
+    "operational": "稼働中",
+    "agentResponseTime": "Agent応答時間",
+    "avgResponse": "平均応答",
+    "normal": "正常",
+    "activeConnections": "アクティブ接続"
   },
   "agents": {
     "title": "エージェント",
@@ -502,7 +516,14 @@
     "copied": "コピーしました！",
     "thinking": "考え中...",
     "noConversationsFound": "会話が見つかりません",
-    "clearSearch": "検索をクリア"
+    "clearSearch": "検索をクリア",
+    "title": "チャット",
+    "exportConversation": "会話をエクスポート",
+    "importConversation": "会話をインポート",
+    "exportSuccess": "会話のエクスポートに成功しました",
+    "importSuccess": "会話のインポートに成功しました",
+    "importFailed": "会話のインポートに失敗しました",
+    "importInvalidFormat": "無効な会話ファイル形式"
   },
   "chatRooms": {
     "title": "チャットルーム",
@@ -1389,5 +1410,31 @@
     "sectionManagement": "管理",
     "sectionSystem": "システム",
     "newBadge": "新規"
+  },
+  "commandPalette": {
+    "placeholder": "コマンド、ビュー、Agentを検索...",
+    "noResults": "結果が見つかりません",
+    "recent": "最近",
+    "navigation": "ナビゲーション",
+    "quickActions": "クイックアクション",
+    "dashboard": "ダッシュボード",
+    "agents": "Agent",
+    "providers": "LLMプロバイダー",
+    "skills": "スキル",
+    "agentControl": "Agentコントロール",
+    "channels": "チャンネル",
+    "chat": "チャット",
+    "chatRooms": "チャットルーム",
+    "settings": "設定",
+    "createAgent": "Agent作成",
+    "createAgentDesc": "新しいAI Agentを作成",
+    "newChat": "新しいチャット",
+    "newChatDesc": "新しい会話を開始",
+    "createRoom": "ルーム作成",
+    "createRoomDesc": "新しいチャットルームを作成",
+    "exportData": "データエクスポート",
+    "exportDataDesc": "データをJSONでエクスポート",
+    "importData": "データインポート",
+    "importDataDesc": "JSONファイルからデータをインポート"
   }
 }

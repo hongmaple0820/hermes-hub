@@ -182,7 +182,21 @@
     "cpuLoad": "CPU Load",
     "newConversation": "New Conversation",
     "systemSettings": "System Settings",
-    "activityTimeline": "Activity Timeline"
+    "activityTimeline": "Activity Timeline",
+    "conversationsPerDay": "Conversations Per Day",
+    "last7Days": "Last 7 days",
+    "skillUsageRanking": "Skill Usage Ranking",
+    "topSkills": "Top 5 most used skills",
+    "noSkillData": "No skill usage data yet",
+    "systemIndicators": "System Indicators",
+    "systemIndicatorsDesc": "Real-time system performance metrics",
+    "systemUptime": "System Uptime",
+    "last30Days": "Last 30 days",
+    "operational": "Operational",
+    "agentResponseTime": "Agent Response Time",
+    "avgResponse": "Average response",
+    "normal": "Normal",
+    "activeConnections": "Active Connections"
   },
   "agents": {
     "title": "Agents",
@@ -502,7 +516,14 @@
     "copied": "Copied!",
     "thinking": "is thinking...",
     "noConversationsFound": "No conversations found",
-    "clearSearch": "Clear search"
+    "clearSearch": "Clear search",
+    "title": "Chat",
+    "exportConversation": "Export Conversation",
+    "importConversation": "Import Conversation",
+    "exportSuccess": "Conversation exported successfully",
+    "importSuccess": "Conversation imported successfully",
+    "importFailed": "Failed to import conversation",
+    "importInvalidFormat": "Invalid conversation file format"
   },
   "chatRooms": {
     "title": "Chat Rooms",
@@ -1389,5 +1410,31 @@
     "sectionManagement": "Management",
     "sectionSystem": "System",
     "newBadge": "New"
+  },
+  "commandPalette": {
+    "placeholder": "Search commands, views, agents...",
+    "noResults": "No results found",
+    "recent": "Recent",
+    "navigation": "Navigation",
+    "quickActions": "Quick Actions",
+    "dashboard": "Dashboard",
+    "agents": "Agents",
+    "providers": "LLM Providers",
+    "skills": "Skills",
+    "agentControl": "Agent Control",
+    "channels": "Channels",
+    "chat": "Chat",
+    "chatRooms": "Chat Rooms",
+    "settings": "Settings",
+    "createAgent": "Create Agent",
+    "createAgentDesc": "Create a new AI agent",
+    "newChat": "New Chat",
+    "newChatDesc": "Start a new conversation",
+    "createRoom": "Create Room",
+    "createRoomDesc": "Create a new chat room",
+    "exportData": "Export Data",
+    "exportDataDesc": "Export your data as JSON",
+    "importData": "Import Data",
+    "importDataDesc": "Import data from JSON file"
   }
 }

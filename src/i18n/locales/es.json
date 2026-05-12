@@ -182,7 +182,21 @@
     "cpuLoad": "Carga de CPU",
     "newConversation": "Nueva Conversación",
     "systemSettings": "Configuración del Sistema",
-    "activityTimeline": "Línea de Tiempo de Actividad"
+    "activityTimeline": "Línea de Tiempo de Actividad",
+    "conversationsPerDay": "Conversaciones por dia",
+    "last7Days": "Ultimos 7 dias",
+    "skillUsageRanking": "Ranking de uso de habilidades",
+    "topSkills": "Top 5 habilidades mas usadas",
+    "noSkillData": "Sin datos de uso de habilidades",
+    "systemIndicators": "Indicadores del sistema",
+    "systemIndicatorsDesc": "Metricas de rendimiento del sistema en tiempo real",
+    "systemUptime": "Tiempo de actividad del sistema",
+    "last30Days": "Ultimos 30 dias",
+    "operational": "Operativo",
+    "agentResponseTime": "Tiempo de respuesta del Agent",
+    "avgResponse": "Respuesta promedio",
+    "normal": "Normal",
+    "activeConnections": "Conexiones activas"
   },
   "agents": {
     "title": "Agentes",
@@ -502,7 +516,14 @@
     "copied": "¡Copiado!",
     "thinking": "está pensando...",
     "noConversationsFound": "No se encontraron conversaciones",
-    "clearSearch": "Limpiar búsqueda"
+    "clearSearch": "Limpiar búsqueda",
+    "title": "Chat",
+    "exportConversation": "Exportar conversacion",
+    "importConversation": "Importar conversacion",
+    "exportSuccess": "Conversacion exportada exitosamente",
+    "importSuccess": "Conversacion importada exitosamente",
+    "importFailed": "Error al importar conversacion",
+    "importInvalidFormat": "Formato de archivo de conversacion invalido"
   },
   "chatRooms": {
     "title": "Salas de Chat",
@@ -1389,5 +1410,31 @@
     "sectionManagement": "Gestión",
     "sectionSystem": "Sistema",
     "newBadge": "Nuevo"
+  },
+  "commandPalette": {
+    "placeholder": "Buscar comandos, vistas, agents...",
+    "noResults": "No se encontraron resultados",
+    "recent": "Recientes",
+    "navigation": "Navegacion",
+    "quickActions": "Acciones rapidas",
+    "dashboard": "Panel",
+    "agents": "Agents",
+    "providers": "Proveedores LLM",
+    "skills": "Habilidades",
+    "agentControl": "Control de Agent",
+    "channels": "Canales",
+    "chat": "Chat",
+    "chatRooms": "Salas de chat",
+    "settings": "Configuracion",
+    "createAgent": "Crear Agent",
+    "createAgentDesc": "Crear nuevo Agent de IA",
+    "newChat": "Nuevo chat",
+    "newChatDesc": "Iniciar nueva conversacion",
+    "createRoom": "Crear sala",
+    "createRoomDesc": "Crear nueva sala de chat",
+    "exportData": "Exportar datos",
+    "exportDataDesc": "Exportar datos como JSON",
+    "importData": "Importar datos",
+    "importDataDesc": "Importar datos desde archivo JSON"
   }
 }

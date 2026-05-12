@@ -199,7 +199,7 @@ export function UsageView() {
     setLoading(true);
     try {
       const result = await api.getUsage(period);
-      setUsage(result.usage || null);
+      setUsage(result.usage || result || null);
     } catch {
       // Provide mock data for UI display
       setUsage({
@@ -245,10 +245,11 @@ export function UsageView() {
     }
   };
 
+  const estimatedCost = usage?.estimatedCost ?? usage?.totalCost ?? 0;
   const costStatus = usage
-    ? usage.estimatedCost > 50
+    ? estimatedCost > 50
       ? { color: 'text-red-600', bgColor: 'bg-red-500/10', labelKey: 'usage.costHigh' }
-      : usage.estimatedCost > 20
+      : estimatedCost > 20
         ? { color: 'text-amber-600', bgColor: 'bg-amber-500/10', labelKey: 'usage.costMedium' }
         : { color: 'text-emerald-600', bgColor: 'bg-emerald-500/10', labelKey: 'usage.costLow' }
     : null;
@@ -263,8 +264,10 @@ export function UsageView() {
     );
   }
 
-  const maxModelInput = Math.max(...usage.modelBreakdown.map((m) => m.inputTokens), 1);
-  const maxDailyCost = Math.max(...usage.dailyTrend.map((d) => d.cost), 0.01);
+  const modelBreakdown = usage.modelBreakdown || [];
+  const dailyTrend = usage.dailyTrend || [];
+  const maxModelInput = Math.max(...modelBreakdown.map((m) => m.inputTokens), 1);
+  const maxDailyCost = Math.max(...dailyTrend.map((d) => d.cost), 0.01);
 
   // Calculate overall success rate from skill analytics
   const totalInvocations = skillAnalytics?.totalInvocations ?? 0;
@@ -321,7 +324,7 @@ export function UsageView() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCost(usage.estimatedCost)}</div>
+            <div className="text-2xl font-bold">{formatCost(estimatedCost)}</div>
             {costStatus && (
               <Badge variant="outline" className={cn('text-[10px] mt-1', costStatus.color)}>
                 {t(costStatus.labelKey)}
@@ -346,12 +349,12 @@ export function UsageView() {
         {/* Model Usage Breakdown */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{t('usage.modelBreakdown')}</CardTitle>
-            <CardDescription>{t('usage.modelBreakdownDesc')}</CardDescription>
+            <CardTitle className="text-base">{t('modelBreakdown')}</CardTitle>
+            <CardDescription>{t('modelBreakdownDesc')}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {usage.modelBreakdown.map((model) => (
+              {modelBreakdown.map((model) => (
                 <div key={model.model} className="space-y-1.5">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium">{model.model}</span>
@@ -387,7 +390,7 @@ export function UsageView() {
           </CardHeader>
           <CardContent>
             <div className="flex items-end gap-[2px] h-40">
-              {usage.dailyTrend.map((day, i) => (
+              {dailyTrend.map((day, i) => (
                 <div
                   key={i}
                   className="flex-1 rounded-t-sm bg-amber-400 hover:bg-amber-500 transition-colors cursor-pointer group relative min-w-[3px]"
@@ -401,8 +404,8 @@ export function UsageView() {
               ))}
             </div>
             <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
-              <span>{usage.dailyTrend[0]?.date}</span>
-              <span>{usage.dailyTrend[usage.dailyTrend.length - 1]?.date}</span>
+              <span>{dailyTrend[0]?.date}</span>
+              <span>{dailyTrend[dailyTrend.length - 1]?.date}</span>
             </div>
           </CardContent>
         </Card>
@@ -421,11 +424,11 @@ export function UsageView() {
             </div>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold">{(usage.cacheHitRate * 100).toFixed(1)}%</p>
+            <p className="text-2xl font-bold">{((usage.cacheHitRate ?? 0) * 100).toFixed(1)}%</p>
             <div className="w-32 h-2 bg-muted rounded-full mt-1">
               <div
                 className="h-2 bg-cyan-500 rounded-full transition-all"
-                style={{ width: `${usage.cacheHitRate * 100}%` }}
+                style={{ width: `${(usage.cacheHitRate ?? 0) * 100}%` }}
               />
             </div>
           </div>

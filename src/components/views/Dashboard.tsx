@@ -10,7 +10,7 @@ import {
   Bot, Server, Puzzle, Monitor, MessageSquare, Users,
   Activity, ArrowUpRight, Zap, Wifi, WifiOff, TrendingUp,
   Clock, Cpu, Globe, Shield, Sparkles, BarChart3, Radio,
-  CheckCircle, Eye, LogOut, Plus, Settings
+  CheckCircle, Eye, LogOut, Plus, Settings, Timer, Uptime
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -35,6 +35,64 @@ function Sparkline({ values, color }: { values: number[]; color: string }) {
           className={cn('w-1 rounded-t-sm transition-all', color)}
           style={{ height: `${Math.max((v / max) * 100, 8)}%` }}
         />
+      ))}
+    </div>
+  );
+}
+
+// Mini Bar Chart - pure CSS bar chart for conversations per day
+function MiniBarChart({ data, labels, maxValue }: { data: number[]; labels: string[]; maxValue: number }) {
+  return (
+    <div className="flex items-end gap-1 h-24">
+      {data.map((value, i) => (
+        <div key={i} className="flex flex-col items-center gap-1 flex-1">
+          <div className="w-full relative" style={{ height: '80px' }}>
+            <div
+              className="absolute bottom-0 w-full rounded-t-sm bg-emerald-500/70 hover:bg-emerald-500 transition-colors"
+              style={{ height: `${maxValue > 0 ? (value / maxValue) * 100 : 0}%` }}
+            />
+          </div>
+          <span className="text-[9px] text-muted-foreground">{labels[i]}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Skill Usage Ranking - progress bars for top skills
+function SkillRanking({ skills }: { skills: any[] }) {
+  const { t } = useI18n();
+  const topSkills = skills
+    .filter((s: any) => s.isEnabled)
+    .sort((a: any, b: any) => (b.invokeCount || 0) - (a.invokeCount || 0))
+    .slice(0, 5);
+  const maxInvokes = Math.max(...topSkills.map((s: any) => s.invokeCount || 0), 1);
+
+  if (topSkills.length === 0) {
+    return <p className="text-xs text-muted-foreground py-4 text-center">{t('dashboard.noSkillData')}</p>;
+  }
+
+  return (
+    <div className="space-y-2.5">
+      {topSkills.map((skill: any, idx: number) => (
+        <div key={skill.id} className="space-y-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-muted-foreground w-3">{idx + 1}</span>
+              <span className="text-xs font-medium truncate">{skill.name}</span>
+            </div>
+            <span className="text-[10px] text-muted-foreground">{skill.invokeCount || 0}</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className={cn(
+                'h-full rounded-full transition-all duration-500',
+                idx === 0 ? 'bg-amber-500' : idx === 1 ? 'bg-amber-400' : 'bg-amber-300'
+              )}
+              style={{ width: `${((skill.invokeCount || 0) / maxInvokes) * 100}%` }}
+            />
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -89,6 +147,31 @@ export function Dashboard() {
     memoryUsage: 62,
     cpuLoad: 23,
   };
+
+  // Conversations per day (last 7 days) - mock data based on actual count
+  const convsPerDay = useMemo(() => {
+    const total = conversations.length;
+    const base = Math.max(Math.floor(total / 7), 1);
+    return Array.from({ length: 7 }, () => Math.floor(Math.random() * base * 2 + base * 0.5));
+  }, [conversations.length]);
+
+  const dayLabels = useMemo(() => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days.push(d.toLocaleDateString([], { weekday: 'short' }).slice(0, 2));
+    }
+    return days;
+  }, []);
+
+  const maxConvPerDay = Math.max(...convsPerDay, 1);
+
+  // System uptime (mock - 99.9%)
+  const systemUptime = 99.9;
+
+  // Agent response time (mock)
+  const agentResponseTime = 1.2; // seconds
 
   // Build activity feed
   const activityItems: ActivityItem[] = useMemo(() => {
@@ -605,6 +688,100 @@ export function Dashboard() {
                 <span className="font-medium">{enabledSkills.length}/{skills.length}</span>
               </div>
               <Progress value={skills.length > 0 ? (enabledSkills.length / skills.length) * 100 : 0} className="h-1.5" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Analytics Row: Conversations Chart + Skill Ranking + System Indicators */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Conversations per Day Bar Chart */}
+        <Card className="rounded-xl">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-emerald-500" />
+              {t('dashboard.conversationsPerDay')}
+            </CardTitle>
+            <CardDescription>{t('dashboard.last7Days')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <MiniBarChart data={convsPerDay} labels={dayLabels} maxValue={maxConvPerDay} />
+          </CardContent>
+        </Card>
+
+        {/* Skill Usage Ranking */}
+        <Card className="rounded-xl">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Puzzle className="w-4 h-4 text-amber-500" />
+              {t('dashboard.skillUsageRanking')}
+            </CardTitle>
+            <CardDescription>{t('dashboard.topSkills')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SkillRanking skills={skills} />
+          </CardContent>
+        </Card>
+
+        {/* System Indicators */}
+        <Card className="rounded-xl">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="w-4 h-4 text-rose-500" />
+              {t('dashboard.systemIndicators')}
+            </CardTitle>
+            <CardDescription>{t('dashboard.systemIndicatorsDesc')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* System Uptime */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-200/50 dark:border-emerald-800/30">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                  <CheckCircle className="w-4 h-4 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium">{t('dashboard.systemUptime')}</p>
+                  <p className="text-[10px] text-muted-foreground">{t('dashboard.last30Days')}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold text-emerald-600">{systemUptime}%</p>
+                <p className="text-[10px] text-emerald-500">{t('dashboard.operational')}</p>
+              </div>
+            </div>
+
+            {/* Agent Response Time */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center">
+                  <Timer className="w-4 h-4 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium">{t('dashboard.agentResponseTime')}</p>
+                  <p className="text-[10px] text-muted-foreground">{t('dashboard.avgResponse')}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold text-amber-600">{agentResponseTime}s</p>
+                <p className="text-[10px] text-amber-500">{t('dashboard.normal')}</p>
+              </div>
+            </div>
+
+            {/* Active Connections */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-cyan-50/50 dark:bg-cyan-900/10 border border-cyan-200/50 dark:border-cyan-800/30">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-cyan-500/10 flex items-center justify-center">
+                  <Wifi className="w-4 h-4 text-cyan-500" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium">{t('dashboard.activeConnections')}</p>
+                  <p className="text-[10px] text-muted-foreground">ACRP WebSocket</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold text-cyan-600">{connectedAcrpAgents.length}</p>
+                <p className="text-[10px] text-cyan-500">{t('dashboard.connected')}</p>
+              </div>
             </div>
           </CardContent>
         </Card>

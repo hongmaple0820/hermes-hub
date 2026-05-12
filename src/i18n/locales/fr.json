@@ -182,7 +182,21 @@
     "cpuLoad": "Charge CPU",
     "newConversation": "Nouvelle Conversation",
     "systemSettings": "Paramètres Système",
-    "activityTimeline": "Chronologie d'Activité"
+    "activityTimeline": "Chronologie d'Activité",
+    "conversationsPerDay": "Conversations par jour",
+    "last7Days": "7 derniers jours",
+    "skillUsageRanking": "Classement d utilisation des competences",
+    "topSkills": "Top 5 competences les plus utilisees",
+    "noSkillData": "Aucune donnee d utilisation des competences",
+    "systemIndicators": "Indicateurs systeme",
+    "systemIndicatorsDesc": "Metriques de performance systeme en temps reel",
+    "systemUptime": "Disponibilite du systeme",
+    "last30Days": "30 derniers jours",
+    "operational": "Operationnel",
+    "agentResponseTime": "Temps de reponse de l Agent",
+    "avgResponse": "Reponse moyenne",
+    "normal": "Normal",
+    "activeConnections": "Connexions actives"
   },
   "agents": {
     "title": "Agents",
@@ -502,7 +516,14 @@
     "copied": "Copié !",
     "thinking": "réfléchit...",
     "noConversationsFound": "Aucune conversation trouvée",
-    "clearSearch": "Effacer la recherche"
+    "clearSearch": "Effacer la recherche",
+    "title": "Chat",
+    "exportConversation": "Exporter la conversation",
+    "importConversation": "Importer une conversation",
+    "exportSuccess": "Conversation exportee avec succes",
+    "importSuccess": "Conversation importee avec succes",
+    "importFailed": "Echec de l importation de la conversation",
+    "importInvalidFormat": "Format de fichier de conversation invalide"
   },
   "chatRooms": {
     "title": "Salons de Chat",
@@ -1389,5 +1410,31 @@
     "sectionManagement": "Gestion",
     "sectionSystem": "Système",
     "newBadge": "Nouveau"
+  },
+  "commandPalette": {
+    "placeholder": "Rechercher commandes, vues, agents...",
+    "noResults": "Aucun resultat trouve",
+    "recent": "Recents",
+    "navigation": "Navigation",
+    "quickActions": "Actions rapides",
+    "dashboard": "Tableau de bord",
+    "agents": "Agents",
+    "providers": "Fournisseurs LLM",
+    "skills": "Competences",
+    "agentControl": "Controle d Agent",
+    "channels": "Canaux",
+    "chat": "Chat",
+    "chatRooms": "Salons de chat",
+    "settings": "Parametres",
+    "createAgent": "Creer un Agent",
+    "createAgentDesc": "Creer un nouvel Agent IA",
+    "newChat": "Nouveau chat",
+    "newChatDesc": "Demarrer une nouvelle conversation",
+    "createRoom": "Creer un salon",
+    "createRoomDesc": "Creer un nouveau salon de chat",
+    "exportData": "Exporter les donnees",
+    "exportDataDesc": "Exporter les donnees en JSON",
+    "importData": "Importer les donnees",
+    "importDataDesc": "Importer les donnees depuis un fichier JSON"
   }
 }

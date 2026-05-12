@@ -32,7 +32,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import {
   Bot, Send, Plus, Loader2, ArrowLeft, MessageSquare, Users, GitBranch, ArrowRight,
   Paperclip, Smile, Check, CheckCheck, Clock, Copy, Trash2, Search, ChevronDown,
-  Sparkles, Zap, BookOpen, Code, Globe, Radio, X
+  Sparkles, Zap, BookOpen, Code, Globe, Radio, X, Download, Upload
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -1418,11 +1418,62 @@ function RoomsPanel() {
 
 export function ChatView() {
   const { t } = useI18n();
+  const { conversations, selectedConversationId } = useAppStore();
+
+  const selectedConv = conversations.find((c: any) => c.id === selectedConversationId);
+
+  const handleExportConversation = useCallback(() => {
+    if (!selectedConv) return;
+    const exportData = {
+      conversation: {
+        id: selectedConv.id,
+        name: selectedConv.name || selectedConv.agent?.name,
+        agentId: selectedConv.agentId,
+        agentName: selectedConv.agent?.name,
+        agentMode: selectedConv.agent?.mode,
+        createdAt: selectedConv.createdAt,
+        updatedAt: selectedConv.updatedAt,
+      },
+      exportedAt: new Date().toISOString(),
+      format: 'hermes-hub-chat-export-v1',
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `conversation-${selectedConv.id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(t('chat.exportSuccess'));
+  }, [selectedConv, t]);
+
+  const handleImportConversation = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        if (!data.conversation) {
+          toast.error(t('chat.importInvalidFormat'));
+          return;
+        }
+        toast.success(t('chat.importSuccess'));
+      } catch {
+        toast.error(t('chat.importFailed'));
+      }
+    };
+    input.click();
+  }, [t]);
 
   return (
     <div className="h-full flex flex-col">
+      <h1 className="sr-only">{t('chat.title')}</h1>
       <Tabs defaultValue="conversations" className="flex flex-col h-full">
-        <div className="px-4 md:px-6 pt-4 pb-0">
+        <div className="px-4 md:px-6 pt-4 pb-0 flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="conversations" className="gap-1.5">
               <MessageSquare className="w-4 h-4" /> {t('chat.tabConversations')}
@@ -1431,6 +1482,44 @@ export function ChatView() {
               <Users className="w-4 h-4" /> {t('chat.tabRooms')}
             </TabsTrigger>
           </TabsList>
+          {selectedConv && (
+            <div className="flex items-center gap-1">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-8 h-8 text-muted-foreground hover:text-foreground"
+                      onClick={handleExportConversation}
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">
+                    {t('chat.exportConversation')}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-8 h-8 text-muted-foreground hover:text-foreground"
+                      onClick={handleImportConversation}
+                    >
+                      <Upload className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">
+                    {t('chat.importConversation')}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )}
         </div>
         <TabsContent value="conversations" className="flex-1 mt-0">
           <ConversationsPanel />

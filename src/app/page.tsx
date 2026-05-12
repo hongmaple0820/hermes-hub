@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback, ComponentType } from 'react';
-import { useAppStore } from '@/lib/store';
+import { useEffect, useState, useCallback, Component, ReactNode } from 'react';
+import { useAppStore, ViewMode } from '@/lib/store';
+
 import { api } from '@/lib/api-client';
 import { I18nProvider } from '@/i18n';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -27,44 +28,57 @@ import { AuthPage } from '@/components/auth/AuthPage';
 import { Toaster, toast } from 'sonner';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CommandPalette } from '@/components/shared/CommandPalette';
 
-// Error boundary wrapper to catch render failures in views
-function ViewErrorBoundary({ children, viewName }: { children: React.ReactNode; viewName: string }) {
-  const [erroredView, setErroredView] = useState<string | null>(null);
+class ViewErrorBoundary extends Component<{
+  children: ReactNode;
+  viewName: string;
+}, { hasError: boolean; errorView: string }> {
+  constructor(props: { children: ReactNode; viewName: string }) {
+    super(props);
+    this.state = { hasError: false, errorView: '' };
+  }
 
-  if (erroredView && erroredView === viewName) {
-    return (
-      <div className="p-6 max-w-7xl mx-auto">
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <AlertTriangle className="w-12 h-12 text-amber-500 mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Something went wrong</h3>
-          <p className="text-muted-foreground text-sm mb-4">Failed to render the {viewName} view. Please try again.</p>
-          <Button variant="outline" onClick={() => setErroredView(null)} className="gap-2">
-            <RefreshCw className="w-4 h-4" /> Retry
-          </Button>
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidUpdate(prevProps: { viewName: string }) {
+    // Reset error state when view changes
+    if (prevProps.viewName !== this.props.viewName && this.state.hasError) {
+      this.setState({ hasError: false, errorView: '' });
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 max-w-7xl mx-auto">
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <AlertTriangle className="w-12 h-12 text-amber-500 mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Something went wrong</h3>
+            <p className="text-muted-foreground text-sm mb-4">Failed to render the {this.props.viewName} view. Please try again.</p>
+            <Button variant="outline" onClick={() => this.setState({ hasError: false })} className="gap-2">
+              <RefreshCw className="w-4 h-4" /> Retry
+            </Button>
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
+    return this.props.children;
   }
-
-  // Reset error state when view changes
-  if (erroredView && erroredView !== viewName) {
-    // View changed, clear the error for the new view
-    setErroredView(null);
-  }
-
-  return <>{children}</>;
 }
 
 function AppContent() {
   const {
     user, isAuthenticated, setUser,
-    currentView,
+    currentView, setCurrentView,
     setProviders, setAgents, setSkills, setConversations, setChatRooms,
     isLoading, setIsLoading,
   } = useAppStore();
 
   const [initialized, setInitialized] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -122,6 +136,49 @@ function AppContent() {
       loadData();
     }
   }, [isAuthenticated, loadData]);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+
+      // Cmd+K → Command Palette
+      if (e.key === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen((prev) => !prev);
+        return;
+      }
+
+      // Number shortcuts for navigation
+      const viewMap: Record<string, ViewMode> = {
+        '1': 'dashboard',
+        '2': 'agents',
+        '3': 'providers',
+        '4': 'skills',
+        '5': 'agent-control',
+        '6': 'channels',
+        '7': 'chat',
+        '8': 'chat-rooms',
+      };
+
+      if (e.key === ',') {
+        e.preventDefault();
+        setCurrentView('settings');
+        return;
+      }
+
+      if (viewMap[e.key]) {
+        e.preventDefault();
+        setCurrentView(viewMap[e.key]);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isAuthenticated, setCurrentView]);
 
   const handleLogin = async (email: string, password: string, isRegister: boolean, name?: string) => {
     try {
@@ -283,6 +340,7 @@ function AppContent() {
         )}
       </main>
       <SessionSearch />
+      <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
       <Toaster />
     </div>
   );

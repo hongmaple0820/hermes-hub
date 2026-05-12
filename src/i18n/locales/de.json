@@ -182,7 +182,21 @@
     "cpuLoad": "CPU-Last",
     "newConversation": "Neue Konversation",
     "systemSettings": "Systemeinstellungen",
-    "activityTimeline": "Aktivitätszeitlinie"
+    "activityTimeline": "Aktivitätszeitlinie",
+    "conversationsPerDay": "Gespraeche pro Tag",
+    "last7Days": "Letzte 7 Tage",
+    "skillUsageRanking": "Skill-Nutzungsranking",
+    "topSkills": "Top 5 meistgenutzte Skills",
+    "noSkillData": "Keine Skill-Nutzungsdaten vorhanden",
+    "systemIndicators": "Systemindikatoren",
+    "systemIndicatorsDesc": "Echtzeit-Systemleistungsmetriken",
+    "systemUptime": "System-Verfuegbarkeit",
+    "last30Days": "Letzte 30 Tage",
+    "operational": "Betriebsbereit",
+    "agentResponseTime": "Agent-Antwortzeit",
+    "avgResponse": "Durchschnittliche Antwort",
+    "normal": "Normal",
+    "activeConnections": "Aktive Verbindungen"
   },
   "agents": {
     "title": "Agenten",
@@ -502,7 +516,14 @@
     "copied": "Kopiert!",
     "thinking": "denkt nach...",
     "noConversationsFound": "Keine Gespräche gefunden",
-    "clearSearch": "Suche löschen"
+    "clearSearch": "Suche löschen",
+    "title": "Chat",
+    "exportConversation": "Gespraech exportieren",
+    "importConversation": "Gespraech importieren",
+    "exportSuccess": "Gespraech erfolgreich exportiert",
+    "importSuccess": "Gespraech erfolgreich importiert",
+    "importFailed": "Gespraech importieren fehlgeschlagen",
+    "importInvalidFormat": "Ungueltiges Gespraech-Dateiformat"
   },
   "chatRooms": {
     "title": "Chaträume",
@@ -1389,5 +1410,31 @@
     "sectionManagement": "Verwaltung",
     "sectionSystem": "System",
     "newBadge": "Neu"
+  },
+  "commandPalette": {
+    "placeholder": "Befehle, Ansichten, Agents suchen...",
+    "noResults": "Keine Ergebnisse gefunden",
+    "recent": "Kuerzlich",
+    "navigation": "Navigation",
+    "quickActions": "Schnellaktionen",
+    "dashboard": "Dashboard",
+    "agents": "Agents",
+    "providers": "LLM-Anbieter",
+    "skills": "Skills",
+    "agentControl": "Agent-Steuerung",
+    "channels": "Kanaele",
+    "chat": "Chat",
+    "chatRooms": "Chatraeume",
+    "settings": "Einstellungen",
+    "createAgent": "Agent erstellen",
+    "createAgentDesc": "Neuen KI-Agent erstellen",
+    "newChat": "Neuer Chat",
+    "newChatDesc": "Neues Gespraech starten",
+    "createRoom": "Raum erstellen",
+    "createRoomDesc": "Neuen Chatraum erstellen",
+    "exportData": "Daten exportieren",
+    "exportDataDesc": "Daten als JSON exportieren",
+    "importData": "Daten importieren",
+    "importDataDesc": "Daten aus JSON-Datei importieren"
   }
 }
