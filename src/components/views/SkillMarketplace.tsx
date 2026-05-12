@@ -28,7 +28,7 @@ import {
   Shield, Heart, Terminal, BookOpen, ArrowRight, Eye, EyeOff,
   Wifi, WifiOff, Radio, Server, Cable, Globe as GlobeIcon,
   Star, MoreVertical, RefreshCw, Trash2, ChevronDown, ChevronUp,
-  Flame, Filter,
+  Flame, Filter, GitBranch, Info, Package, Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -62,6 +62,19 @@ const handlerTypeColors: Record<string, string> = {
   webhook: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
   websocket: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
   streaming: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
+};
+
+const licenseBadgeColors: Record<string, string> = {
+  MIT: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  'Apache-2.0': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  Proprietary: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+};
+
+const sourceTypeColors: Record<string, string> = {
+  'built-in': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  'agentskills-registry': 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
+  custom: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  git: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
 };
 
 // Gradient top border by handler type
@@ -261,6 +274,12 @@ export function SkillMarketplace() {
 
   // Skill detail dialog install agent
   const [detailInstallAgent, setDetailInstallAgent] = useState<string>('');
+
+  // Import from Git state
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importGitUrl, setImportGitUrl] = useState('');
+  const [importSkillPath, setImportSkillPath] = useState('');
+  const [importing, setImporting] = useState(false);
 
   // Refresh interval ref
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -500,6 +519,39 @@ export function SkillMarketplace() {
 
   const isSkillInstalled = (skillId: string) => agentSkills.some((as: any) => as.skillId === skillId);
 
+  const handleImportSkill = async () => {
+    if (!importGitUrl.trim()) return;
+    setImporting(true);
+    try {
+      const res = await api.importSkill(importGitUrl.trim(), importSkillPath.trim() || undefined);
+      toast.success(t('skills.importSuccess'));
+      setShowImportDialog(false);
+      setImportGitUrl('');
+      setImportSkillPath('');
+      if (res.imported > 0) {
+        // Refresh skills list
+        window.location.reload();
+      }
+    } catch (error: any) {
+      toast.error(t('skills.importError') + ': ' + error.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const getLicenseBadgeColor = (license: string | undefined | null) => {
+    if (!license) return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
+    if (license.includes('MIT')) return licenseBadgeColors.MIT;
+    if (license.includes('Apache')) return licenseBadgeColors['Apache-2.0'];
+    if (license === 'Proprietary' || license === 'proprietary') return licenseBadgeColors.Proprietary;
+    return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
+  };
+
+  const getSourceTypeBadgeColor = (sourceType: string | undefined | null) => {
+    if (!sourceType) return sourceTypeColors['built-in'];
+    return sourceTypeColors[sourceType] || sourceTypeColors['built-in'];
+  };
+
   // ─── Tab 1: Skill Store ────────────────────────────────────
 
   const renderSkillStore = () => (
@@ -547,9 +599,21 @@ export function SkillMarketplace() {
         </div>
 
         {/* Filtered Count */}
-        <p className="text-xs text-muted-foreground">
-          {t('skills.showing', { shown: filteredSkills.length, total: skills.length })}
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            {t('skills.showing', { shown: filteredSkills.length, total: skills.length })}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1 text-xs"
+              onClick={() => setShowImportDialog(true)}
+            >
+              <GitBranch className="w-3 h-3" /> {t('skills.importFromGit')}
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Skills Grid or No Results */}
@@ -606,6 +670,21 @@ export function SkillMarketplace() {
                             {skill.handlerType}
                           </Badge>
                         )}
+                        {skill.license && (
+                          <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', getLicenseBadgeColor(skill.license))}>
+                            {skill.license}
+                          </Badge>
+                        )}
+                        {skill.compatibility && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+                            <Info className="w-2.5 h-2.5 mr-0.5" />{skill.compatibility}
+                          </Badge>
+                        )}
+                        {skill.sourceType && skill.sourceType !== 'built-in' && (
+                          <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', getSourceTypeBadgeColor(skill.sourceType))}>
+                            {skill.sourceType}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -616,7 +695,7 @@ export function SkillMarketplace() {
                   </p>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-muted-foreground">v{skill.version}</span>
+                      <span className="text-[10px] text-muted-foreground">v{skill.metadata?.version || '1.0'}</span>
                       {installedCount > 0 && (
                         <span className="text-[10px] text-emerald-600 flex items-center gap-0.5">
                           <Check className="w-2.5 h-2.5" /> {t('skills.installed')}
@@ -669,6 +748,58 @@ export function SkillMarketplace() {
           })}
         </div>
       )}
+      {/* Import from Git Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GitBranch className="w-4 h-4" />
+              {t('skills.importSkill')}
+            </DialogTitle>
+            <DialogDescription>
+              {t('skills.importFromGit')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="git-url">{t('skills.gitRepoUrl')}</Label>
+              <Input
+                id="git-url"
+                placeholder="https://github.com/user/skill-repo"
+                value={importGitUrl}
+                onChange={(e) => setImportGitUrl(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="skill-path">{t('skills.skillPath')}</Label>
+              <Input
+                id="skill-path"
+                placeholder=".agents/skills/my-skill"
+                value={importSkillPath}
+                onChange={(e) => setImportSkillPath(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowImportDialog(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                size="sm"
+                className="gap-1"
+                disabled={!importGitUrl.trim() || importing}
+                onClick={handleImportSkill}
+              >
+                {importing ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <GitBranch className="w-3 h-3" />
+                )}
+                {importing ? t('skills.importing') : t('skills.importSkill')}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
@@ -793,6 +924,55 @@ export function SkillMarketplace() {
                                 </div>
                                 {skillDef.description && (
                                   <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{skillDef.description}</p>
+                                )}
+                                {/* Instructions preview */}
+                                {(skillDef.instructions || agentSkill.instructions) && (
+                                  <p className="text-xs text-muted-foreground mt-1 line-clamp-3 italic">
+                                    {skillDef.instructions || agentSkill.instructions}
+                                  </p>
+                                )}
+                                {/* Allowed Tools badges */}
+                                {(skillDef.allowedTools || agentSkill.allowedTools) && (
+                                  <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                    <span className="text-[10px] text-muted-foreground font-medium">{t('skills.allowedTools')}:</span>
+                                    {(skillDef.allowedTools || agentSkill.allowedTools).split(/\s+/).filter(Boolean).map((tool: string) => (
+                                      <Badge key={tool} variant="outline" className="text-[9px] px-1.5 py-0 font-mono bg-muted/50">
+                                        {tool}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
+                                {/* License and Compatibility badges */}
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  {(skillDef.license || agentSkill.license) && (
+                                    <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', getLicenseBadgeColor(skillDef.license || agentSkill.license))}>
+                                      {t('skills.license')}: {skillDef.license || agentSkill.license}
+                                    </Badge>
+                                  )}
+                                  {(skillDef.compatibility || agentSkill.compatibility) && (
+                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+                                      {t('skills.compatibility')}: {skillDef.compatibility || agentSkill.compatibility}
+                                    </Badge>
+                                  )}
+                                </div>
+                                {/* Source info for imported skills */}
+                                {(skillDef.sourceType || agentSkill.sourceType) && (skillDef.sourceType || agentSkill.sourceType) !== 'built-in' && (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', getSourceTypeBadgeColor(skillDef.sourceType || agentSkill.sourceType))}>
+                                      <Package className="w-2.5 h-2.5 mr-0.5" />{t('skills.sourceType')}: {skillDef.sourceType || agentSkill.sourceType}
+                                    </Badge>
+                                    {(skillDef.sourceUrl || agentSkill.sourceUrl) && (
+                                      <a
+                                        href={skillDef.sourceUrl || agentSkill.sourceUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <ExternalLink className="w-2.5 h-2.5" /> {(skillDef.sourceUrl || agentSkill.sourceUrl).replace(/^https?:\/\//, '').split('/')[0]}
+                                      </a>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
@@ -1414,6 +1594,136 @@ curl -X POST https://your-domain/api/skill-protocol/heartbeat \\
 
     return (
       <div className="space-y-6 max-w-4xl">
+        {/* AgentSkills Specification Section */}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" />
+              {t('skills.agentSkillsSpec')}
+            </CardTitle>
+            <CardDescription>{t('skills.specDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* SKILL.md Format */}
+            <div>
+              <h4 className="text-sm font-semibold mb-2">{t('skills.specFormat')}</h4>
+              <CodeBlock
+                language="markdown"
+                filename="SKILL.md"
+                code={`---
+name: my-skill
+description: A brief description of what this skill does
+license: MIT
+compatibility: Node.js >= 18
+metadata:
+  author: Your Name
+  version: 1.0.0
+  tags: search,web,api
+allowedTools: web_search http_request file_read
+---
+
+# My Skill Instructions
+
+This is the main body of the skill instructions.
+It uses Markdown formatting and will be provided
+to the agent as the skill's system prompt.
+
+## Guidelines
+- Always verify search results
+- Return structured data when possible
+- Handle errors gracefully
+`}
+              />
+            </div>
+
+            {/* Directory Structure */}
+            <div>
+              <h4 className="text-sm font-semibold mb-2">{t('skills.specDirectory')}</h4>
+              <CodeBlock
+                language="text"
+                code={`.agents/
+  skills/
+    web-search/
+      SKILL.md
+    code-generator/
+      SKILL.md
+    data-analyzer/
+      SKILL.md
+`}
+              />
+            </div>
+
+            {/* Frontmatter Schema */}
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Frontmatter Schema</h4>
+              <div className="rounded-lg border overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-muted/50">
+                      <th className="text-left p-2 font-medium">Field</th>
+                      <th className="text-left p-2 font-medium">Type</th>
+                      <th className="text-left p-2 font-medium">Required</th>
+                      <th className="text-left p-2 font-medium">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { field: 'name', type: 'string', required: 'Yes', desc: 'Unique skill identifier' },
+                      { field: 'description', type: 'string', required: 'Yes', desc: 'Brief skill description' },
+                      { field: 'license', type: 'string', required: 'No', desc: 'License identifier (MIT, Apache-2.0, etc.)' },
+                      { field: 'compatibility', type: 'string', required: 'No', desc: 'Runtime requirements' },
+                      { field: 'metadata', type: 'object', required: 'No', desc: 'Author, version, tags, etc.' },
+                      { field: 'allowedTools', type: 'string', required: 'No', desc: 'Space-delimited list of pre-approved tools' },
+                    ].map((row) => (
+                      <tr key={row.field} className="border-t">
+                        <td className="p-2 font-mono font-medium text-primary/80">{row.field}</td>
+                        <td className="p-2 text-muted-foreground">{row.type}</td>
+                        <td className="p-2 text-center">
+                          {row.required === 'Yes' ? (
+                            <span className="text-red-500 font-bold">*</span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </td>
+                        <td className="p-2 text-muted-foreground">{row.desc}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Import from AgentSkills Registry quick start */}
+            <div className="rounded-lg border border-cyan-200 dark:border-cyan-800 bg-cyan-50/50 dark:bg-cyan-950/20 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Package className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                <span className="text-sm font-semibold text-cyan-700 dark:text-cyan-300">Import from AgentSkills Registry</span>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                {t('skills.specDescription')}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 text-xs border-cyan-300 dark:border-cyan-700"
+                  onClick={() => setShowImportDialog(true)}
+                >
+                  <GitBranch className="w-3 h-3" /> {t('skills.importFromGit')}
+                </Button>
+                <a
+                  href="https://agentskills.io"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-cyan-600 hover:underline dark:text-cyan-400 flex items-center gap-1"
+                >
+                  agentskills.io <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Quick Start with numbered step circles connected with lines */}
         <Card>
           <CardHeader>
@@ -1733,7 +2043,7 @@ socket.on('skill:heartbeat-ack', (data) => {
                   <Badge variant="outline" className={cn('text-[10px]', handlerTypeColors[skill.handlerType] || '')}>
                     {skill.handlerType}
                   </Badge>
-                  <span className="text-xs text-muted-foreground">v{skill.version}</span>
+                  <span className="text-xs text-muted-foreground">v{skill.metadata?.version || '1.0'}</span>
                 </div>
               </div>
             </DialogTitle>

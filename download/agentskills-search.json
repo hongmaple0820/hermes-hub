@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://agentskills.io/specification",
+    "name": "Specification - Agent Skills",
+    "snippet": "SKILL.md format The SKILL.md file must contain YAML frontmatter followed by Markdown content.",
+    "host_name": "agentskills.io",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/agentskills/agentskills/blob/main/docs/specification.mdx",
+    "name": "agentskills/docs/specification.mdx at main - GitHub",
+    "snippet": "Directory structure A skill is a directory containing, at minimum, a SKILL.md file:",
+    "host_name": "github.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://deepwiki.com/agentskills/agentskills/2.2-skill.md-specification",
+    "name": "SKILL.md Specification | agentskills/agentskills | DeepWiki",
+    "snippet": "This document provides the detailed technical specification for the SKILL.md file format, which is the core component of every Agent Skill. It defines the structure, required and optional fields, validation constraints, and content conventions.",
+    "host_name": "deepwiki.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://huggingface.co/learn/context-course/unit1/skill-format",
+    "name": "The SKILL.md Format - Hugging Face",
+    "snippet": "The Agent Skills Specification describes skills as a SKILL.md file with YAML frontmatter and Markdown instructions, optionally accompanied by scripts/, references/, and assets/ directories. This lesson walks through each piece and how to write them well.",
+    "host_name": "huggingface.co",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://skilltap.dev/reference/skill-format",
+    "name": "SKILL.md Format | skilltap",
+    "snippet": "SKILL.md is the file format for agent skills. It is a Markdown file with YAML frontmatter that provides structured metadata, followed by a body of instructions for the AI agent. Every installable skill must contain a SKILL.md file. This is how skilltap identifies, validates, and describes skills.",
+    "host_name": "skilltap.dev",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

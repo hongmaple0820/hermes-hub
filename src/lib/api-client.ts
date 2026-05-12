@@ -184,6 +184,10 @@ class ApiClient {
     return this.post<{ success: boolean }>(`/skills/${skillId}/uninstall`, { agentId });
   }
 
+  async importSkill(sourceUrl: string, skillPath?: string) {
+    return this.post<{ imported: number; skills: any[] }>('/skills/import-skill', { sourceUrl, skillPath });
+  }
+
   // Conversations
   async getConversations() {
     return this.get<{ conversations: any[] }>('/conversations');
@@ -396,7 +400,7 @@ class ApiClient {
 
   // OAuth - Codex
   async startCodexOAuth() {
-    return this.post<{ deviceCode: string; userCode: string; verificationUri: string; expiresIn: number }>('/auth/codex/start');
+    return this.post<{ deviceCode: string; userCode: string; verificationUri: string; expiresIn: number }>('/auth/codex');
   }
   async pollCodexOAuth(deviceCode: string) {
     return this.get<{ status: string }>(`/auth/codex/poll?deviceCode=${encodeURIComponent(deviceCode)}`);
@@ -410,7 +414,7 @@ class ApiClient {
 
   // OAuth - Nous
   async startNousOAuth() {
-    return this.post<{ deviceCode: string; userCode: string; verificationUri: string; expiresIn: number }>('/auth/nous/start');
+    return this.post<{ deviceCode: string; userCode: string; verificationUri: string; expiresIn: number }>('/auth/nous');
   }
   async pollNousOAuth(deviceCode: string) {
     return this.get<{ status: string }>(`/auth/nous/poll?deviceCode=${encodeURIComponent(deviceCode)}`);
@@ -424,7 +428,7 @@ class ApiClient {
 
   // OAuth - Copilot
   async startCopilotOAuth() {
-    return this.post<{ deviceCode: string; userCode: string; verificationUri: string; expiresIn: number }>('/auth/copilot/start');
+    return this.post<{ deviceCode: string; userCode: string; verificationUri: string; expiresIn: number }>('/auth/copilot');
   }
   async pollCopilotOAuth(deviceCode: string) {
     return this.get<{ status: string }>(`/auth/copilot/poll?deviceCode=${encodeURIComponent(deviceCode)}`);
@@ -433,10 +437,10 @@ class ApiClient {
     return this.get<{ valid: boolean; source: string; status?: string }>('/auth/copilot/check-token');
   }
   async enableCopilot() {
-    return this.post('/auth/copilot/start', { action: 'enable' });
+    return this.post('/auth/copilot', { action: 'enable' });
   }
   async disableCopilot() {
-    return this.post('/auth/copilot/start', { action: 'disable' });
+    return this.post('/auth/copilot', { action: 'disable' });
   }
   async revokeCopilotOAuth() {
     return this.del('/auth/copilot');

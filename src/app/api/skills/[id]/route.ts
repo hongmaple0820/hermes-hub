@@ -2,6 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
 
+// AgentSkills spec name validation: ^[a-z0-9]+(-[a-z0-9]+)*$
+const SKILL_NAME_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+function parseSkillJsonFields(skill: Record<string, unknown>) {
+  return {
+    ...skill,
+    metadata: JSON.parse((skill.metadata as string) || '{}'),
+    configSchema: JSON.parse((skill.configSchema as string) || '{}'),
+    parameters: JSON.parse((skill.parameters as string) || '[]'),
+    events: JSON.parse((skill.events as string) || '[]'),
+    registrationInfo: JSON.parse((skill.registrationInfo as string) || '{}'),
+    allowedTools: skill.allowedTools ? (skill.allowedTools as string).split(' ').filter(Boolean) : [],
+  };
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -28,8 +43,6 @@ export async function GET(
     // Enhance each agent binding with endpoint URL and registration status
     const agentsWithEndpoints = skill.agents.map((binding) => {
       const registrationInfo = JSON.parse(binding.registrationInfo || '{}');
-      // Note: registrationInfo is on AgentSkill, not Skill — but we may not have it yet
-      // Actually, the binding IS the AgentSkill record
       return {
         ...binding,
         endpointUrl: binding.endpointToken
@@ -47,17 +60,14 @@ export async function GET(
       ? `/api/skill-protocol/events?token=${skill.endpointToken}`
       : null;
 
-    const skillRegistrationInfo = JSON.parse(skill.registrationInfo || '{}');
-    const skillEvents = JSON.parse(skill.events || '[]');
+    const parsedSkill = parseSkillJsonFields(skill as unknown as Record<string, unknown>);
 
     return NextResponse.json({
       skill: {
-        ...skill,
+        ...parsedSkill,
         agents: agentsWithEndpoints,
         endpointUrl: skillEndpointUrl,
         registrationStatus: skill.callbackUrl ? 'registered' : 'pending',
-        registrationInfo: skillRegistrationInfo,
-        events: skillEvents,
       },
     });
   } catch (error) {
@@ -86,19 +96,54 @@ export async function PATCH(
       return NextResponse.json({ error: 'Skill not found' }, { status: 404 });
     }
 
+    // If name is being updated, validate it matches AgentSkills spec
+    if (body.name !== undefined && !SKILL_NAME_REGEX.test(body.name)) {
+      return NextResponse.json(
+        {
+          error: 'Invalid skill name',
+          details: 'Name must match ^[a-z0-9]+(-[a-z0-9]+)*$ (lowercase alphanumeric with hyphens, no leading/trailing/consecutive hyphens)',
+        },
+        { status: 400 }
+      );
+    }
+
+    if (body.description !== undefined && body.description.length > 1024) {
+      return NextResponse.json(
+        { error: 'Description too long', details: 'Description must be 1-1024 characters' },
+        { status: 400 }
+      );
+    }
+
+    if (body.compatibility !== undefined && body.compatibility.length > 500) {
+      return NextResponse.json(
+        { error: 'Compatibility too long', details: 'Compatibility must be max 500 characters' },
+        { status: 400 }
+      );
+    }
+
     const updateData: Record<string, unknown> = {};
     const allowedFields = [
-      'displayName', 'description', 'category', 'version', 'author',
-      'icon', 'configSchema', 'handlerType', 'handlerUrl', 'parameters', 'isEnabled',
-      'callbackUrl', 'events',
+      'name', 'displayName', 'description', 'category',
+      'license', 'compatibility', 'instructions',
+      'icon', 'handlerType', 'handlerUrl', 'isEnabled',
+      'callbackUrl', 'allowedTools', 'sourceType', 'sourceUrl', 'sourcePath',
     ];
+    const jsonFields = ['metadata', 'configSchema', 'parameters', 'events', 'registrationInfo'];
+
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
-        if (['configSchema', 'parameters', 'events'].includes(field)) {
-          updateData[field] = JSON.stringify(body[field]);
+        // allowedTools can be a string or an array
+        if (field === 'allowedTools' && Array.isArray(body[field])) {
+          updateData[field] = body[field].join(' ');
         } else {
           updateData[field] = body[field];
         }
+      }
+    }
+
+    for (const field of jsonFields) {
+      if (body[field] !== undefined) {
+        updateData[field] = JSON.stringify(body[field]);
       }
     }
 
@@ -107,7 +152,9 @@ export async function PATCH(
       data: updateData,
     });
 
-    return NextResponse.json({ skill: updated });
+    return NextResponse.json({
+      skill: parseSkillJsonFields(updated as unknown as Record<string, unknown>),
+    });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

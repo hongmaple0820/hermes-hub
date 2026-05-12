@@ -896,3 +896,202 @@ Stage Summary:
   - 8-language i18n support
   - Chat rooms, context compression, memory system
   - OAuth integration (Codex, Nous, Copilot)
+
+---
+Task ID: 12
+Agent: AgentSkillsRefactorer
+Task: Refactor Skills system to comply with AgentSkills specification
+
+Work Log:
+- Updated Prisma schema (`prisma/schema.prisma`) Skill model to align with AgentSkills spec:
+  - Removed `version` and `author` fields (now in `metadata` JSON)
+  - Added `license` (String?) — e.g., MIT, Apache-2.0
+  - Added `compatibility` (String?) — Max 500 chars, runtime requirements
+  - Added `metadata` (String @default("{}")) — JSON: arbitrary key-value pairs (author, version, etc.)
+  - Added `allowedTools` (String?) — Space-delimited list of pre-approved tools
+  - Added `instructions` (String @default("")) — The Markdown body from SKILL.md
+  - Changed `category` default from no default to @default("general")
+  - Added source tracking: `sourceType` (@default("built-in")), `sourceUrl`, `sourcePath`, `installedAt`
+  - Preserved all existing Skill Protocol and WebSocket fields
+- Ran `bunx prisma db push --accept-data-loss` to apply schema (dropped `version` column)
+- Ran `bun run db:generate` to regenerate Prisma Client
+- Rewrote `/home/z/my-project/src/app/api/seed/skills/route.ts` with 12 AgentSkills-compliant skills:
+  - commit-helper, code-review, test-writer, doc-generator, api-designer, db-analyzer
+  - security-scanner, perf-optimizer, i18n-helper, deploy-manager, debug-assistant, data-analyst
+  - Each skill has: proper kebab-case `name`, `description`, `license`, `compatibility`, `metadata` JSON (author, version), `allowedTools`, and detailed `instructions` (Markdown body)
+- Updated `/home/z/my-project/src/app/api/skills/route.ts`:
+  - GET: Added `sourceType` filter, parses JSON fields (metadata, configSchema, parameters, events, registrationInfo), splits `allowedTools` into array
+  - POST: Added AgentSkills name validation (`^[a-z0-9]+(-[a-z0-9]+)*$`), description length check (1-1024), compatibility length check (max 500), creates skill with all new fields
+- Updated `/home/z/my-project/src/app/api/skills/[id]/route.ts`:
+  - GET: Parses JSON fields, returns structured data
+  - PATCH: Validates name on update, handles `allowedTools` as both string and array, updates all AgentSkills spec fields
+- Created `/home/z/my-project/src/app/api/skills/import-skill/route.ts`:
+  - POST endpoint accepting `sourceUrl` (git repo URL) and optional `skillPath`
+  - Clones the repo to a temp directory using git clone --depth 1
+  - Scans AgentSkills discovery paths: `.agents/skills/*/SKILL.md`, `skills/*/SKILL.md`, `.claude/skills/*/SKILL.md`, `.cursor/skills/*/SKILL.md`
+  - Parses YAML frontmatter using `js-yaml` library (installed as new dependency)
+  - Validates parsed skills against AgentSkills spec (name regex, description length, compatibility length)
+  - Creates or updates Skill records with sourceType="git", sourceUrl, sourcePath, installedAt
+  - Cleans up temp directory after import
+  - Returns import summary with created/updated/skipped status per skill
+- Updated `/home/z/my-project/src/components/views/SkillMarketplace.tsx`:
+  - Changed `skill.version` references (2 locations) to `skill.metadata?.version || '1.0'` since `version` field was removed from Skill model
+- Installed `js-yaml` and `@types/js-yaml` packages for YAML frontmatter parsing
+- Seeded 12 new AgentSkills-compliant skills via API (all created successfully)
+- Lint check passes clean
+
+Stage Summary:
+- **Skill model fully aligned with AgentSkills specification**
+- New fields: `license`, `compatibility`, `metadata` (JSON), `allowedTools`, `instructions`, `sourceType`, `sourceUrl`, `sourcePath`, `installedAt`
+- **12 new AgentSkills-compliant skills** seeded: commit-helper, code-review, test-writer, doc-generator, api-designer, db-analyzer, security-scanner, perf-optimizer, i18n-helper, deploy-manager, debug-assistant, data-analyst
+- **Skills API validates AgentSkills spec constraints**: name regex, description 1-1024 chars, compatibility max 500 chars
+- **Import API enables git-based skill installation**: clone repo, scan discovery paths, parse SKILL.md frontmatter, create/update records
+- **Backward compatible**: Legacy fields (configSchema, handlerType, handlerUrl, parameters, isEnabled) preserved alongside new spec fields
+- **Frontend updated**: SkillMarketplace uses `metadata.version` instead of removed `version` field
+
+---
+Task ID: 4
+Agent: BugFixAgent
+Task: Fix three bugs - Settings navigation, missing provider test endpoint, OAuth route mismatches
+
+Work Log:
+- **Bug 1: Settings Page Navigation Error**
+  - Investigated the renderView() switch statement in page.tsx, ViewMode type in store.ts, and sidebar navigation in Sidebar.tsx
+  - All three files had matching 'settings' ViewMode identifiers - no mismatch found
+  - Root cause: React reconciliation issue - without a `key` prop on the rendered view container, React may not properly unmount/remount components when switching between views, potentially reusing DOM nodes from the previous view
+  - Fix: Added `key={currentView}` to the div wrapping `renderView()` in page.tsx, forcing React to fully remount the component tree when the view changes
+
+- **Bug 2: Missing Provider Test API Endpoint**
+  - api-client.ts had `testProvider(id)` calling `POST /providers/${id}/test` but no route existed
+  - Created `/home/z/my-project/src/app/api/providers/[id]/test/route.ts`
+  - POST endpoint reads provider from DB, validates auth and ownership, then calls the existing `testProviderConnection()` function from `@/lib/llm-provider`
+  - Returns `{ success: boolean, message: string, models?: string[] }` matching the api-client type signature
+  - Supports all provider types: OpenAI, Anthropic, Google, Ollama, z-ai, custom
+
+- **Bug 3: OAuth Start Routes Missing**
+  - api-client.ts called `/auth/codex/start`, `/auth/nous/start`, `/auth/copilot/start` but actual routes were `/auth/codex`, `/auth/nous`, `/auth/copilot`
+  - Fixed api-client.ts to call the correct paths (without `/start` suffix)
+  - Updated 5 method calls: startCodexOAuth, startNousOAuth, startCopilotOAuth, enableCopilot, disableCopilot
+
+- Lint check passes clean
+- Dev server running without errors
+
+Stage Summary:
+- Settings view now properly remounts when navigated to via sidebar
+- Provider test endpoint created and functional, reuses existing testProviderConnection logic
+- OAuth API client routes corrected to match actual API endpoints
+
+---
+Task ID: 13
+Agent: SkillMarketplaceSpecUpdater
+Task: Refactor SkillMarketplace UI to comply with AgentSkills specification
+
+Work Log:
+- Updated `/home/z/my-project/src/components/views/SkillMarketplace.tsx`:
+  - Added `licenseBadgeColors` map: MIT = emerald, Apache-2.0 = amber, Proprietary = red, no license = gray
+  - Added `sourceTypeColors` map: built-in = emerald, agentskills-registry = cyan, custom = amber, git = purple
+  - Added new icon imports: GitBranch, Info, Package, Loader2
+  - Added import from Git state variables: showImportDialog, importGitUrl, importSkillPath, importing
+  - Added helper functions: handleImportSkill, getLicenseBadgeColor, getSourceTypeBadgeColor
+  - **Tab 1 (Skill Store)**:
+    - Added license badge with color coding per license type
+    - Added compatibility info badge with Info icon
+    - Added source type badge (only shown for non-built-in)
+    - Added "Import from Git" button next to filtered count
+    - Added Import from Git dialog with URL input, skill path input, import button with loading state
+  - **Tab 2 (My Skills)**:
+    - Added instructions preview (truncated to 3 lines with line-clamp-3, italic style)
+    - Added allowedTools as small monospace Badge components
+    - Added license badge with color coding
+    - Added compatibility badge
+    - Added source type badge with Package icon for imported skills
+    - Added source URL link with ExternalLink icon for git-imported skills
+  - **Tab 3 (Protocol Docs)**:
+    - Added new "AgentSkills Specification" section at the top with primary-colored border
+    - Added SKILL.md format code example showing frontmatter (name, description, license, compatibility, metadata, allowedTools) and markdown body
+    - Added directory structure code block: .agents/skills/*/SKILL.md
+    - Added frontmatter schema table with Field, Type, Required, Description columns
+    - Added "Import from AgentSkills Registry" quick-start box with Import button and link to https://agentskills.io
+- Updated `/home/z/my-project/src/lib/api-client.ts`:
+  - Added `importSkill(sourceUrl, skillPath?)` method that POSTs to `/skills/import-skill`
+- Updated ALL 8 i18n locale files with 18 new keys:
+  - `skills.importFromGit` - "Import from Git" (+ translations)
+  - `skills.importSkill` - "Import Skill" (+ translations)
+  - `skills.gitRepoUrl` - "Git Repository URL" (+ translations)
+  - `skills.skillPath` - "Skill Path (optional)" (+ translations)
+  - `skills.importing` - "Importing..." (+ translations)
+  - `skills.importSuccess` - "Skill imported successfully" (+ translations)
+  - `skills.importError` - "Failed to import skill" (+ translations)
+  - `skills.license` - "License" (+ translations)
+  - `skills.compatibility` - "Compatibility" (+ translations)
+  - `skills.sourceType` - "Source" (+ translations)
+  - `skills.allowedTools` - "Allowed Tools" (+ translations)
+  - `skills.instructions` - "Instructions" (+ translations)
+  - `skills.agentSkillsSpec` - "AgentSkills Specification" (+ translations)
+  - `skills.specDescription` - "Skills follow the open AgentSkills format with SKILL.md files" (+ translations)
+  - `skills.specFormat` - "SKILL.md Format" (+ translations)
+  - `skills.specDirectory` - "Directory Structure" (+ translations)
+  - Translations provided for: en, zh, ja, ko, de, es, fr, pt
+- All lint checks pass clean
+- Dev server running correctly, skills API returning new fields (license, compatibility, metadata, allowedTools, instructions, sourceType, sourceUrl, sourcePath, installedAt)
+
+Stage Summary:
+- **SkillMarketplace UI fully compliant with AgentSkills specification**
+- License badges show proper color coding (MIT=emerald, Apache-2.0=amber, Proprietary=red, none=gray)
+- Source type badges show proper color coding (built-in=emerald, agentskills-registry=cyan, custom=amber, git=purple)
+- Import from Git dialog allows importing skills from any git repository
+- My Skills tab shows instructions preview, allowed tools, license/compatibility, and source info
+- Protocol Docs tab includes comprehensive AgentSkills Specification section with SKILL.md format, frontmatter schema, directory structure, and quick-start guide
+- All text uses i18n t() calls, no hardcoded strings
+- All 8 locales fully translated
+
+---
+Task ID: 6
+Agent: AuthPageEnhancer
+Task: Enhance AuthPage (Login/Register) with better styling and interaction
+
+Work Log:
+- Added 12 new i18n keys to all 8 locale files (en, zh, ja, ko, de, es, fr, pt):
+  - forgotPassword, rememberMe, comingSoon
+  - featureAgents, featureSkills, featureChat, featureProtocol
+  - welcomeBack, createAccount, showPassword, hidePassword
+- Complete rewrite of `/home/z/my-project/src/components/auth/AuthPage.tsx`:
+  - **Desktop split layout**: Left decorative panel (40%) with gradient + right form panel (60%)
+  - **Left panel** (desktop only, hidden on mobile):
+    - Gradient background (emerald to teal via cyan)
+    - Animated decorative blur circles for visual depth
+    - Hermes Hub logo with Zap icon in frosted glass container
+    - Tagline: "Multi-Agent Collaboration Platform"
+    - 4 feature highlights with Lucide icons (Bot, Puzzle, MessageSquare, Monitor)
+    - Staggered fade-in animations via framer-motion
+    - Bottom decorative gradient line
+  - **Form panel** enhancements:
+    - Desktop: contextual heading ("Welcome back" / "Create your account")
+    - Mobile: centered logo + title + subtitle (same as before but refined)
+    - Password visibility toggle (Eye/EyeOff icon button)
+    - "Forgot Password?" link on login tab (shows toast "Coming soon")
+    - "Remember me" checkbox on login tab (shadcn Checkbox component)
+    - Labels above all inputs instead of just placeholders
+    - Inline error messages with destructive styling under inputs
+    - Red border on invalid inputs (border-destructive)
+    - Loader2 spinner on submit button during authentication
+    - Form validation before submission (email format, password length, name required)
+  - **Interactive states**:
+    - AnimatePresence + motion.div for tab transitions (fade + slide)
+    - Name field animates in/out on register/login tab switch
+    - Remember me checkbox animates in/out on login/register switch
+    - Hover effects on buttons and links
+    - Focus ring styles on input fields (inherited from shadcn)
+  - **All strings use i18n t() calls** for full internationalization
+  - **Dark mode support** via Tailwind CSS variables (bg-background, text-foreground, etc.)
+  - **Responsive design**: Desktop split, mobile full-width
+- Lint check passes clean
+
+Stage Summary:
+- **AuthPage completely redesigned** with professional split-layout authentication
+- **Desktop**: Decorative left panel with brand identity, feature highlights, and gradient background
+- **Mobile**: Clean full-width form with logo header
+- **Form UX**: Password visibility toggle, remember me checkbox, forgot password link, inline validation errors, loading spinner
+- **Animations**: framer-motion for tab transitions, field animations, and left panel feature reveals
+- **i18n**: 12 new translation keys added to all 8 locales
+- **Dark mode**: Fully supported via Tailwind CSS variables

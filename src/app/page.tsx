@@ -193,7 +193,7 @@ function AppContent() {
             </div>
           </div>
         ) : (
-          renderView()
+          <div key={currentView}>{renderView()}</div>
         )}
       </main>
       <SessionSearch />
