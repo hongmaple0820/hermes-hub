@@ -541,16 +541,16 @@ export function UsageView() {
                               {skill.name}
                             </span>
                             <span className="text-muted-foreground shrink-0 ml-2">
-                              {skill.successRate.toFixed(1)}% ({skill.successCount}/{skill.total})
+                              {(skill.successRate ?? 0).toFixed(1)}% ({skill.successCount ?? 0}/{skill.total ?? 0})
                             </span>
                           </div>
                           <div className="w-full h-2 bg-muted rounded-full">
                             <div
                               className={cn(
                                 'h-2 rounded-full transition-all',
-                                skill.successRate >= 80 ? 'bg-emerald-500' : skill.successRate >= 50 ? 'bg-amber-500' : 'bg-red-500'
+                                skill.successRate >= 80 ? 'bg-emerald-500' : (skill.successRate ?? 0) >= 50 ? 'bg-amber-500' : 'bg-red-500'
                               )}
-                              style={{ width: `${skill.successRate}%` }}
+                              style={{ width: `${skill.successRate ?? 0}%` }}
                             />
                           </div>
                         </div>

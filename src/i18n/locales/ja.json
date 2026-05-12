@@ -1436,5 +1436,39 @@
     "exportDataDesc": "データをJSONでエクスポート",
     "importData": "データインポート",
     "importDataDesc": "JSONファイルからデータをインポート"
+  },
+  "notifications": {
+    "title": "通知",
+    "markAllRead": "すべて既読",
+    "clearAll": "すべてクリア",
+    "noNotifications": "通知なし",
+    "noNotificationsDesc": "すべて確認済みです！",
+    "viewAll": "すべて表示",
+    "filters": {
+      "all": "すべて",
+      "info": "情報",
+      "success": "成功",
+      "warning": "警告",
+      "error": "エラー",
+      "agentEvents": "エージェントイベント"
+    },
+    "today": "今日",
+    "yesterday": "昨日",
+    "earlier": "以前",
+    "delete": "削除",
+    "justNow": "たった今",
+    "minutesAgo": "{count}分前",
+    "hoursAgo": "{count}時間前",
+    "daysAgo": "{count}日前",
+    "types": {
+      "info": "情報",
+      "success": "成功",
+      "warning": "警告",
+      "error": "エラー",
+      "agentConnected": "エージェント接続",
+      "agentDisconnected": "エージェント切断",
+      "skillInvoked": "スキル実行",
+      "capabilityResult": "機能結果"
+    }
   }
 }

@@ -1436,5 +1436,39 @@
     "exportDataDesc": "Exportar datos como JSON",
     "importData": "Importar datos",
     "importDataDesc": "Importar datos desde archivo JSON"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "markAllRead": "Marcar todo como leído",
+    "clearAll": "Borrar todo",
+    "noNotifications": "Sin notificaciones",
+    "noNotificationsDesc": "¡Estás al día!",
+    "viewAll": "Ver todo",
+    "filters": {
+      "all": "Todo",
+      "info": "Info",
+      "success": "Éxito",
+      "warning": "Advertencia",
+      "error": "Error",
+      "agentEvents": "Eventos de agente"
+    },
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "earlier": "Anterior",
+    "delete": "Eliminar",
+    "justNow": "Justo ahora",
+    "minutesAgo": "hace {count} min",
+    "hoursAgo": "hace {count} h",
+    "daysAgo": "hace {count} día(s)",
+    "types": {
+      "info": "Info",
+      "success": "Éxito",
+      "warning": "Advertencia",
+      "error": "Error",
+      "agentConnected": "Agente conectado",
+      "agentDisconnected": "Agente desconectado",
+      "skillInvoked": "Skill invocado",
+      "capabilityResult": "Resultado de capacidad"
+    }
   }
 }

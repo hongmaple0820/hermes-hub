@@ -10,11 +10,13 @@ import {
   Bot, Server, Puzzle, Monitor, MessageSquare, Users,
   Activity, ArrowUpRight, Zap, Wifi, WifiOff, TrendingUp,
   Clock, Cpu, Globe, Shield, Sparkles, BarChart3, Radio,
-  CheckCircle, Eye, LogOut, Plus, Settings, Timer, Uptime
+  CheckCircle, Eye, LogOut, Plus, Settings, Timer, Uptime,
+  ArrowDownRight, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'framer-motion';
 
 interface ActivityItem {
   id: string;
@@ -22,6 +24,57 @@ interface ActivityItem {
   name: string;
   timestamp: string;
   detail?: string;
+}
+
+// Animated counter component with easeOutCubic
+function AnimatedCounter({ target, duration = 1200 }: { target: number; duration?: number }) {
+  const [count, setCount] = useState(0);
+  const prevTarget = useRef(target);
+
+  useEffect(() => {
+    // Reset animation when target changes
+    const startValue = prevTarget.current === target ? 0 : prevTarget.current;
+    prevTarget.current = target;
+    let startTime: number;
+    let animationFrame: number;
+
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+      setCount(Math.floor(startValue + (target - startValue) * eased));
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(animate);
+      }
+    };
+
+    animationFrame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [target, duration]);
+
+  return <>{count}</>;
+}
+
+// Trend indicator component
+function TrendIndicator({ values }: { values: number[] }) {
+  if (values.length < 2) return null;
+  const current = values[values.length - 1];
+  const previous = values[values.length - 2];
+  const isUp = current >= previous;
+
+  return (
+    <span className={cn(
+      'inline-flex items-center gap-0.5 text-[10px] font-medium',
+      isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'
+    )}>
+      {isUp ? (
+        <TrendingUp className="w-3 h-3" />
+      ) : (
+        <ArrowDownRight className="w-3 h-3" />
+      )}
+    </span>
+  );
 }
 
 // Sparkline component - simple CSS-based mini chart
@@ -32,7 +85,7 @@ function Sparkline({ values, color }: { values: number[]; color: string }) {
       {values.map((v, i) => (
         <div
           key={i}
-          className={cn('w-1 rounded-t-sm transition-all', color)}
+          className={cn('w-1 rounded-t-sm transition-all duration-300', color)}
           style={{ height: `${Math.max((v / max) * 100, 8)}%` }}
         />
       ))}
@@ -127,9 +180,49 @@ function HealthBar({ value, label, unit }: { value: number; label: string; unit:
   );
 }
 
+// CSS keyframes for animations (injected once)
+const animationStyles = `
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@keyframes flowPulse {
+  0%, 100% { opacity: 0.4; transform: scaleX(1); }
+  50% { opacity: 1; transform: scaleX(1.1); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes gentlePulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.85; }
+}
+@keyframes refreshSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+`;
+
 export function Dashboard() {
-  const { agents, providers, skills, conversations, chatRooms, setCurrentView, setSelectedAgentId } = useAppStore();
+  const { agents, providers, skills, conversations, chatRooms, setCurrentView, setSelectedAgentId, addNotification } = useAppStore();
   const { t } = useI18n();
+
+  // Last updated timestamp
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Auto-refresh last updated every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsRefreshing(true);
+      setTimeout(() => {
+        setLastUpdated(new Date());
+        setIsRefreshing(false);
+      }, 600);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const onlineAgents = agents.filter((a: any) => a.status === 'online');
   const acrpAgents = agents.filter((a: any) => a.mode === 'acrp');
@@ -137,6 +230,84 @@ export function Dashboard() {
   const activeProviders = providers.filter((p: any) => p.isActive);
   const enabledSkills = skills.filter((s: any) => s.isEnabled);
   const builtinAgents = agents.filter((a: any) => a.mode === 'builtin');
+
+  // Auto-generate notifications based on app events
+  const prevAgentCount = useRef(agents.length);
+  const prevConversationCount = useRef(conversations.length);
+  const prevSkillCount = useRef(skills.length);
+  const prevAcrpConnected = useRef(connectedAcrpAgents.length);
+
+  useEffect(() => {
+    // Agent created/deleted
+    if (agents.length > prevAgentCount.current) {
+      const newAgent = agents.find((a: any) => a.createdAt && new Date(a.createdAt).getTime() > Date.now() - 5000);
+      if (newAgent) {
+        addNotification({
+          type: 'success',
+          title: t('dashboard.activityAgentCreated'),
+          message: `${newAgent.name} (${newAgent.mode === 'acrp' ? 'ACRP' : 'Builtin'})`,
+          actionUrl: `/agents/${newAgent.id}`,
+          metadata: { agentId: newAgent.id },
+        });
+      }
+    }
+    prevAgentCount.current = agents.length;
+  }, [agents.length, addNotification, t, agents]);
+
+  useEffect(() => {
+    // ACRP agent connected/disconnected
+    const currentConnected = connectedAcrpAgents.length;
+    if (currentConnected > prevAcrpConnected.current) {
+      const newlyConnected = connectedAcrpAgents.find(
+        (a: any) => a.lastHeartbeatAt && new Date(a.lastHeartbeatAt).getTime() > Date.now() - 10000
+      );
+      if (newlyConnected) {
+        addNotification({
+          type: 'agent_connected',
+          title: t('dashboard.activityAcrpConnected'),
+          message: `${newlyConnected.name} connected via WebSocket`,
+          actionUrl: 'agent-control',
+          metadata: { agentId: newlyConnected.id },
+        });
+      }
+    } else if (currentConnected < prevAcrpConnected.current && prevAcrpConnected.current > 0) {
+      addNotification({
+        type: 'agent_disconnected',
+        title: t('dashboard.activityAcrpDisconnected'),
+        message: `An ACRP agent disconnected`,
+        actionUrl: 'agent-control',
+      });
+    }
+    prevAcrpConnected.current = currentConnected;
+  }, [connectedAcrpAgents.length, addNotification, t, connectedAcrpAgents]);
+
+  useEffect(() => {
+    // New conversation started
+    if (conversations.length > prevConversationCount.current) {
+      addNotification({
+        type: 'info',
+        title: t('dashboard.activityConvStarted'),
+        message: `New conversation started`,
+        actionUrl: 'chat',
+      });
+    }
+    prevConversationCount.current = conversations.length;
+  }, [conversations.length, addNotification, t]);
+
+  useEffect(() => {
+    // Skills changed
+    if (skills.length !== prevSkillCount.current && prevSkillCount.current > 0) {
+      if (skills.length > prevSkillCount.current) {
+        addNotification({
+          type: 'skill_invoked',
+          title: 'Skill Updated',
+          message: 'A skill has been added or updated',
+          actionUrl: 'skills',
+        });
+      }
+    }
+    prevSkillCount.current = skills.length;
+  }, [skills.length, addNotification]);
 
   // Real health check: system online only if providers exist and are active
   const isSystemOnline = activeProviders.length > 0 || connectedAcrpAgents.length > 0;
@@ -242,20 +413,26 @@ export function Dashboard() {
     return items.slice(0, 10);
   }, [agents, conversations, t]);
 
-  const formatTimeAgo = (timestamp: string) => {
+  const formatTimeAgo = useCallback((timestamp: string) => {
     if (!timestamp) return '';
     const now = new Date().getTime();
     const then = new Date(timestamp).getTime();
     const diff = now - then;
+    const seconds = Math.floor(diff / 1000);
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
 
-    if (minutes < 1) return t('dashboard.justNow');
+    if (seconds < 10) return t('dashboard.justNow');
+    if (seconds < 60) return `${seconds}s ago`;
     if (minutes < 60) return t('dashboard.minutesAgo', { count: minutes });
     if (hours < 24) return t('dashboard.hoursAgo', { count: hours });
     return t('dashboard.daysAgo', { count: days });
-  };
+  }, [t]);
+
+  const formatLastUpdated = useCallback((date: Date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }, []);
 
   const getActivityIcon = (type: ActivityItem['type']) => {
     switch (type) {
@@ -308,6 +485,23 @@ export function Dashboard() {
     }
   };
 
+  const getActivityBorderColor = (type: ActivityItem['type']) => {
+    switch (type) {
+      case 'agent_created':
+        return 'border-l-emerald-500';
+      case 'conversation_started':
+        return 'border-l-rose-500';
+      case 'acrp_connected':
+        return 'border-l-cyan-500';
+      case 'acrp_disconnected':
+        return 'border-l-gray-400';
+      case 'agent_online':
+        return 'border-l-emerald-500';
+      case 'agent_offline':
+        return 'border-l-red-400';
+    }
+  };
+
   const stats = [
     {
       title: t('dashboard.agents'),
@@ -321,6 +515,8 @@ export function Dashboard() {
       detail: `${builtinAgents.length} builtin · ${acrpAgents.length} ACRP`,
       sparkline: [3, 5, 4, 7, agents.length],
       sparklineColor: 'bg-emerald-500/60',
+      gradientFrom: 'from-emerald-50/80 dark:from-emerald-950/30',
+      gradientTo: 'to-card dark:to-card',
     },
     {
       title: t('dashboard.providers'),
@@ -334,6 +530,8 @@ export function Dashboard() {
       detail: `${activeProviders.length} ${t('dashboard.active')}`,
       sparkline: [1, 2, 2, 3, providers.length],
       sparklineColor: 'bg-violet-500/60',
+      gradientFrom: 'from-violet-50/80 dark:from-violet-950/30',
+      gradientTo: 'to-card dark:to-card',
     },
     {
       title: t('dashboard.skills'),
@@ -347,6 +545,8 @@ export function Dashboard() {
       detail: `${enabledSkills.length} ${t('dashboard.enabled')}`,
       sparkline: [6, 8, 10, 11, skills.length],
       sparklineColor: 'bg-amber-500/60',
+      gradientFrom: 'from-amber-50/80 dark:from-amber-950/30',
+      gradientTo: 'to-card dark:to-card',
     },
     {
       title: t('dashboard.gateways'),
@@ -360,6 +560,8 @@ export function Dashboard() {
       detail: `${connectedAcrpAgents.length} ${t('dashboard.connected')}`,
       sparkline: [0, 1, 1, 2, acrpAgents.length],
       sparklineColor: 'bg-cyan-500/60',
+      gradientFrom: 'from-cyan-50/80 dark:from-cyan-950/30',
+      gradientTo: 'to-card dark:to-card',
     },
     {
       title: t('dashboard.conversations'),
@@ -373,6 +575,8 @@ export function Dashboard() {
       detail: `${chatRooms.length} ${t('dashboard.rooms')}`,
       sparkline: [5, 8, 12, 10, conversations.length],
       sparklineColor: 'bg-rose-500/60',
+      gradientFrom: 'from-rose-50/80 dark:from-rose-950/30',
+      gradientTo: 'to-card dark:to-card',
     },
     {
       title: t('dashboard.chatRooms'),
@@ -386,17 +590,19 @@ export function Dashboard() {
       detail: t('dashboard.multiAgent'),
       sparkline: [1, 2, 3, 2, chatRooms.length],
       sparklineColor: 'bg-orange-500/60',
+      gradientFrom: 'from-orange-50/80 dark:from-orange-950/30',
+      gradientTo: 'to-card dark:to-card',
     },
   ];
 
   // Quick stats for the stats grid
   const quickStats = [
-    { label: t('dashboard.totalAgents'), value: agents.length, icon: Bot, color: 'text-emerald-600', bgColor: 'bg-emerald-500/10', borderColor: 'border-l-emerald-500' },
-    { label: t('dashboard.onlineAgents'), value: onlineAgents.length, icon: Wifi, color: 'text-emerald-500', bgColor: 'bg-emerald-500/10', borderColor: 'border-l-emerald-400' },
-    { label: t('dashboard.totalSkills'), value: skills.length, icon: Puzzle, color: 'text-amber-600', bgColor: 'bg-amber-500/10', borderColor: 'border-l-amber-500' },
-    { label: t('dashboard.activeSkills'), value: enabledSkills.length, icon: CheckCircle, color: 'text-amber-500', bgColor: 'bg-amber-500/10', borderColor: 'border-l-amber-400' },
-    { label: t('dashboard.totalConversations'), value: conversations.length, icon: MessageSquare, color: 'text-rose-600', bgColor: 'bg-rose-500/10', borderColor: 'border-l-rose-500' },
-    { label: t('dashboard.acrpConnected'), value: connectedAcrpAgents.length, icon: Radio, color: 'text-cyan-600', bgColor: 'bg-cyan-500/10', borderColor: 'border-l-cyan-500' },
+    { label: t('dashboard.totalAgents'), value: agents.length, icon: Bot, color: 'text-emerald-600', bgColor: 'bg-emerald-500/10', borderColor: 'border-l-emerald-500', gradientFrom: 'from-emerald-50/60 dark:from-emerald-950/20' },
+    { label: t('dashboard.onlineAgents'), value: onlineAgents.length, icon: Wifi, color: 'text-emerald-500', bgColor: 'bg-emerald-500/10', borderColor: 'border-l-emerald-400', gradientFrom: 'from-emerald-50/60 dark:from-emerald-950/20' },
+    { label: t('dashboard.totalSkills'), value: skills.length, icon: Puzzle, color: 'text-amber-600', bgColor: 'bg-amber-500/10', borderColor: 'border-l-amber-500', gradientFrom: 'from-amber-50/60 dark:from-amber-950/20' },
+    { label: t('dashboard.activeSkills'), value: enabledSkills.length, icon: CheckCircle, color: 'text-amber-500', bgColor: 'bg-amber-500/10', borderColor: 'border-l-amber-400', gradientFrom: 'from-amber-50/60 dark:from-amber-950/20' },
+    { label: t('dashboard.totalConversations'), value: conversations.length, icon: MessageSquare, color: 'text-rose-600', bgColor: 'bg-rose-500/10', borderColor: 'border-l-rose-500', gradientFrom: 'from-rose-50/60 dark:from-rose-950/20' },
+    { label: t('dashboard.acrpConnected'), value: connectedAcrpAgents.length, icon: Radio, color: 'text-cyan-600', bgColor: 'bg-cyan-500/10', borderColor: 'border-l-cyan-500', gradientFrom: 'from-cyan-50/60 dark:from-cyan-950/20' },
   ];
 
   // Quick Actions Grid data
@@ -440,536 +646,772 @@ export function Dashboard() {
   ];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header with gradient background */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-50 via-background to-cyan-50 dark:from-emerald-950/20 dark:via-background dark:to-cyan-950/20 p-6 border border-border/50 shadow-sm">
-        <div className="absolute inset-0 bg-grid-slate-100/50 dark:bg-grid-slate-800/20 [mask-image:radial-gradient(ellipse_at_center,white,transparent)] -z-10" />
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{t('dashboard.title')}</h1>
-            <p className="text-muted-foreground mt-1">{t('dashboard.subtitle')}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge
-              variant="outline"
-              className={cn(
-                'gap-1.5 px-3 py-1 transition-colors',
-                isSystemOnline
-                  ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-900/20'
-                  : 'border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-900/20'
-              )}
-            >
-              <div className={cn(
-                'w-2 h-2 rounded-full',
-                isSystemOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'
-              )} />
-              <span className={cn('text-xs', isSystemOnline ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400')}>
-                {isSystemOnline ? t('dashboard.systemOnline') : t('dashboard.systemOffline')}
-              </span>
-            </Badge>
-            <Badge variant="outline" className="gap-1.5 px-3 py-1 border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/20">
-              <Zap className="w-3 h-3 text-amber-500" />
-              <span className="text-xs text-amber-700 dark:text-amber-400">ACRP v2.0</span>
-            </Badge>
+    <>
+      {/* Inject CSS animations */}
+      <style dangerouslySetInnerHTML={{ __html: animationStyles }} />
+
+      <div className="p-6 max-w-7xl mx-auto space-y-6 scroll-smooth" style={{ scrollBehavior: 'smooth' }}>
+        {/* Header with animated gradient background */}
+        <div
+          className="relative overflow-hidden rounded-2xl p-6 border border-border/50 shadow-sm"
+          style={{
+            background: isSystemOnline
+              ? 'linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(6,182,212,0.06) 25%, rgba(139,92,246,0.04) 50%, rgba(16,185,129,0.06) 75%, rgba(6,182,212,0.08) 100%)'
+              : 'linear-gradient(135deg, rgba(239,68,68,0.08) 0%, rgba(6,182,212,0.04) 50%, rgba(239,68,68,0.06) 100%)',
+            backgroundSize: '200% 200%',
+            animation: 'gradientShift 8s ease infinite',
+          }}
+        >
+          {/* Decorative grid overlay */}
+          <div className="absolute inset-0 bg-grid-slate-100/50 dark:bg-grid-slate-800/20 [mask-image:radial-gradient(ellipse_at_center,white,transparent)] -z-10" />
+
+          {/* Shimmer line at top */}
+          <div
+            className="absolute top-0 left-0 right-0 h-[2px]"
+            style={{
+              background: 'linear-gradient(90deg, transparent, rgba(16,185,129,0.5), rgba(6,182,212,0.5), transparent)',
+              backgroundSize: '200% 100%',
+              animation: 'shimmer 3s ease infinite',
+            }}
+          />
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">{t('dashboard.title')}</h1>
+              <p className="text-muted-foreground mt-1">{t('dashboard.subtitle')}</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {/* Last Updated indicator */}
+              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mr-1">
+                <RefreshCw
+                  className="w-3 h-3"
+                  style={isRefreshing ? { animation: 'refreshSpin 0.6s linear infinite' } : undefined}
+                />
+                <span>{formatLastUpdated(lastUpdated)}</span>
+              </div>
+
+              {/* System Status Badge - more prominent */}
+              <Badge
+                variant="outline"
+                className={cn(
+                  'gap-1.5 px-3 py-1.5 transition-all duration-300 font-medium',
+                  isSystemOnline
+                    ? 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-700 dark:bg-emerald-900/30 shadow-sm shadow-emerald-200/50 dark:shadow-emerald-900/30'
+                    : 'border-red-300 bg-red-50/60 dark:border-red-700 dark:bg-red-900/30 shadow-sm shadow-red-200/50 dark:shadow-red-900/30'
+                )}
+              >
+                <div className={cn(
+                  'w-2.5 h-2.5 rounded-full',
+                  isSystemOnline ? 'bg-emerald-500' : 'bg-red-500'
+                )}
+                style={isSystemOnline ? { animation: 'gentlePulse 2s ease-in-out infinite' } : undefined}
+                />
+                <span className={cn('text-xs font-semibold', isSystemOnline ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400')}>
+                  {isSystemOnline ? t('dashboard.systemOnline') : t('dashboard.systemOffline')}
+                </span>
+              </Badge>
+
+              <Badge variant="outline" className="gap-1.5 px-3 py-1.5 border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/20">
+                <Zap className="w-3 h-3 text-amber-500" />
+                <span className="text-xs text-amber-700 dark:text-amber-400">ACRP v2.0</span>
+              </Badge>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Quick Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {quickStats.map((stat) => (
-          <Card
-            key={stat.label}
-            className={cn(
-              'border-l-4 rounded-xl shadow-sm transition-all duration-300 cursor-pointer group hover:shadow-md hover:scale-[1.02]',
-              stat.borderColor
-            )}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className={cn('w-8 h-8 rounded-full flex items-center justify-center', stat.bgColor)}>
-                  <stat.icon className={cn('w-4 h-4', stat.color)} />
-                </div>
-              </div>
-              <div className="text-2xl font-bold tracking-tight">{stat.value}</div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{stat.label}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Stats Grid with sparklines */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {stats.map((stat) => (
-          <Card
-            key={stat.title}
-            className={cn(
-              'hover:shadow-lg transition-all duration-300 cursor-pointer group rounded-xl',
-              'border-l-4', stat.borderColor,
-              'hover:-translate-y-0.5 hover:scale-[1.02]'
-            )}
-            onClick={() => setCurrentView(stat.view)}
-          >
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
-              <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110', stat.bgColor)}>
-                <stat.icon className={cn('w-4 h-4', stat.color)} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-end justify-between">
-                <div>
-                  <div className="text-3xl font-bold tracking-tight">{stat.value}</div>
-                  <div className="flex items-center justify-between mt-2">
-                    <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
-                    <ArrowUpRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-1 opacity-60">{stat.detail}</p>
-                </div>
-                <Sparkline values={stat.sparkline} color={stat.sparklineColor} />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Middle Row: Quick Actions Grid + Agent Activity Timeline + System Health */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick Actions Grid - 4-card grid */}
-        <Card className="hover:shadow-md transition-shadow rounded-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              {t('dashboard.quickActions')}
-            </CardTitle>
-            <CardDescription>{t('dashboard.quickActionsDesc')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-3">
-              {quickActionItems.map((action) => (
-                <button
-                  key={action.label}
-                  className={cn(
-                    'flex flex-col items-center gap-2 p-4 rounded-xl border transition-all duration-200',
-                    action.borderColor, action.hoverBorder,
-                    'hover:shadow-md hover:scale-[1.03] active:scale-[0.98]'
-                  )}
-                  onClick={() => setCurrentView(action.view)}
-                >
-                  <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', action.bgColor)}>
-                    <action.icon className={cn('w-5 h-5', action.color)} />
-                  </div>
-                  <span className="text-xs font-medium text-center leading-tight">{action.label}</span>
-                </button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Agent Activity Timeline */}
-        <Card className="hover:shadow-md transition-shadow rounded-xl">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-rose-500" />
-                  {t('dashboard.activityTimeline')}
-                </CardTitle>
-                <CardDescription>{t('dashboard.latestActivity')}</CardDescription>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs h-7 gap-1"
-                onClick={() => setCurrentView('logs')}
+        {/* Quick Stats Grid - Enhanced with gradient backgrounds and animated counters */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {quickStats.map((stat, index) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: index * 0.06, ease: 'easeOut' }}
+            >
+              <Card
+                className={cn(
+                  'border-l-4 rounded-2xl shadow-sm transition-all duration-300 cursor-pointer group',
+                  'hover:shadow-lg hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98]',
+                  stat.borderColor,
+                  'bg-gradient-to-br', stat.gradientFrom, 'to-card'
+                )}
               >
-                <Eye className="w-3 h-3" />
-                {t('dashboard.viewAll')}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {activityItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8">
-                <TrendingUp className="w-8 h-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">{t('dashboard.noActivity')}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">{t('dashboard.createAgentToStart')}</p>
-              </div>
-            ) : (
-              <div className="relative max-h-72 overflow-y-auto">
-                {/* Timeline connecting line */}
-                <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
-                <div className="space-y-0">
-                  {activityItems.slice(0, 5).map((item, index) => (
-                    <div key={item.id} className="flex items-start gap-3 p-2 relative">
-                      {/* Colored dot on timeline */}
-                      <div className={cn(
-                        'w-[7px] h-[7px] rounded-full shrink-0 mt-1.5 z-10 ring-2 ring-background',
-                        getActivityDotColor(item.type)
-                      )} />
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-medium truncate">{item.name}</span>
-                          <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 shrink-0 rounded">
-                            {getActivityLabel(item.type)}
-                          </Badge>
-                        </div>
-                        {item.detail && (
-                          <p className="text-[10px] text-muted-foreground mt-0.5">{item.detail}</p>
-                        )}
-                      </div>
-                      <span className="text-[10px] text-muted-foreground shrink-0 ml-1">
-                        {formatTimeAgo(item.timestamp)}
-                      </span>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={cn('w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-300 group-hover:scale-110', stat.bgColor)}>
+                      <stat.icon className={cn('w-4 h-4', stat.color)} />
                     </div>
+                  </div>
+                  <div className="text-2xl font-bold tracking-tight">
+                    <AnimatedCounter target={stat.value} duration={800 + index * 100} />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{stat.label}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Stats Grid with sparklines - Enhanced with gradient backgrounds, animated counters, and trend indicators */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {stats.map((stat, index) => (
+            <motion.div
+              key={stat.title}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 + index * 0.08, ease: 'easeOut' }}
+            >
+              <Card
+                className={cn(
+                  'transition-all duration-300 cursor-pointer group rounded-2xl',
+                  'border-l-4', stat.borderColor,
+                  'hover:-translate-y-1 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99]',
+                  'bg-gradient-to-br', stat.gradientFrom, stat.gradientTo
+                )}
+                onClick={() => setCurrentView(stat.view)}
+              >
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
+                  <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:rotate-3', stat.bgColor)}>
+                    <stat.icon className={cn('w-4 h-4', stat.color)} />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-3xl font-bold tracking-tight">
+                          <AnimatedCounter target={stat.value} duration={1000 + index * 80} />
+                        </div>
+                        <TrendIndicator values={stat.sparkline} />
+                      </div>
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
+                        <ArrowUpRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1 opacity-60">{stat.detail}</p>
+                    </div>
+                    <Sparkline values={stat.sparkline} color={stat.sparklineColor} />
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Middle Row: Quick Actions Grid + Agent Activity Timeline + System Health */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Quick Actions Grid - 4-card grid */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  {t('dashboard.quickActions')}
+                </CardTitle>
+                <CardDescription>{t('dashboard.quickActionsDesc')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3">
+                  {quickActionItems.map((action) => (
+                    <button
+                      key={action.label}
+                      className={cn(
+                        'flex flex-col items-center gap-2 p-4 rounded-xl border transition-all duration-200',
+                        action.borderColor, action.hoverBorder,
+                        'hover:shadow-md hover:scale-[1.04] active:scale-[0.96]',
+                        'hover:-translate-y-0.5'
+                      )}
+                      onClick={() => setCurrentView(action.view)}
+                    >
+                      <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110', action.bgColor)}>
+                        <action.icon className={cn('w-5 h-5', action.color)} />
+                      </div>
+                      <span className="text-xs font-medium text-center leading-tight">{action.label}</span>
+                    </button>
                   ))}
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </motion.div>
 
-        {/* System Health Card */}
-        <Card className="hover:shadow-md transition-shadow rounded-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="w-4 h-4 text-emerald-500" />
-              {t('dashboard.systemHealth')}
-            </CardTitle>
-            <CardDescription>{t('dashboard.platformHealth')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Health metrics */}
-            <div className="space-y-3">
-              <HealthBar
-                value={systemHealth.apiResponseTime}
-                label={t('dashboard.apiResponseTime')}
-                unit="ms"
-              />
-              <HealthBar
-                value={systemHealth.memoryUsage}
-                label={t('dashboard.memoryUsage')}
-                unit="%"
-              />
-              <HealthBar
-                value={systemHealth.cpuLoad}
-                label={t('dashboard.cpuLoad')}
-                unit="%"
-              />
-            </div>
-
-            <Separator className="my-2" />
-
-            {/* System status indicators */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Server className="w-3 h-3" /> {t('dashboard.llmProviders')}
-                </span>
-                <span className="font-medium">{activeProviders.length}/{providers.length}</span>
-              </div>
-              <Progress value={providers.length > 0 ? (activeProviders.length / providers.length) * 100 : 0} className="h-1.5" />
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Monitor className="w-3 h-3" /> {t('dashboard.acrpAgents')}
-                </span>
-                <span className="font-medium">{connectedAcrpAgents.length}/{acrpAgents.length}</span>
-              </div>
-              <Progress value={acrpAgents.length > 0 ? (connectedAcrpAgents.length / acrpAgents.length) * 100 : 0} className="h-1.5" />
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <Puzzle className="w-3 h-3" /> {t('dashboard.skillsActive')}
-                </span>
-                <span className="font-medium">{enabledSkills.length}/{skills.length}</span>
-              </div>
-              <Progress value={skills.length > 0 ? (enabledSkills.length / skills.length) * 100 : 0} className="h-1.5" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Analytics Row: Conversations Chart + Skill Ranking + System Indicators */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Conversations per Day Bar Chart */}
-        <Card className="rounded-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-emerald-500" />
-              {t('dashboard.conversationsPerDay')}
-            </CardTitle>
-            <CardDescription>{t('dashboard.last7Days')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <MiniBarChart data={convsPerDay} labels={dayLabels} maxValue={maxConvPerDay} />
-          </CardContent>
-        </Card>
-
-        {/* Skill Usage Ranking */}
-        <Card className="rounded-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Puzzle className="w-4 h-4 text-amber-500" />
-              {t('dashboard.skillUsageRanking')}
-            </CardTitle>
-            <CardDescription>{t('dashboard.topSkills')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <SkillRanking skills={skills} />
-          </CardContent>
-        </Card>
-
-        {/* System Indicators */}
-        <Card className="rounded-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="w-4 h-4 text-rose-500" />
-              {t('dashboard.systemIndicators')}
-            </CardTitle>
-            <CardDescription>{t('dashboard.systemIndicatorsDesc')}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* System Uptime */}
-            <div className="flex items-center justify-between p-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-200/50 dark:border-emerald-800/30">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                  <CheckCircle className="w-4 h-4 text-emerald-500" />
+          {/* Agent Activity Timeline - Enhanced with staggered animation and left border */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+          >
+            <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-rose-500" />
+                      {t('dashboard.activityTimeline')}
+                    </CardTitle>
+                    <CardDescription>{t('dashboard.latestActivity')}</CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs h-7 gap-1 hover:bg-accent transition-colors active:scale-95"
+                    onClick={() => setCurrentView('logs')}
+                  >
+                    <Eye className="w-3 h-3" />
+                    {t('dashboard.viewAll')}
+                  </Button>
                 </div>
-                <div>
-                  <p className="text-xs font-medium">{t('dashboard.systemUptime')}</p>
-                  <p className="text-[10px] text-muted-foreground">{t('dashboard.last30Days')}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-emerald-600">{systemUptime}%</p>
-                <p className="text-[10px] text-emerald-500">{t('dashboard.operational')}</p>
-              </div>
-            </div>
+              </CardHeader>
+              <CardContent>
+                {activityItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <TrendingUp className="w-8 h-8 text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">{t('dashboard.noActivity')}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">{t('dashboard.createAgentToStart')}</p>
+                  </div>
+                ) : (
+                  <div className="relative max-h-72 overflow-y-auto scroll-smooth">
+                    {/* Timeline connecting line */}
+                    <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border" />
+                    <div className="space-y-1">
+                      {activityItems.slice(0, 5).map((item, index) => (
+                        <motion.div
+                          key={item.id}
+                          initial={{ opacity: 0, x: -12 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.35, delay: index * 0.08, ease: 'easeOut' }}
+                          className={cn(
+                            'flex items-start gap-3 p-2 rounded-lg relative border-l-2 transition-colors duration-200 hover:bg-accent/50',
+                            getActivityBorderColor(item.type)
+                          )}
+                        >
+                          {/* Colored dot on timeline */}
+                          <div className={cn(
+                            'w-[7px] h-[7px] rounded-full shrink-0 mt-1.5 z-10 ring-2 ring-background',
+                            getActivityDotColor(item.type)
+                          )} />
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-medium truncate">{item.name}</span>
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 shrink-0 rounded">
+                                {getActivityLabel(item.type)}
+                              </Badge>
+                            </div>
+                            {item.detail && (
+                              <p className="text-[10px] text-muted-foreground mt-0.5">{item.detail}</p>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground shrink-0 ml-1">
+                            {formatTimeAgo(item.timestamp)}
+                          </span>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
 
-            {/* Agent Response Time */}
-            <div className="flex items-center justify-between p-3 rounded-lg bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center">
-                  <Timer className="w-4 h-4 text-amber-500" />
+          {/* System Health Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+          >
+            <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-emerald-500" />
+                  {t('dashboard.systemHealth')}
+                </CardTitle>
+                <CardDescription>{t('dashboard.platformHealth')}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Health metrics */}
+                <div className="space-y-3">
+                  <HealthBar
+                    value={systemHealth.apiResponseTime}
+                    label={t('dashboard.apiResponseTime')}
+                    unit="ms"
+                  />
+                  <HealthBar
+                    value={systemHealth.memoryUsage}
+                    label={t('dashboard.memoryUsage')}
+                    unit="%"
+                  />
+                  <HealthBar
+                    value={systemHealth.cpuLoad}
+                    label={t('dashboard.cpuLoad')}
+                    unit="%"
+                  />
                 </div>
-                <div>
-                  <p className="text-xs font-medium">{t('dashboard.agentResponseTime')}</p>
-                  <p className="text-[10px] text-muted-foreground">{t('dashboard.avgResponse')}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-amber-600">{agentResponseTime}s</p>
-                <p className="text-[10px] text-amber-500">{t('dashboard.normal')}</p>
-              </div>
-            </div>
 
-            {/* Active Connections */}
-            <div className="flex items-center justify-between p-3 rounded-lg bg-cyan-50/50 dark:bg-cyan-900/10 border border-cyan-200/50 dark:border-cyan-800/30">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-cyan-500/10 flex items-center justify-center">
-                  <Wifi className="w-4 h-4 text-cyan-500" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium">{t('dashboard.activeConnections')}</p>
-                  <p className="text-[10px] text-muted-foreground">ACRP WebSocket</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-cyan-600">{connectedAcrpAgents.length}</p>
-                <p className="text-[10px] text-cyan-500">{t('dashboard.connected')}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                <Separator className="my-2" />
 
-      {/* Bottom Row: Recent Agents + Architecture */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Agents */}
-        <Card className="rounded-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Bot className="w-4 h-4 text-emerald-500" />
-              {t('dashboard.recentAgents')}
-            </CardTitle>
-            <CardDescription>{t('dashboard.recentAgentsDesc')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {agents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8">
-                <Bot className="w-8 h-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">{t('dashboard.noAgents')}</p>
-                <Button variant="link" size="sm" className="mt-1" onClick={() => setCurrentView('agents')}>
-                  {t('dashboard.createAgentToStart')}
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                {agents.slice(0, 5).map((agent: any) => (
+                {/* System status indicators */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <Server className="w-3 h-3" /> {t('dashboard.llmProviders')}
+                    </span>
+                    <span className="font-medium">{activeProviders.length}/{providers.length}</span>
+                  </div>
+                  <Progress value={providers.length > 0 ? (activeProviders.length / providers.length) * 100 : 0} className="h-1.5" />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <Monitor className="w-3 h-3" /> {t('dashboard.acrpAgents')}
+                    </span>
+                    <span className="font-medium">{connectedAcrpAgents.length}/{acrpAgents.length}</span>
+                  </div>
+                  <Progress value={acrpAgents.length > 0 ? (connectedAcrpAgents.length / acrpAgents.length) * 100 : 0} className="h-1.5" />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <Puzzle className="w-3 h-3" /> {t('dashboard.skillsActive')}
+                    </span>
+                    <span className="font-medium">{enabledSkills.length}/{skills.length}</span>
+                  </div>
+                  <Progress value={skills.length > 0 ? (enabledSkills.length / skills.length) * 100 : 0} className="h-1.5" />
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Analytics Row: Conversations Chart + Skill Ranking + System Indicators */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Conversations per Day Bar Chart */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+          >
+            <Card className="rounded-2xl hover:shadow-lg transition-all duration-300">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-emerald-500" />
+                  {t('dashboard.conversationsPerDay')}
+                </CardTitle>
+                <CardDescription>{t('dashboard.last7Days')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MiniBarChart data={convsPerDay} labels={dayLabels} maxValue={maxConvPerDay} />
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Skill Usage Ranking */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.55 }}
+          >
+            <Card className="rounded-2xl hover:shadow-lg transition-all duration-300">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Puzzle className="w-4 h-4 text-amber-500" />
+                  {t('dashboard.skillUsageRanking')}
+                </CardTitle>
+                <CardDescription>{t('dashboard.topSkills')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SkillRanking skills={skills} />
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* System Indicators */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+          >
+            <Card className="rounded-2xl hover:shadow-lg transition-all duration-300">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-rose-500" />
+                  {t('dashboard.systemIndicators')}
+                </CardTitle>
+                <CardDescription>{t('dashboard.systemIndicatorsDesc')}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* System Uptime */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-200/50 dark:border-emerald-800/30 transition-colors hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                      <CheckCircle className="w-4 h-4 text-emerald-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium">{t('dashboard.systemUptime')}</p>
+                      <p className="text-[10px] text-muted-foreground">{t('dashboard.last30Days')}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-emerald-600">{systemUptime}%</p>
+                    <p className="text-[10px] text-emerald-500">{t('dashboard.operational')}</p>
+                  </div>
+                </div>
+
+                {/* Agent Response Time */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30 transition-colors hover:bg-amber-50/80 dark:hover:bg-amber-900/20">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center">
+                      <Timer className="w-4 h-4 text-amber-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium">{t('dashboard.agentResponseTime')}</p>
+                      <p className="text-[10px] text-muted-foreground">{t('dashboard.avgResponse')}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-amber-600">{agentResponseTime}s</p>
+                    <p className="text-[10px] text-amber-500">{t('dashboard.normal')}</p>
+                  </div>
+                </div>
+
+                {/* Active Connections */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-cyan-50/50 dark:bg-cyan-900/10 border border-cyan-200/50 dark:border-cyan-800/30 transition-colors hover:bg-cyan-50/80 dark:hover:bg-cyan-900/20">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-cyan-500/10 flex items-center justify-center">
+                      <Wifi className="w-4 h-4 text-cyan-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium">{t('dashboard.activeConnections')}</p>
+                      <p className="text-[10px] text-muted-foreground">ACRP WebSocket</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-cyan-600">{connectedAcrpAgents.length}</p>
+                    <p className="text-[10px] text-cyan-500">{t('dashboard.connected')}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Bottom Row: Recent Agents + Architecture */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Agents */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+          >
+            <Card className="rounded-2xl hover:shadow-lg transition-all duration-300">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Bot className="w-4 h-4 text-emerald-500" />
+                  {t('dashboard.recentAgents')}
+                </CardTitle>
+                <CardDescription>{t('dashboard.recentAgentsDesc')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {agents.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <Bot className="w-8 h-8 text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">{t('dashboard.noAgents')}</p>
+                    <Button variant="link" size="sm" className="mt-1" onClick={() => setCurrentView('agents')}>
+                      {t('dashboard.createAgentToStart')}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto scroll-smooth">
+                    {agents.slice(0, 5).map((agent: any, idx: number) => (
+                      <motion.div
+                        key={agent.id}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: idx * 0.06 }}
+                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-accent cursor-pointer transition-all duration-200 group active:scale-[0.98]"
+                        onClick={() => {
+                          setSelectedAgentId(agent.id);
+                          setCurrentView('agent-detail');
+                        }}
+                      >
+                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105">
+                          <Bot className="w-4 h-4 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{agent.name}</p>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className={cn(
+                              'text-[9px] px-1 py-0 h-4',
+                              agent.mode === 'acrp'
+                                ? 'bg-cyan-50 text-cyan-600 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-400 dark:border-cyan-800'
+                                : 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800'
+                            )}>
+                              {agent.mode === 'acrp' ? 'ACRP' : t('dashboard.builtinMode')}
+                            </Badge>
+                            <span className="text-[10px] text-muted-foreground">
+                              {agent.model || (agent.provider?.name) || '-'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {agent.mode === 'acrp' ? (
+                            agent.wsConnected ? (
+                              <Wifi className="w-3 h-3 text-emerald-500" />
+                            ) : (
+                              <WifiOff className="w-3 h-3 text-gray-400" />
+                            )
+                          ) : (
+                            <div className={cn(
+                              'w-2 h-2 rounded-full',
+                              agent.status === 'online' ? 'bg-emerald-500' :
+                              agent.status === 'error' ? 'bg-red-500' :
+                              agent.status === 'busy' ? 'bg-amber-500' : 'bg-gray-300'
+                            )} />
+                          )}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Agent Architecture Overview - Enhanced with animated flow lines, pulsing badges, gradient borders */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.65 }}
+          >
+            <Card className="rounded-2xl hover:shadow-lg transition-all duration-300">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-violet-500" />
+                  {t('dashboard.agentArchitecture')}
+                </CardTitle>
+                <CardDescription>{t('dashboard.howAgentsConnect')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Builtin Mode - Enhanced with animated flow and gradient border */}
                   <div
-                    key={agent.id}
-                    className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-accent cursor-pointer transition-colors group"
-                    onClick={() => {
-                      setSelectedAgentId(agent.id);
-                      setCurrentView('agent-detail');
+                    className={cn(
+                      'relative p-4 rounded-xl border-2 transition-all duration-300 overflow-hidden',
+                      'border-emerald-200 dark:border-emerald-800',
+                      'hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-lg'
+                    )}
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(16,185,129,0.06) 0%, transparent 60%)',
                     }}
                   >
-                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Bot className="w-4 h-4 text-primary" />
+                    {/* Gradient border shimmer effect */}
+                    <div
+                      className="absolute inset-0 rounded-xl pointer-events-none"
+                      style={{
+                        background: 'linear-gradient(90deg, transparent, rgba(16,185,129,0.1), transparent)',
+                        backgroundSize: '200% 100%',
+                        animation: 'shimmer 4s ease infinite',
+                      }}
+                    />
+
+                    <div className="flex items-center gap-2 mb-3 relative z-10">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                        <Cpu className="w-4 h-4 text-emerald-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">{t('dashboard.builtinMode')}</p>
+                        <p className="text-[10px] text-muted-foreground">{t('dashboard.builtinModeDesc')}</p>
+                      </div>
+                      <Badge variant="outline" className="ml-auto text-[10px] bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400">
+                        {builtinAgents.length} {t('dashboard.agentsLabel')}
+                      </Badge>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{agent.name}</p>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={cn(
-                          'text-[9px] px-1 py-0 h-4',
-                          agent.mode === 'acrp'
-                            ? 'bg-cyan-50 text-cyan-600 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-400 dark:border-cyan-800'
-                            : 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800'
-                        )}>
-                          {agent.mode === 'acrp' ? 'ACRP' : t('dashboard.builtinMode')}
-                        </Badge>
-                        <span className="text-[10px] text-muted-foreground">
-                          {agent.model || (agent.provider?.name) || '-'}
+                    {/* Numbered flow with animated connectors */}
+                    <div className="flex items-center gap-1.5 text-[10px] relative z-10">
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30">
+                        <span
+                          className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[8px] font-bold"
+                          style={{ animation: 'gentlePulse 3s ease-in-out infinite' }}
+                        >
+                          1
                         </span>
+                        <span className="text-emerald-700 dark:text-emerald-300">{t('dashboard.stepUser')}</span>
+                      </div>
+                      {/* Animated flow connector */}
+                      <div className="flex items-center">
+                        <ArrowUpRight className="w-3 h-3 text-emerald-400" />
+                        <div
+                          className="w-2 h-0.5 bg-emerald-400 rounded-full"
+                          style={{ animation: 'flowPulse 2s ease-in-out infinite' }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30">
+                        <span
+                          className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[8px] font-bold"
+                          style={{ animation: 'gentlePulse 3s ease-in-out infinite 0.3s' }}
+                        >
+                          2
+                        </span>
+                        <span className="text-emerald-700 dark:text-emerald-300">{t('dashboard.stepHub')}</span>
+                      </div>
+                      {/* Animated flow connector */}
+                      <div className="flex items-center">
+                        <ArrowUpRight className="w-3 h-3 text-emerald-400" />
+                        <div
+                          className="w-2 h-0.5 bg-emerald-400 rounded-full"
+                          style={{ animation: 'flowPulse 2s ease-in-out infinite 0.4s' }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30">
+                        <span
+                          className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[8px] font-bold"
+                          style={{ animation: 'gentlePulse 3s ease-in-out infinite 0.6s' }}
+                        >
+                          3
+                        </span>
+                        <span className="text-emerald-700 dark:text-emerald-300">{t('dashboard.stepProvider')}</span>
+                      </div>
+                      {/* Animated flow connector */}
+                      <div className="flex items-center">
+                        <ArrowUpRight className="w-3 h-3 text-emerald-400" />
+                        <div
+                          className="w-2 h-0.5 bg-emerald-400 rounded-full"
+                          style={{ animation: 'flowPulse 2s ease-in-out infinite 0.8s' }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30">
+                        <span
+                          className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[8px] font-bold"
+                          style={{ animation: 'gentlePulse 2s ease-in-out infinite' }}
+                        >
+                          4
+                        </span>
+                        <span className="text-emerald-700 dark:text-emerald-300">{t('dashboard.stepResponse')}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {agent.mode === 'acrp' ? (
-                        agent.wsConnected ? (
-                          <Wifi className="w-3 h-3 text-emerald-500" />
-                        ) : (
-                          <WifiOff className="w-3 h-3 text-gray-400" />
-                        )
-                      ) : (
-                        <div className={cn(
-                          'w-2 h-2 rounded-full',
-                          agent.status === 'online' ? 'bg-emerald-500' :
-                          agent.status === 'error' ? 'bg-red-500' :
-                          agent.status === 'busy' ? 'bg-amber-500' : 'bg-gray-300'
-                        )} />
-                      )}
+                  </div>
+
+                  {/* ACRP Mode - Enhanced with animated flow and gradient border */}
+                  <div
+                    className={cn(
+                      'relative p-4 rounded-xl border-2 transition-all duration-300 overflow-hidden',
+                      'border-cyan-200 dark:border-cyan-800',
+                      'hover:border-cyan-300 dark:hover:border-cyan-700 hover:shadow-lg'
+                    )}
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(6,182,212,0.06) 0%, transparent 60%)',
+                    }}
+                  >
+                    {/* Gradient border shimmer effect */}
+                    <div
+                      className="absolute inset-0 rounded-xl pointer-events-none"
+                      style={{
+                        background: 'linear-gradient(90deg, transparent, rgba(6,182,212,0.1), transparent)',
+                        backgroundSize: '200% 100%',
+                        animation: 'shimmer 4s ease infinite 1s',
+                      }}
+                    />
+
+                    <div className="flex items-center gap-2 mb-3 relative z-10">
+                      <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                        <Globe className="w-4 h-4 text-cyan-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">{t('dashboard.acrpMode')}</p>
+                        <p className="text-[10px] text-muted-foreground">{t('dashboard.acrpModeDesc')}</p>
+                      </div>
+                      <Badge variant="outline" className="ml-auto text-[10px] bg-cyan-50 text-cyan-600 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-400">
+                        {acrpAgents.length} {t('dashboard.agentsLabel')}
+                      </Badge>
+                    </div>
+                    {/* Numbered flow with animated connectors */}
+                    <div className="flex items-center gap-1.5 text-[10px] relative z-10">
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-100 dark:bg-cyan-900/30">
+                        <span
+                          className="w-4 h-4 rounded-full bg-cyan-500 text-white flex items-center justify-center text-[8px] font-bold"
+                          style={{ animation: 'gentlePulse 3s ease-in-out infinite' }}
+                        >
+                          1
+                        </span>
+                        <span className="text-cyan-700 dark:text-cyan-300">{t('dashboard.stepAgent')}</span>
+                      </div>
+                      {/* Animated flow connector */}
+                      <div className="flex items-center">
+                        <Wifi className="w-3 h-3 text-cyan-500" />
+                        <div
+                          className="w-2 h-0.5 bg-cyan-400 rounded-full"
+                          style={{ animation: 'flowPulse 2s ease-in-out infinite' }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-100 dark:bg-cyan-900/30">
+                        <span
+                          className="w-4 h-4 rounded-full bg-cyan-500 text-white flex items-center justify-center text-[8px] font-bold"
+                          style={{ animation: 'gentlePulse 3s ease-in-out infinite 0.3s' }}
+                        >
+                          2
+                        </span>
+                        <span className="text-cyan-700 dark:text-cyan-300">WS :3004</span>
+                      </div>
+                      {/* Animated flow connector */}
+                      <div className="flex items-center">
+                        <ArrowUpRight className="w-3 h-3 text-cyan-400" />
+                        <div
+                          className="w-2 h-0.5 bg-cyan-400 rounded-full"
+                          style={{ animation: 'flowPulse 2s ease-in-out infinite 0.4s' }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-100 dark:bg-cyan-900/30">
+                        <span
+                          className="w-4 h-4 rounded-full bg-cyan-500 text-white flex items-center justify-center text-[8px] font-bold"
+                          style={{ animation: 'gentlePulse 3s ease-in-out infinite 0.6s' }}
+                        >
+                          3
+                        </span>
+                        <span className="text-cyan-700 dark:text-cyan-300">{t('dashboard.stepHub')}</span>
+                      </div>
+                      {/* Animated flow connector */}
+                      <div className="flex items-center">
+                        <ArrowUpRight className="w-3 h-3 text-cyan-400" />
+                        <div
+                          className="w-2 h-0.5 bg-cyan-400 rounded-full"
+                          style={{ animation: 'flowPulse 2s ease-in-out infinite 0.8s' }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-100 dark:bg-cyan-900/30">
+                        <span
+                          className="w-4 h-4 rounded-full bg-cyan-500 text-white flex items-center justify-center text-[8px] font-bold"
+                          style={{ animation: 'gentlePulse 2s ease-in-out infinite' }}
+                        >
+                          4
+                        </span>
+                        <span className="text-cyan-700 dark:text-cyan-300">{t('dashboard.stepCapabilityInvoke')}</span>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Agent Architecture Overview */}
-        <Card className="rounded-xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-violet-500" />
-              {t('dashboard.agentArchitecture')}
-            </CardTitle>
-            <CardDescription>{t('dashboard.howAgentsConnect')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Builtin Mode - Enhanced with numbered flow */}
-              <div className={cn(
-                'p-4 rounded-xl border-2 transition-all duration-300',
-                'border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-900/10',
-                'hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-md',
-                'bg-gradient-to-r from-emerald-50/80 to-transparent dark:from-emerald-900/10 dark:to-transparent'
-              )}>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                    <Cpu className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">{t('dashboard.builtinMode')}</p>
-                    <p className="text-[10px] text-muted-foreground">{t('dashboard.builtinModeDesc')}</p>
-                  </div>
-                  <Badge variant="outline" className="ml-auto text-[10px] bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400">
-                    {builtinAgents.length} {t('dashboard.agentsLabel')}
-                  </Badge>
-                </div>
-                {/* Numbered flow */}
-                <div className="flex items-center gap-1.5 text-[10px]">
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30">
-                    <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[8px] font-bold">1</span>
-                    <span className="text-emerald-700 dark:text-emerald-300">{t('dashboard.stepUser')}</span>
-                  </div>
-                  <ArrowUpRight className="w-3 h-3 text-emerald-400" />
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30">
-                    <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[8px] font-bold">2</span>
-                    <span className="text-emerald-700 dark:text-emerald-300">{t('dashboard.stepHub')}</span>
-                  </div>
-                  <ArrowUpRight className="w-3 h-3 text-emerald-400" />
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30">
-                    <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[8px] font-bold">3</span>
-                    <span className="text-emerald-700 dark:text-emerald-300">{t('dashboard.stepProvider')}</span>
-                  </div>
-                  <ArrowUpRight className="w-3 h-3 text-emerald-400" />
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30">
-                    <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[8px] font-bold animate-pulse">4</span>
-                    <span className="text-emerald-700 dark:text-emerald-300">{t('dashboard.stepResponse')}</span>
+                  {/* Supported platforms */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] text-muted-foreground">{t('dashboard.supported')}:</span>
+                    {['hermes-agent', 'openclaw', 'claude-code', 'codex', 'trae', 'custom'].map((type) => (
+                      <Badge
+                        key={type}
+                        variant="outline"
+                        className="text-[9px] px-1.5 py-0 h-4 rounded-md transition-colors hover:bg-accent cursor-default"
+                      >
+                        {type}
+                      </Badge>
+                    ))}
                   </div>
                 </div>
-              </div>
-
-              {/* ACRP Mode - Enhanced with numbered flow */}
-              <div className={cn(
-                'p-4 rounded-xl border-2 transition-all duration-300',
-                'border-cyan-200 dark:border-cyan-800 bg-cyan-50/50 dark:bg-cyan-900/10',
-                'hover:border-cyan-300 dark:hover:border-cyan-700 hover:shadow-md',
-                'bg-gradient-to-r from-cyan-50/80 to-transparent dark:from-cyan-900/10 dark:to-transparent'
-              )}>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                    <Globe className="w-4 h-4 text-cyan-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">{t('dashboard.acrpMode')}</p>
-                    <p className="text-[10px] text-muted-foreground">{t('dashboard.acrpModeDesc')}</p>
-                  </div>
-                  <Badge variant="outline" className="ml-auto text-[10px] bg-cyan-50 text-cyan-600 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-400">
-                    {acrpAgents.length} {t('dashboard.agentsLabel')}
-                  </Badge>
-                </div>
-                {/* Numbered flow */}
-                <div className="flex items-center gap-1.5 text-[10px]">
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-100 dark:bg-cyan-900/30">
-                    <span className="w-4 h-4 rounded-full bg-cyan-500 text-white flex items-center justify-center text-[8px] font-bold">1</span>
-                    <span className="text-cyan-700 dark:text-cyan-300">{t('dashboard.stepAgent')}</span>
-                  </div>
-                  <Wifi className="w-3 h-3 text-cyan-500" />
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-100 dark:bg-cyan-900/30">
-                    <span className="w-4 h-4 rounded-full bg-cyan-500 text-white flex items-center justify-center text-[8px] font-bold">2</span>
-                    <span className="text-cyan-700 dark:text-cyan-300">WS :3004</span>
-                  </div>
-                  <ArrowUpRight className="w-3 h-3 text-cyan-400" />
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-100 dark:bg-cyan-900/30">
-                    <span className="w-4 h-4 rounded-full bg-cyan-500 text-white flex items-center justify-center text-[8px] font-bold">3</span>
-                    <span className="text-cyan-700 dark:text-cyan-300">{t('dashboard.stepHub')}</span>
-                  </div>
-                  <ArrowUpRight className="w-3 h-3 text-cyan-400" />
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-100 dark:bg-cyan-900/30">
-                    <span className="w-4 h-4 rounded-full bg-cyan-500 text-white flex items-center justify-center text-[8px] font-bold animate-pulse">4</span>
-                    <span className="text-cyan-700 dark:text-cyan-300">{t('dashboard.stepCapabilityInvoke')}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Supported platforms */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] text-muted-foreground">{t('dashboard.supported')}:</span>
-                {['hermes-agent', 'openclaw', 'claude-code', 'codex', 'trae', 'custom'].map((type) => (
-                  <Badge key={type} variant="outline" className="text-[9px] px-1.5 py-0 h-4 rounded-md">
-                    {type}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

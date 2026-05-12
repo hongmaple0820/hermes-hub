@@ -1436,5 +1436,39 @@
     "exportDataDesc": "Exporter les donnees en JSON",
     "importData": "Importer les donnees",
     "importDataDesc": "Importer les donnees depuis un fichier JSON"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "clearAll": "Tout effacer",
+    "noNotifications": "Aucune notification",
+    "noNotificationsDesc": "Vous êtes à jour !",
+    "viewAll": "Voir tout",
+    "filters": {
+      "all": "Tout",
+      "info": "Info",
+      "success": "Succès",
+      "warning": "Avertissement",
+      "error": "Erreur",
+      "agentEvents": "Événements agent"
+    },
+    "today": "Aujourd'hui",
+    "yesterday": "Hier",
+    "earlier": "Plus tôt",
+    "delete": "Supprimer",
+    "justNow": "À l'instant",
+    "minutesAgo": "il y a {count} min",
+    "hoursAgo": "il y a {count} h",
+    "daysAgo": "il y a {count} jour(s)",
+    "types": {
+      "info": "Info",
+      "success": "Succès",
+      "warning": "Avertissement",
+      "error": "Erreur",
+      "agentConnected": "Agent connecté",
+      "agentDisconnected": "Agent déconnecté",
+      "skillInvoked": "Compétence invoquée",
+      "capabilityResult": "Résultat de capacité"
+    }
   }
 }

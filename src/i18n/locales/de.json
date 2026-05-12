@@ -1436,5 +1436,39 @@
     "exportDataDesc": "Daten als JSON exportieren",
     "importData": "Daten importieren",
     "importDataDesc": "Daten aus JSON-Datei importieren"
+  },
+  "notifications": {
+    "title": "Benachrichtigungen",
+    "markAllRead": "Alle gelesen",
+    "clearAll": "Alle löschen",
+    "noNotifications": "Keine Benachrichtigungen",
+    "noNotificationsDesc": "Sie sind auf dem neuesten Stand!",
+    "viewAll": "Alle anzeigen",
+    "filters": {
+      "all": "Alle",
+      "info": "Info",
+      "success": "Erfolg",
+      "warning": "Warnung",
+      "error": "Fehler",
+      "agentEvents": "Agent-Ereignisse"
+    },
+    "today": "Heute",
+    "yesterday": "Gestern",
+    "earlier": "Früher",
+    "delete": "Löschen",
+    "justNow": "Gerade eben",
+    "minutesAgo": "vor {count} Min.",
+    "hoursAgo": "vor {count} Std.",
+    "daysAgo": "vor {count} Tag(en)",
+    "types": {
+      "info": "Info",
+      "success": "Erfolg",
+      "warning": "Warnung",
+      "error": "Fehler",
+      "agentConnected": "Agent verbunden",
+      "agentDisconnected": "Agent getrennt",
+      "skillInvoked": "Skill aufgerufen",
+      "capabilityResult": "Fähigkeitsergebnis"
+    }
   }
 }

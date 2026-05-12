@@ -17,6 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { MoreHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { OAuthLoginModal } from '@/components/shared/OAuthLoginModal';
+import { EmptyState } from '@/components/shared/EmptyState';
 
 const PROVIDER_TYPES = [
   { value: 'openai', labelKey: 'providers.typeOpenai', icon: '🤖', defaultUrl: 'https://api.openai.com/v1', defaultModel: 'gpt-4o' },
@@ -362,14 +363,13 @@ export function ProviderManager() {
       {/* Provider Cards */}
       {providers.length === 0 ? (
         <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <Server className="w-12 h-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-1">{t('providers.noProvidersTitle')}</h3>
-            <p className="text-muted-foreground text-sm mb-4">{t('providers.noProvidersDesc')}</p>
-            <Button onClick={() => setShowCreate(true)} className="gap-2">
-              <Plus className="w-4 h-4" /> {t('providers.add')}
-            </Button>
-          </CardContent>
+          <EmptyState
+            icon={Server}
+            title={t('emptyState.noProviders')}
+            description={t('emptyState.noProvidersDesc')}
+            actionLabel={t('emptyState.addFirstProvider')}
+            onAction={() => setShowCreate(true)}
+          />
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

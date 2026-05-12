@@ -24,10 +24,11 @@ import {
   Bot, Server, Cable, Globe, Code, BookOpen, ArrowRight, Shield,
   MessageSquare, Database, Brain, Cpu, Heart, Star, Send, AlertTriangle,
   Key, Link2, ExternalLink, FileJson, Timer, XCircle, CheckCircle2,
-  Hourglass, Loader2, Search, Layers, Unplug, Plug,
+  Hourglass, Loader2, Search, Layers, Unplug, Plug, Plus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { EmptyState } from '@/components/shared/EmptyState';
 
 // ─── Icon Map ────────────────────────────────────────────────
 
@@ -638,24 +639,15 @@ export function AgentControlCenter() {
         </div>
       ) : acrpAgents.length === 0 ? (
         <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="relative">
-              <Monitor className="w-16 h-16 text-muted-foreground/30" />
-              <Unplug className="w-6 h-6 text-muted-foreground/50 absolute -bottom-1 -right-1" />
-            </div>
-            <h3 className="text-lg font-semibold mb-1 mt-4">{t('acrp.noAgents')}</h3>
-            <p className="text-muted-foreground text-sm text-center max-w-md">{t('acrp.noAgentsDesc')}</p>
-            <div className="flex items-center gap-2 mt-4">
-              <Button variant="outline" size="sm" className="gap-1" onClick={() => setActiveTab('setup')}>
-                <BookOpen className="w-3 h-3" /> {t('acrp.setupGuide')}
-              </Button>
-              {agents.length > 0 && (
-                <Button size="sm" className="gap-1" onClick={() => handleGenerateToken(agents[0]?.id)}>
-                  <Key className="w-3 h-3" /> {t('acrp.generateToken')}
-                </Button>
-              )}
-            </div>
-          </CardContent>
+          <EmptyState
+            icon={Monitor}
+            title={t('emptyState.noAcrpAgents')}
+            description={t('emptyState.noAcrpAgentsDesc')}
+            actionLabel={t('emptyState.connectAgent')}
+            onAction={() => setActiveTab('setup')}
+            secondaryActionLabel={agents.length > 0 ? t('acrp.generateToken') : undefined}
+            onSecondaryAction={agents.length > 0 ? () => handleGenerateToken(agents[0]?.id) : undefined}
+          />
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

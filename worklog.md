@@ -1729,3 +1729,184 @@ Stage Summary:
 5. Add conversation search across all conversations
 6. Add agent conversation history with analytics
 7. Add batch operations (multi-select, bulk delete, etc.)
+
+---
+Task ID: 5-b
+Agent: AuthPageStylingEnhancer
+Task: Enhance AuthPage component styling
+
+Work Log:
+- Rewrote `/home/z/my-project/src/components/auth/AuthPage.tsx` with comprehensive visual and animation enhancements
+- **Visual Design Enhancement**:
+  - Added animated mesh gradient background on left panel with emerald-teal-cyan gradient
+  - Added FloatingOrb component (framer-motion powered) with 5 floating decorative blurred circles
+  - Improved card design with frosted glass effect: `bg-card/70 backdrop-blur-xl`
+  - Added subtle border glow: `border border-primary/10` + top accent gradient line via-primary/30
+  - Added dot pattern background on entire page: `radial-gradient(circle, currentColor 1px, transparent 1px)`
+  - Added ambient orbs on right panel (primary/5, emerald-500/5)
+- **Logo & Branding**:
+  - Enlarged logo to w-16 h-16 with `backdrop-blur-md` and border-white/25
+  - Added pulsing glow ring animation on logo container
+  - Added stylized "Hermes Hub" text: white gradient for "Hermes" + emerald-to-cyan gradient for "Hub"
+  - Added tagline below logo using t('auth.subtitle') with font-light styling
+  - Added trust indicators (Shield + "End-to-end encrypted", Globe + "Open protocol")
+  - Mobile header also gets gradient logo + styled text treatment
+- **Form Enhancement**:
+  - Added smooth focus transitions on all input fields: `transition-all duration-200 bg-background/50 focus:bg-background/80`
+  - Added scale animation on submit button via framer-motion `whileHover` / `whileTap`
+  - Added shimmer effect on idle submit button (repeating gradient sweep)
+  - Added Sparkles icon to submit button alongside text
+  - Added gradient submit button: `bg-gradient-to-r from-emerald-600 to-cyan-600` with shadow-lg
+  - Enhanced social login buttons with `whileHover` scale + backdrop blur
+  - Improved AnimatePresence transitions for name field and password strength
+  - Added motion animations for error messages (opacity + y slide)
+- **Feature Cards Enhancement**:
+  - Added per-feature color gradients (blue-400→600, purple-400→600, emerald-400→600, amber-400→600)
+  - Added staggered fade-in animation with improved easing: `[0.25, 0.46, 0.45, 0.94]`
+  - Added whileHover x-shift (4px) on feature items
+  - Added shimmer overlay on hover for icon containers
+  - Added gentle pulse animation per feature icon (staggered delays)
+  - Improved visual hierarchy with larger icons (w-11 h-11) and text sizing
+- **General Polish**:
+  - Added entrance animation for entire auth page (motion.div opacity 0→1)
+  - Added dot pattern background on full page (24px grid, 3-5% opacity)
+  - Improved dark mode support with proper opacity values (dark:opacity-[0.05])
+  - Language switcher enhanced with `backdrop-blur-md` and `bg-background/60`
+  - All CSS animations migrated from `<style jsx>` to framer-motion
+  - Removed deprecated `<style jsx>` block entirely
+  - TabsList enhanced with `bg-muted/50 backdrop-blur-sm`
+  - Consistent rounded-xl usage throughout
+- Lint check passes clean (0 errors, 0 warnings)
+
+Stage Summary:
+- **AuthPage fully enhanced** with premium visual design and animations
+- All framer-motion animations — no CSS keyframes or style jsx needed
+- Frosted glass card with border glow creates depth and modern feel
+- Stylized logo with gradient text treatment for brand identity
+- Trust indicators added for credibility
+- Feature icons with per-category color gradients and pulse animations
+- Submit button with gradient, shimmer effect, and Sparkles icon
+- Dot pattern background adds subtle texture
+- All existing functionality preserved — only styling and visual changes
+- No i18n changes needed — all existing t() calls preserved
+
+---
+Task ID: 5-a
+Agent: DashboardStylingEnhancer
+Task: Enhance Dashboard component styling
+
+Work Log:
+- Enhanced Stat Cards with subtle gradient backgrounds (bg-gradient-to-br from-tinted to-card), animated number counters (AnimatedCounter component using requestAnimationFrame with easeOutCubic), trend indicators (TrendIndicator component showing up/down arrows based on sparkline data), and improved hover lift effects (hover:-translate-y-1, hover:shadow-xl, active:scale-[0.99])
+- Enhanced Architecture Section with animated flow lines between steps (flowPulse CSS animation on connector elements), gently pulsing step badges (gentlePulse CSS animation with staggered delays), gradient border shimmer effects (shimmer CSS animation overlay), and per-step background gradients
+- Enhanced Activity Feed with staggered fade-in animations (framer-motion motion.div with opacity/x transitions and incremental delays), type-based left border colors (getActivityBorderColor helper mapping activity types to colored border-l-2 classes), and improved time-ago formatting (added seconds-ago resolution for very recent events)
+- Enhanced Header Area with animated gradient background (gradientShift CSS animation with 8s cycle, multi-color linear-gradient with background-size: 200%), "last updated" timestamp with auto-refresh indicator (30-second interval, RefreshCw icon with spin animation during refresh), and more prominent system status badge (larger dot with gentlePulse animation, enhanced shadow, font-semibold text)
+- Added general polish: smooth scroll behavior on container, border-radius variations (rounded-2xl for cards, rounded-xl for inner elements), proper dark mode support for all new gradient backgrounds and animations, micro-interactions on clickable elements (active:scale-[0.98/0.96], hover:-translate-y-0.5, hover:scale-110 for icons), framer-motion entrance animations on all sections with staggered delays
+- Added CSS keyframe animations via dangerouslySetInnerHTML: gradientShift (8s header gradient cycle), flowPulse (2s connector pulse), shimmer (3s border shimmer), gentlePulse (3s badge pulse), refreshSpin (0.6s spinner)
+- Added new imports: useState, useEffect, useRef, useCallback from React; motion from framer-motion; ArrowDownRight, RefreshCw from lucide-react
+- All existing functionality, data flow, and i18n t() calls preserved unchanged
+- Lint check passes clean
+
+Stage Summary:
+- **Dashboard styling significantly polished** with animations, gradients, and micro-interactions
+- **Animated counters** bring stat cards to life on initial load with easeOutCubic easing
+- **Architecture flow diagrams** feel dynamic with pulsing badges and animated connectors
+- **Activity feed** fades in gracefully with staggered animations and type-colored borders
+- **Header** has a living, breathing gradient with auto-refresh timestamp
+- **All changes are purely visual** — no functionality or data flow modified
+- **Dark mode fully supported** for all new gradient backgrounds and color schemes
+- **Framer-motion** used for entrance animations; CSS keyframes for continuous effects
+
+---
+Task ID: 5-c
+Agent: SidebarStylingEnhancer
+Task: Enhance Sidebar component styling
+
+Work Log:
+- Enhanced active state with framer-motion `layoutId` animations for smooth sliding indicator between nav items
+- Added gradient left border (`bg-gradient-to-b from-primary via-primary/80 to-primary/50`) for active items
+- Added subtle glow effect (`shadow-[0_0_12px_-2px] shadow-primary/10`) on active items
+- Added animated background indicator with `motion.div` + spring transition (stiffness: 350, damping: 30)
+- Enhanced hover effects with `hover:scale-[1.02]` micro-interaction on nav items
+- Added smooth `transition-all duration-300 ease-out` on all interactive elements
+- Enhanced tooltips for collapsed sidebar items with badge count info (agents online, ACRP connected)
+- Added gradient dividers between sections (`bg-gradient-to-r from-transparent via-border to-transparent`)
+- Enhanced section labels with `tracking-[0.12em]` and `text-muted-foreground/70` for more distinct appearance
+- Added section separator for collapsed mode between icon groups
+- Added gradient border on avatar with `bg-gradient-to-br from-primary via-primary/60 to-primary/30` ring
+- Added hover effect on avatar ring (full opacity gradient on hover)
+- Added online status indicator with `animate-ping` pulse animation
+- Enhanced logout button with `hover:text-destructive hover:bg-destructive/10 hover:scale-110` effect
+- Added custom scrollbar styling in globals.css: thin 4px scrollbar, themed colors, rounded thumb
+- Added smooth scroll behavior via `.smooth-scroll` class
+- Added scroll shadow indicators at top/bottom of nav with gradient overlays + opacity transitions
+- Added scroll state detection via `useRef` + `ResizeObserver` + scroll event listener
+- Added pulse animation for "新" badge via custom `badge-pulse` keyframe in globals.css
+- Enhanced ACRP connection count badge with `bg-gradient-to-r from-cyan-500/15 to-blue-500/15` + border
+- Added gradient background to sidebar header (`bg-gradient-to-br from-primary/[0.04]...`)
+- Added gradient shadow on logo icon (`shadow-sm shadow-primary/20`)
+- Enhanced toggle button with `hover:scale-110` + `shadow-sm`
+- Added `group/item` interaction context for per-item hover effects on icons and shortcuts
+- Ensured proper dark mode support with `dark:` variants on all custom styles
+- Fixed TypeScript error: `PopoverContent align="right"` → `align="end"`
+- All lint checks pass clean, no TypeScript errors on Sidebar component
+
+Stage Summary:
+- **7 major styling enhancements applied** to Sidebar.tsx with no functional changes
+- **Active state**: Framer-motion animated sliding indicator + gradient border + glow effect
+- **Hover effects**: Scale micro-interaction + smooth transitions + enhanced tooltips
+- **Section headers**: Gradient dividers + enhanced tracking + distinct muted colors
+- **User profile**: Gradient avatar ring + pulse online indicator + destructive logout hover
+- **Scroll behavior**: Custom thin scrollbar + smooth scroll + top/bottom shadow indicators
+- **Badges**: Pulse animation on 新 badge + gradient background on ACRP count badge
+- **General polish**: Gradient header + dark mode support + micro-interactions throughout
+- **Files modified**: `Sidebar.tsx`, `globals.css`
+
+---
+Task ID: 6-b
+Agent: WelcomeOnboardingBuilder
+Task: Implement Welcome Onboarding Flow and Empty States
+
+Work Log:
+- Added i18n keys under `onboarding` namespace to en.json and zh.json (20 keys each): welcome, welcomeDesc, step1Title, step1Desc, step2Title, step2Desc, step3Title, step3Desc, step4Title, step4Desc, getStarted, next, back, skip, finish, createAgent, addProvider, browseSkills, builtinMode, builtinModeDesc, acrpMode, acrpModeDesc
+- Added i18n keys under `emptyState` namespace to en.json and zh.json (12 keys each): noAgents, noAgentsDesc, createFirstAgent, noProviders, noProvidersDesc, addFirstProvider, noConversations, noConversationsDesc, startConversation, noAcrpAgents, noAcrpAgentsDesc, connectAgent
+- Created `/home/z/my-project/src/components/shared/WelcomeOnboarding.tsx` — Multi-step onboarding modal with 4 steps, step indicator, slide transitions via framer-motion, CTA buttons, localStorage completion flag
+- Created `/home/z/my-project/src/components/shared/EmptyState.tsx` — Reusable empty state component with animated icon, title/description, action buttons, decorative blurred background shapes
+- Updated `/home/z/my-project/src/app/page.tsx` — First-run detection: shows WelcomeOnboarding after registration or for existing users who haven't completed onboarding
+- Updated AgentManager.tsx — Replaced inline empty state with EmptyState component (Bot icon, emptyState.noAgents keys)
+- Updated ProviderManager.tsx — Replaced inline empty state with EmptyState component (Server icon, emptyState.noProviders keys)
+- Updated ChatView.tsx — Replaced main empty chat area with EmptyState component (MessageSquare icon, emptyState.noConversations keys), updated sidebar empty text
+- Updated AgentControlCenter.tsx — Replaced inline empty state with EmptyState component (Monitor icon, emptyState.noAcrpAgents keys, secondary action for Generate Token)
+- Fixed lint errors: reordered useCallback declarations, added missing dependencies
+- All lint checks pass clean
+
+Stage Summary:
+- **Welcome Onboarding Flow** fully implemented with 4-step modal dialog (Welcome → Create Agent → Add Provider → Explore Skills)
+- **EmptyState reusable component** created with framer-motion animations and decorative backgrounds
+- **First-run detection** integrated into page.tsx (localStorage key: hermes_onboarding_completed)
+- **4 existing views updated** to use EmptyState: AgentManager, ProviderManager, ChatView, AgentControlCenter
+- **i18n support** for onboarding (20 keys) and emptyState (12 keys) in en.json and zh.json
+- All existing functionality preserved — only visual empty states enhanced
+
+---
+Task ID: 6-a
+Agent: NotificationSystemBuilder
+Task: Implement Notification System
+
+Work Log:
+- Updated store.ts: Added Notification interface with 8 types (info, success, warning, error, agent_connected, agent_disconnected, skill_invoked, capability_result), added notifications state and actions (addNotification, markAsRead, markAllAsRead, clearNotifications, removeNotification)
+- Added 'notifications' to ViewMode type union
+- Created NotificationBell.tsx: Bell icon with animated unread count badge, Popover dropdown with notification list, type-specific icons/colors, time-ago formatting, mark-as-read and clear-all actions, empty state, scroll area (max-h-96), Framer Motion animations
+- Created NotificationPanel.tsx: Full notification panel view with filter tabs (All, Info, Success, Warning, Error, Agent Events), date grouping (Today, Yesterday, Earlier), individual notification cards with hover actions (mark read, delete), bulk actions (mark all read, clear all), back navigation, responsive design
+- Updated page.tsx: Added NotificationBell as fixed top-right element (z-40), added NotificationPanel as 'notifications' view mode, imported both components
+- Updated Dashboard.tsx: Added auto-notification generation via useEffect hooks tracking agents, conversations, skills, and ACRP connection changes using useRef for previous values
+- Added notifications i18n namespace to all 8 locale files (en, zh, ja, ko, de, es, fr, pt) with 30+ keys covering title, actions, filters, time formatting, and notification types
+- All lint checks pass clean
+
+Stage Summary:
+- **Notification System fully implemented** with bell dropdown and full panel view
+- **NotificationBell** positioned as fixed top-right button with animated unread badge and Popover dropdown
+- **NotificationPanel** provides comprehensive notification management with filtering and date grouping
+- **Auto-generated notifications** in Dashboard for agent creation, ACRP connect/disconnect, conversation start, and skill updates
+- **8 notification types** with distinct icons and colors: info, success, warning, error, agent_connected, agent_disconnected, skill_invoked, capability_result
+- **All 8 i18n locales** updated with notification namespace (30+ keys each)
+- **Zustand store** manages notification state with full CRUD operations

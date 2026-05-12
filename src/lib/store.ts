@@ -17,7 +17,19 @@ export type ViewMode =
   | 'logs'
   | 'files'
   | 'terminal'
-  | 'agent-control';
+  | 'agent-control'
+  | 'notifications';
+
+export interface Notification {
+  id: string;
+  type: 'info' | 'success' | 'warning' | 'error' | 'agent_connected' | 'agent_disconnected' | 'skill_invoked' | 'capability_result';
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  actionUrl?: string;
+  metadata?: Record<string, any>;
+}
 
 interface AppState {
   // Auth
@@ -70,6 +82,14 @@ interface AppState {
   setProfiles: (profiles: any[]) => void;
   activeProfileId: string | null;
   setActiveProfileId: (id: string | null) => void;
+
+  // Notifications
+  notifications: Notification[];
+  addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
+  markAsRead: (id: string) => void;
+  markAllAsRead: () => void;
+  clearNotifications: () => void;
+  removeNotification: (id: string) => void;
 
   // UI State
   sidebarCollapsed: boolean;
@@ -131,6 +151,28 @@ export const useAppStore = create<AppState>((set) => ({
   setProfiles: (profiles) => set({ profiles }),
   activeProfileId: null,
   setActiveProfileId: (activeProfileId) => set({ activeProfileId }),
+
+  // Notifications
+  notifications: [],
+  addNotification: (notification) => set((state) => {
+    const newNotification: Notification = {
+      ...notification,
+      id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      timestamp: new Date().toISOString(),
+      read: false,
+    };
+    return { notifications: [newNotification, ...state.notifications] };
+  }),
+  markAsRead: (id) => set((state) => ({
+    notifications: state.notifications.map((n) => n.id === id ? { ...n, read: true } : n),
+  })),
+  markAllAsRead: () => set((state) => ({
+    notifications: state.notifications.map((n) => ({ ...n, read: true })),
+  })),
+  clearNotifications: () => set({ notifications: [] }),
+  removeNotification: (id) => set((state) => ({
+    notifications: state.notifications.filter((n) => n.id !== id),
+  })),
 
   // UI
   sidebarCollapsed: false,

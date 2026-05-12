@@ -1436,5 +1436,39 @@
     "exportDataDesc": "JSON으로 데이터 내보내기",
     "importData": "데이터 가져오기",
     "importDataDesc": "JSON 파일에서 데이터 가져오기"
+  },
+  "notifications": {
+    "title": "알림",
+    "markAllRead": "모두 읽음",
+    "clearAll": "모두 지우기",
+    "noNotifications": "알림 없음",
+    "noNotificationsDesc": "모두 확인했습니다!",
+    "viewAll": "모두 보기",
+    "filters": {
+      "all": "전체",
+      "info": "정보",
+      "success": "성공",
+      "warning": "경고",
+      "error": "오류",
+      "agentEvents": "에이전트 이벤트"
+    },
+    "today": "오늘",
+    "yesterday": "어제",
+    "earlier": "이전",
+    "delete": "삭제",
+    "justNow": "방금",
+    "minutesAgo": "{count}분 전",
+    "hoursAgo": "{count}시간 전",
+    "daysAgo": "{count}일 전",
+    "types": {
+      "info": "정보",
+      "success": "성공",
+      "warning": "경고",
+      "error": "오류",
+      "agentConnected": "에이전트 연결",
+      "agentDisconnected": "에이전트 연결 해제",
+      "skillInvoked": "스킬 호출",
+      "capabilityResult": "기능 결과"
+    }
   }
 }

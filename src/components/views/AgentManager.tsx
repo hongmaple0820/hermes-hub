@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Bot, Plus, Trash2, Eye, MoreHorizontal, Pencil, Search, Wifi, WifiOff, Clock, Sparkles, AlertTriangle } from 'lucide-react';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -553,14 +554,13 @@ export function AgentManager() {
 
       {agents.length === 0 ? (
         <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <Bot className="w-12 h-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-1">{t('agents.noAgentsTitle')}</h3>
-            <p className="text-muted-foreground text-sm mb-4">{t('agents.noAgentsDesc')}</p>
-            <Button onClick={() => setShowCreate(true)} className="gap-2">
-              <Plus className="w-4 h-4" /> {t('agents.create')}
-            </Button>
-          </CardContent>
+          <EmptyState
+            icon={Bot}
+            title={t('emptyState.noAgents')}
+            description={t('emptyState.noAgentsDesc')}
+            actionLabel={t('emptyState.createFirstAgent')}
+            onAction={() => setShowCreate(true)}
+          />
         </Card>
       ) : filteredAgents.length === 0 ? (
         <Card className="border-dashed">

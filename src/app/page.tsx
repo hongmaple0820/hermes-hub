@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, Component, ReactNode } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAppStore, ViewMode } from '@/lib/store';
 
 import { api } from '@/lib/api-client';
@@ -26,27 +26,31 @@ import { AgentControlCenter } from '@/components/views/AgentControlCenter';
 import { SessionSearch } from '@/components/views/SessionSearch';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { Toaster, toast } from 'sonner';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { CommandPalette } from '@/components/shared/CommandPalette';
+import { WelcomeOnboarding, isOnboardingCompleted } from '@/components/shared/WelcomeOnboarding';
+import { NotificationBell } from '@/components/shared/NotificationBell';
+import { NotificationPanel } from '@/components/shared/NotificationPanel';
 
-class ViewErrorBoundary extends Component<{
-  children: ReactNode;
+// Error boundary - must be a class component to catch render errors
+// Using React.Component pattern to avoid naming conflicts with named imports
+import React from 'react';
+
+class ViewErrorBoundary extends React.Component<{
+  children: React.ReactNode;
   viewName: string;
-}, { hasError: boolean; errorView: string }> {
-  constructor(props: { children: ReactNode; viewName: string }) {
+}, { hasError: boolean; errorMessage: string }> {
+  constructor(props: { children: React.ReactNode; viewName: string }) {
     super(props);
-    this.state = { hasError: false, errorView: '' };
+    this.state = { hasError: false, errorMessage: '' };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, errorMessage: error.message };
   }
 
   componentDidUpdate(prevProps: { viewName: string }) {
-    // Reset error state when view changes
     if (prevProps.viewName !== this.props.viewName && this.state.hasError) {
-      this.setState({ hasError: false, errorView: '' });
+      this.setState({ hasError: false, errorMessage: '' });
     }
   }
 
@@ -55,12 +59,24 @@ class ViewErrorBoundary extends Component<{
       return (
         <div className="p-6 max-w-7xl mx-auto">
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <AlertTriangle className="w-12 h-12 text-amber-500 mb-4" />
+            <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center mb-4">
+              <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
             <h3 className="text-lg font-semibold mb-2">Something went wrong</h3>
-            <p className="text-muted-foreground text-sm mb-4">Failed to render the {this.props.viewName} view. Please try again.</p>
-            <Button variant="outline" onClick={() => this.setState({ hasError: false })} className="gap-2">
-              <RefreshCw className="w-4 h-4" /> Retry
-            </Button>
+            <p className="text-muted-foreground text-sm mb-1">Failed to render the {this.props.viewName} view.</p>
+            {this.state.errorMessage && (
+              <p className="text-muted-foreground text-xs mb-4 font-mono bg-muted px-2 py-1 rounded max-w-md truncate">
+                {this.state.errorMessage}
+              </p>
+            )}
+            <button
+              onClick={() => this.setState({ hasError: false, errorMessage: '' })}
+              className="px-4 py-2 rounded-md border border-border text-sm hover:bg-accent transition-colors"
+            >
+              Retry
+            </button>
           </div>
         </div>
       );
@@ -79,6 +95,7 @@ function AppContent() {
 
   const [initialized, setInitialized] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -89,6 +106,10 @@ function AppContent() {
         const parsed = JSON.parse(userData);
         api.setUserId(token);
         setUser(parsed);
+        // Check if onboarding is needed for existing users
+        if (!isOnboardingCompleted()) {
+          setShowOnboarding(true);
+        }
       } catch {
         localStorage.removeItem('hermes_token');
         localStorage.removeItem('hermes_user');
@@ -192,6 +213,10 @@ function AppContent() {
       localStorage.setItem('hermes_token', token);
       localStorage.setItem('hermes_user', JSON.stringify(userData));
       toast.success(isRegister ? 'Account created!' : 'Welcome back!');
+      // Show onboarding for new users after registration
+      if (isRegister && !isOnboardingCompleted()) {
+        setShowOnboarding(true);
+      }
     } catch (error: any) {
       toast.error(error.message || 'Authentication failed');
       throw error;
@@ -303,6 +328,8 @@ function AppContent() {
         return <TerminalView />;
       case 'agent-control':
         return <AgentControlCenter />;
+      case 'notifications':
+        return <NotificationPanel />;
       case 'settings':
         return <Settings onLogout={handleLogout} />;
       default:
@@ -313,7 +340,11 @@ function AppContent() {
   return (
     <div className="min-h-screen flex bg-background">
       <Sidebar onLogout={handleLogout} />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto relative">
+        {/* Notification Bell - Fixed top right */}
+        <div className="fixed top-4 right-4 z-40">
+          <NotificationBell />
+        </div>
         {isLoading ? (
           <div className="p-6 max-w-7xl mx-auto space-y-6">
             <div className="h-24 rounded-xl bg-muted animate-pulse" />
@@ -341,6 +372,7 @@ function AppContent() {
       </main>
       <SessionSearch />
       <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
+      <WelcomeOnboarding open={showOnboarding} onComplete={() => setShowOnboarding(false)} />
       <Toaster />
     </div>
   );

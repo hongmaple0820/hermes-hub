@@ -38,6 +38,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 import { ContextIndicator } from '@/components/shared/ContextIndicator';
+import { EmptyState } from '@/components/shared/EmptyState';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -298,13 +299,14 @@ function EmptyChatState({ onStartChat }: { onStartChat: () => void }) {
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
-      <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
-        <MessageSquare className="w-10 h-10 text-primary" />
-      </div>
-      <h2 className="text-2xl font-semibold mb-2">{t('chat.startConversation')}</h2>
-      <p className="text-muted-foreground text-sm mb-6 text-center max-w-md">
-        {t('chat.selectAgent')}
-      </p>
+      <EmptyState
+        icon={MessageSquare}
+        title={t('emptyState.noConversations')}
+        description={t('emptyState.noConversationsDesc')}
+        actionLabel={t('emptyState.startConversation')}
+        onAction={onStartChat}
+        className="py-0"
+      />
 
       {/* Agent Cards */}
       {agents.length > 0 && (
@@ -719,9 +721,9 @@ function ConversationsPanel() {
               </div>
             )}
             {conversations.length === 0 && !sidebarSearch.trim() && (
-              <div className="py-8 text-center">
-                <MessageSquare className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">{t('chat.noConversations')}</p>
+              <div className="py-4 text-center">
+                <MessageSquare className="w-6 h-6 text-muted-foreground mx-auto mb-1" />
+                <p className="text-xs text-muted-foreground">{t('emptyState.noConversations')}</p>
               </div>
             )}
           </div>
