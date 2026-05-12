@@ -864,3 +864,35 @@ The Hermes Hub is a **feature-rich multi-agent collaboration platform** with:
 5. Test conversation message flow end-to-end
 6. Add more visual polish: loading skeletons, transition animations
 7. Consider component splitting for large files (AgentControlCenter 1800+ lines)
+
+---
+Task ID: SETUP-DEV
+Agent: main
+Task: Clone hermes-hub repository, set up dev branch, and configure development environment
+
+Work Log:
+- Cloned https://github.com/hongmaple0820/hermes-hub.git (main branch)
+- Created dev branch from main and pushed to remote
+- Copied all project files to /home/z/my-project
+- Installed all dependencies via bun install
+- Pushed Prisma schema to SQLite database (db:push)
+- Started all services:
+  - Next.js dev server on port 3000
+  - Chat service (Socket.IO) on port 3003
+  - Skill WebSocket service on port 3004
+  - Terminal service (WebSocket) on port 3005
+- Verified all services are running and healthy
+- Created 15-minute webDevReview cron job for continuous development
+
+Stage Summary:
+- **Hermes Hub project fully set up on dev branch**
+- All 3 core services running (Next.js, chat-service, skill-ws)
+- Database initialized with all tables (User, Agent, Skill, ACRP, etc.)
+- Dev branch pushed to: https://github.com/hongmaple0820/hermes-hub (dev branch)
+- Project is a comprehensive multi-agent collaboration platform with:
+  - ACRP (Agent Capability Registration Protocol) for external agent connections
+  - Skill Plugin Protocol with WebSocket support
+  - Multi-LLM provider support (OpenAI, Anthropic, Google, etc.)
+  - 8-language i18n support
+  - Chat rooms, context compression, memory system
+  - OAuth integration (Codex, Nous, Copilot)
