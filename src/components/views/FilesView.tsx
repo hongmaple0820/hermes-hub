@@ -19,7 +19,9 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Folder, File, FileText, Upload, Plus, RefreshCw, Loader2, Trash2,
-  Pencil, ChevronRight, Download, FolderPlus,
+  Pencil, ChevronRight, Download, FolderPlus, FileCode, FileImage,
+  FileVideo, FileAudio, FileArchive, FileSpreadsheet, FilePieChart,
+  Search,
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
@@ -49,12 +51,68 @@ function formatSize(bytes?: number): string {
   return `${bytes} B`;
 }
 
-function getFileIcon(name: string) {
-  const ext = name.split('.').pop()?.toLowerCase();
-  if (['md', 'txt', 'json', 'yaml', 'yml', 'toml', 'env', 'cfg', 'ini'].includes(ext || '')) {
+// Extended file icon mapping based on extension
+function getFileIcon(name: string): React.ElementType {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  // Code files
+  if (['js', 'jsx', 'ts', 'tsx', 'py', 'rb', 'go', 'rs', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'php', 'swift', 'kt', 'scala', 'r', 'm', 'sh', 'bash', 'zsh', 'fish', 'ps1'].includes(ext)) {
+    return FileCode;
+  }
+  // Data/config files
+  if (['json', 'yaml', 'yml', 'toml', 'xml', 'csv', 'tsv', 'env', 'cfg', 'ini', 'conf', 'properties'].includes(ext)) {
+    return FileSpreadsheet;
+  }
+  // Markdown / text
+  if (['md', 'mdx', 'txt', 'rtf', 'log', 'doc', 'docx'].includes(ext)) {
     return FileText;
   }
+  // Images
+  if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico', 'tiff', 'avif'].includes(ext)) {
+    return FileImage;
+  }
+  // Video
+  if (['mp4', 'webm', 'avi', 'mov', 'mkv', 'flv', 'wmv'].includes(ext)) {
+    return FileVideo;
+  }
+  // Audio
+  if (['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma'].includes(ext)) {
+    return FileAudio;
+  }
+  // Archives
+  if (['zip', 'tar', 'gz', 'bz2', 'xz', '7z', 'rar', 'tgz', 'zst'].includes(ext)) {
+    return FileArchive;
+  }
+  // PDF / docs
+  if (['pdf'].includes(ext)) {
+    return FilePieChart;
+  }
   return File;
+}
+
+// Get icon color based on file type
+function getFileIconColor(name: string): string {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  if (['js', 'jsx', 'ts', 'tsx', 'py', 'rb', 'go', 'rs', 'java'].includes(ext)) return 'text-emerald-500';
+  if (['json', 'yaml', 'yml', 'toml', 'xml', 'csv'].includes(ext)) return 'text-amber-500';
+  if (['md', 'mdx', 'txt', 'log'].includes(ext)) return 'text-sky-500';
+  if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext)) return 'text-pink-500';
+  if (['mp4', 'webm', 'avi', 'mov'].includes(ext)) return 'text-purple-500';
+  if (['mp3', 'wav', 'ogg', 'flac'].includes(ext)) return 'text-rose-500';
+  if (['zip', 'tar', 'gz', '7z', 'rar'].includes(ext)) return 'text-orange-500';
+  if (['pdf'].includes(ext)) return 'text-red-500';
+  return 'text-muted-foreground';
+}
+
+// Check if a file is previewable as text
+function isTextFile(name: string): boolean {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  return [
+    'txt', 'md', 'mdx', 'json', 'yaml', 'yml', 'toml', 'xml', 'csv', 'tsv',
+    'js', 'jsx', 'ts', 'tsx', 'py', 'rb', 'go', 'rs', 'java', 'c', 'cpp',
+    'h', 'hpp', 'cs', 'php', 'swift', 'kt', 'sh', 'bash', 'zsh', 'fish',
+    'env', 'cfg', 'ini', 'conf', 'properties', 'log', 'sql', 'graphql',
+    'html', 'htm', 'css', 'scss', 'less', 'sass', 'vue', 'svelte',
+  ].includes(ext);
 }
 
 export function FilesView() {
@@ -63,13 +121,14 @@ export function FilesView() {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [backend, setBackend] = useState('local');
-  const [editingFile, setEditingFile] = useState<{ path: string; content: string } | null>(null);
+  const [editingFile, setEditingFile] = useState<{ path: string; content: string; originalContent: string } | null>(null);
   const [showNewFile, setShowNewFile] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [saving, setSaving] = useState(false);
   const [renaming, setRenaming] = useState<{ oldPath: string; newName: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadFiles();
@@ -101,7 +160,7 @@ export function FilesView() {
     }
     try {
       const result = await api.readFile(file.path);
-      setEditingFile({ path: file.path, content: result.content || '' });
+      setEditingFile({ path: file.path, content: result.content || '', originalContent: result.content || '' });
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -113,6 +172,7 @@ export function FilesView() {
     try {
       await api.writeFile(editingFile.path, editingFile.content);
       toast.success(t('files.saved'));
+      setEditingFile({ ...editingFile, originalContent: editingFile.content });
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -185,6 +245,36 @@ export function FilesView() {
     }
   };
 
+  const handleDownload = async (file: FileEntry) => {
+    if (file.type === 'directory') {
+      toast.error(t('files.cannotDownloadFolder'));
+      return;
+    }
+    try {
+      const result = await api.readFile(file.path);
+      const content = result.content || '';
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(t('files.downloadStarted'));
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  // Filter files by search
+  const filteredFiles = files.filter((file) =>
+    !searchQuery || file.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const hasUnsavedChanges = editingFile && editingFile.content !== editingFile.originalContent;
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -244,16 +334,28 @@ export function FilesView() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-2 mb-4">
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => { setShowUpload(true); }}>
-          <Upload className="w-4 h-4" /> {t('files.upload')}
-        </Button>
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => { setShowNewFile(true); setNewItemName(''); }}>
-          <Plus className="w-4 h-4" /> {t('files.newFile')}
-        </Button>
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => { setShowNewFolder(true); setNewItemName(''); }}>
-          <FolderPlus className="w-4 h-4" /> {t('files.newFolder')}
-        </Button>
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {/* Search */}
+        <div className="relative flex-1 max-w-xs min-w-[180px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder={t('files.searchPlaceholder')}
+            className="pl-10 h-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => { setShowUpload(true); }}>
+            <Upload className="w-4 h-4" /> {t('files.upload')}
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => { setShowNewFile(true); setNewItemName(''); }}>
+            <Plus className="w-4 h-4" /> {t('files.newFile')}
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => { setShowNewFolder(true); setNewItemName(''); }}>
+            <FolderPlus className="w-4 h-4" /> {t('files.newFolder')}
+          </Button>
+        </div>
       </div>
 
       {/* File Editor Modal */}
@@ -262,6 +364,9 @@ export function FilesView() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="w-5 h-5" /> {editingFile?.path}
+              {hasUnsavedChanges && (
+                <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200">{t('files.unsaved')}</Badge>
+              )}
             </DialogTitle>
           </DialogHeader>
           <Textarea
@@ -270,14 +375,19 @@ export function FilesView() {
             rows={20}
             className="font-mono text-sm resize-y"
           />
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setEditingFile(null)}>
-              {t('common.close')}
-            </Button>
-            <Button onClick={handleSaveFile} disabled={saving} className="gap-2">
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {t('common.save')}
-            </Button>
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">
+              {editingFile?.content?.length || 0} {t('files.charactersCount')}
+            </span>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setEditingFile(null)}>
+                {t('common.close')}
+              </Button>
+              <Button onClick={handleSaveFile} disabled={saving} className="gap-2">
+                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                {t('common.save')}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -346,9 +456,27 @@ export function FilesView() {
       ) : files.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16">
-            <Folder className="w-12 h-12 text-muted-foreground mb-4" />
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+              <Folder className="w-8 h-8 text-muted-foreground" />
+            </div>
             <h3 className="text-lg font-semibold mb-1">{t('files.emptyFolder')}</h3>
-            <p className="text-muted-foreground text-sm">{t('files.emptyFolderDesc')}</p>
+            <p className="text-muted-foreground text-sm mb-4">{t('files.emptyFolderDesc')}</p>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => { setShowUpload(true); }}>
+                <Upload className="w-4 h-4" /> {t('files.upload')}
+              </Button>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => { setShowNewFile(true); setNewItemName(''); }}>
+                <Plus className="w-4 h-4" /> {t('files.newFile')}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : filteredFiles.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <Search className="w-12 h-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-1">{t('common.noResults')}</h3>
+            <p className="text-muted-foreground text-sm">{t('files.noMatchingFiles')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -364,8 +492,11 @@ export function FilesView() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {files.map((file) => {
+              {filteredFiles.map((file) => {
                 const Icon = file.type === 'directory' ? Folder : getFileIcon(file.name);
+                const iconColor = file.type === 'directory' ? 'text-amber-500' : getFileIconColor(file.name);
+                const canPreview = file.type === 'file' && isTextFile(file.name);
+
                 return (
                   <TableRow
                     key={file.path}
@@ -374,10 +505,7 @@ export function FilesView() {
                   >
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Icon className={cn(
-                          'w-4 h-4 shrink-0',
-                          file.type === 'directory' ? 'text-amber-500' : 'text-muted-foreground'
-                        )} />
+                        <Icon className={cn('w-4 h-4 shrink-0', iconColor)} />
                         <span className={cn('truncate', file.type === 'directory' && 'font-medium')}>
                           {file.name}
                         </span>
@@ -386,7 +514,7 @@ export function FilesView() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
+                    <TableCell className="text-muted-foreground text-xs font-mono">
                       {file.type === 'file' ? formatSize(file.size) : '-'}
                     </TableCell>
                     <TableCell>
@@ -405,9 +533,14 @@ export function FilesView() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                          {file.type === 'file' && (
+                          {canPreview && (
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleOpenFile(file); }}>
                               <Pencil className="w-4 h-4 mr-2" /> {t('common.edit')}
+                            </DropdownMenuItem>
+                          )}
+                          {file.type === 'file' && (
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDownload(file); }}>
+                              <Download className="w-4 h-4 mr-2" /> {t('files.download')}
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setRenaming({ oldPath: file.path, newName: file.name }); }}>
@@ -425,6 +558,14 @@ export function FilesView() {
             </TableBody>
           </Table>
         </Card>
+      )}
+
+      {/* Footer stats */}
+      {files.length > 0 && (
+        <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
+          <span>{t('files.itemCount', { count: filteredFiles.length })}</span>
+          <span>{t('files.totalSize', { size: formatSize(files.reduce((sum, f) => sum + (f.size || 0), 0)) })}</span>
+        </div>
       )}
     </div>
   );

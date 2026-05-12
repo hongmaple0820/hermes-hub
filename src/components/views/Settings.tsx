@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api-client';
 import { useI18n } from '@/i18n';
@@ -87,7 +87,12 @@ const AUTO_REFRESH_OPTIONS = [
 export function Settings({ onLogout }: SettingsProps) {
   const { user, providers, channels, agents, conversations } = useAppStore();
   const { t } = useI18n();
-  const { theme, setTheme } = useTheme();
+  const { theme: rawTheme, setTheme } = useTheme();
+  // During SSR/hydration, theme may be undefined; default to 'system'
+  const theme = rawTheme ?? 'system';
+  // Track mount to avoid hydration mismatch for theme-dependent UI
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState(user?.name || '');
@@ -550,14 +555,14 @@ export function Settings({ onLogout }: SettingsProps) {
                         key={opt.value}
                         onClick={() => setTheme(opt.value)}
                         className={`relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${
-                          theme === opt.value
+                          mounted && theme === opt.value
                             ? 'border-primary bg-primary/5 shadow-sm'
                             : 'border-border hover:border-primary/50'
                         }`}
                       >
                         <div className={`w-10 h-10 rounded-md ${opt.preview}`} />
                         <span className="text-xs font-medium">{opt.label}</span>
-                        {theme === opt.value && (
+                        {mounted && theme === opt.value && (
                           <CheckCircle2 className="absolute top-1.5 right-1.5 w-4 h-4 text-primary" />
                         )}
                       </button>

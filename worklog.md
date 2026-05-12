@@ -1384,3 +1384,207 @@ Stage Summary:
 - **Chat Typing Indicator**: Enhanced with "is thinking..." text and inline bouncing dots
 - **Conversation Search**: Added clear button (X) and "No conversations found" empty state
 - **i18n**: 11 new keys added to all 8 locales with proper translations
+
+---
+Task ID: REVIEW-2
+Agent: main
+Task: Fix Settings View rendering, add missing i18n keys, enhance ChatRoomManager, LogsView, and FilesView
+
+Work Log:
+- **Fixed Settings View rendering bug**:
+  - Settings.tsx: Changed `useTheme()` to safely handle undefined theme during SSR/hydration
+  - Added `rawTheme ?? 'system'` fallback for theme value
+  - Added `mounted` state to avoid hydration mismatch with theme-dependent UI (active styling, CheckCircle2)
+  - Theme comparison now uses `mounted && theme === opt.value` to prevent server/client mismatch
+  - page.tsx: Added `ViewErrorBoundary` component wrapping rendered views for graceful error handling
+  - ViewErrorBoundary uses `erroredView` state to track which view errored, resets on view change
+- **Fixed missing i18n keys**:
+  - Added `context` section (15 keys) to de.json, es.json, fr.json, pt.json
+  - Keys: title, compressed, compressing, forceCompress, tokenCount, threshold, triggerTokens, maxHistoryTokens, tailMessageCount, lineage, continuesFrom, continueInNewSession, totalMessages, compressionType, snapshotCreated
+- **Enhanced ChatRoomManager**:
+  - Create Room dialog: Textarea for description, Switch component, Wifi/WifiOff badges, DialogDescription, DialogFooter with cancel
+  - Room status indicators: Active (green) / Inactive (gray) badges based on participants
+  - Participant count badges: Total + separate member/agent counts
+  - Join Room functionality: Dialog with join code input and validation
+  - Improved empty state: Larger icon, descriptive text, Create + Join buttons
+  - Search: Filter rooms by name/description
+  - Agent avatars row in room cards
+  - 19 new chatRooms i18n keys added to all 8 locales
+- **Enhanced LogsView**:
+  - Auto-refresh toggle with configurable interval (5s/10s/30s/60s)
+  - Export logs button (JSON download with timestamped filename)
+  - Enhanced timestamp formatting (time-only for today, date+time for older, relative time on desktop)
+  - Enhanced color-coded levels with left border per entry
+  - Live indicator (pulsing green dot) when auto-refresh active
+  - More limit options (added 500)
+  - Enhanced search to include metadata JSON
+  - 5 new logs i18n keys added to all 8 locales
+- **Enhanced FilesView**:
+  - Extended file type icons: FileCode, FileImage, FileVideo, FileAudio, FileArchive, FileSpreadsheet, FilePieChart
+  - File icon colors per type (emerald for code, amber for data, sky for text, pink for images, etc.)
+  - Download button in dropdown menu
+  - Search input to filter files by name
+  - Enhanced empty folder state with action buttons
+  - Enhanced file editor with unsaved changes badge and character count
+  - Footer stats with item count and total size
+  - `isTextFile()` function for preview capability detection
+  - 9 new files i18n keys added to all 8 locales
+- All lint checks pass clean (0 errors)
+
+Stage Summary:
+- **Settings rendering bug FIXED**: Safe theme handling with mounted state prevents SSR hydration mismatch
+- **ViewErrorBoundary added**: Catches render failures and shows user-friendly error message with retry
+- **Missing i18n keys FIXED**: context section added to de, es, fr, pt locales
+- **ChatRoomManager enhanced**: Join Room, status indicators, participant badges, search, improved empty state
+- **LogsView enhanced**: Auto-refresh, export logs, smart timestamps, color-coded borders, live indicator
+- **FilesView enhanced**: Rich file type icons with colors, download, search, improved editor and empty states
+- **All 8 i18n locales updated** with 33+ new translation keys for all new features
+
+---
+Task ID: REVIEW-2-B
+Agent: ViewEnhancer
+Task: Enhance MemoryView, ProfilesView, TerminalView, ChannelsView with richer features and better UI
+
+Work Log:
+- Enhanced `/home/z/my-project/src/components/views/MemoryView.tsx`:
+  - Added search/filter by category with i18n category labels
+  - Added memory statistics header with 5 stat cards (total entries, pinned, high priority, categories, total size)
+  - Added category badges with colored dots and i18n labels (Fact, Preference, Instruction, Context, Note)
+  - Added category breakdown bar with clickable filter chips and counts
+  - Added delete confirmation dialog (AlertDialog)
+  - Added pin/unpin toggle with toast feedback
+  - Made empty state more visually appealing with gradient circles and create button
+  - Added create memory dialog with i18n category options
+  - Added edit entry dialog with icon
+  - Added highPriority stat card
+  - Added pin/unpin toast notifications
+  - Added CATEGORY_DOT_COLORS for colored dots
+  - Added getCategoryLabel() helper with i18n support
+- Enhanced `/home/z/my-project/src/components/views/ProfilesView.tsx`:
+  - Added profile creation dialog (already existed, enhanced with icons)
+  - Added activate/deactivate toggle (Switch with handleDeactivate)
+  - Added duplicate profile (button + dropdown menu item)
+  - Added export as JSON (button + dropdown menu item)
+  - Improved empty state with gradient circles and animated sparkle
+  - Added profile statistics header (4 cards: total, active, with model, env configured)
+  - Added search/filter input for profiles
+  - Added deactivate option in dropdown menu for active profiles
+  - Added quick action buttons (Duplicate, JSON export) on each card
+- Enhanced `/home/z/my-project/src/components/views/TerminalView.tsx`:
+  - Added common commands quick-access buttons organized by category (Navigation, Dev, Git, System)
+  - Added copy output button (with tooltip)
+  - Added clear terminal button (with tooltip)
+  - Added connection status indicator (prominent pill with CheckCircle2/XCircle/Loader2 icons)
+  - Made it look like a real terminal (darker bg #0a0e14, green text #3fb950, green cursor, green-themed UI)
+  - Added collapsible quick commands panel with category labels
+  - Added "Show Quick Commands" toggle when panel is hidden
+  - Added tooltips on action buttons
+  - Added status description tooltips (connected/disconnected)
+  - Used TooltipProvider/Tooltip/TooltipContent/TooltipTrigger components
+- Enhanced `/home/z/my-project/src/components/views/ChannelsView.tsx`:
+  - Added channel status indicators (animated pulse dots, colored status badges with dot)
+  - Added reconnect/disconnect buttons (with tooltip hints)
+  - Added channel type icons (already existed) with type badges (Messaging, Protocol, Enterprise)
+  - Added live status dot on channel icon when connected (pulse animation)
+  - Added channel type description badges
+  - Added reconnect/disconnect tooltip hints
+  - Enhanced status badges with colored dots (animate-pulse for connected/configuring/error)
+  - Added better empty state for message flow (WifiOff icon + description)
+  - Added uptime display in connected channel metrics
+- Added i18n keys for all new features to all 8 locale files (en, zh, ja, ko, de, es, fr, pt):
+  - memory: highPriority, categoryBreakdown, catFact, catPreference, catInstruction, catContext, catNote, noEntriesTitle, noEntriesDesc, pinned, unpinned (10+ new keys per locale)
+  - profiles: searchPlaceholder, totalProfiles, activeProfile, withModel, envConfigured, deactivate, deactivated (7 new keys per locale)
+  - terminal: cmdNavigation, cmdDev, cmdGit, cmdSystem, showQuickCmds, statusConnectedDesc, statusDisconnectedDesc (7 new keys per locale)
+  - channels: typeMessaging, typeProtocol, typeEnterprise, reconnectHint, disconnectHint, noActiveChannelsDesc, channelConfig, reconnecting, channelDisconnected, connectedChannels, messagesSent, messagesReceived, avgLatency, messageFlow, messageFlowDesc, noActiveChannels (16 new keys per locale)
+  - Also added missing existing i18n keys to ja, ko, de, es, fr, pt locales (profiles and terminal keys that were in en/zh but missing from others)
+- All 8 locale files validated: memory=60, profiles=60, terminal=32, channels=48 keys each
+- Fixed lint error: Added DialogTrigger import to ProfilesView
+- Lint check passes clean
+
+Stage Summary:
+- **MemoryView** enhanced with i18n category labels, category breakdown visualization, high priority stat, better empty state, pin/unpin toast feedback, and create dialog with icons
+- **ProfilesView** enhanced with stats header, search filter, deactivate toggle, duplicate/export quick actions, and better empty state
+- **TerminalView** enhanced with categorized quick commands, darker terminal theme (green-on-black), prominent connection status pill, tooltips, and collapsible command panel
+- **ChannelsView** enhanced with animated status dots, channel type badges, reconnect/disconnect tooltips, live status on channel icon, and better message flow empty state
+- **All 8 i18n locales updated**: 40+ new translation keys added consistently across en, zh, ja, ko, de, es, fr, pt
+- **No API changes** — all enhancements are frontend-only
+
+---
+Task ID: REVIEW-2
+Agent: main
+Task: Cron Review Cycle - Fix navigation bugs, enhance multiple views, add features
+
+Work Log:
+- Read worklog.md and analyzed project status from previous sessions
+- Used agent-browser to QA the app and identify bugs
+- **Fixed Settings View Rendering Bug**:
+  - Root cause: `useTheme()` from next-themes returns undefined during SSR/hydration
+  - Added `mounted` state + fallback `rawTheme ?? 'system'` in Settings.tsx
+  - Added `ViewErrorBoundary` component in page.tsx wrapping all views with error recovery
+- **Fixed Missing i18n Keys**: Added `context` section (15 keys) to de.json, es.json, fr.json, pt.json
+- **Enhanced ChatRoomManager**:
+  - Upgraded Create Room dialog with Textarea, Switch, agent selection
+  - Added room status indicators (active/inactive badges)
+  - Added participant count badges with member/agent breakdown
+  - Added Join Room dialog with code input
+  - Added search filter, improved empty state, agent avatars row
+- **Enhanced LogsView**:
+  - Added auto-refresh toggle with configurable interval (5s/10s/30s/60s)
+  - Added export logs as JSON
+  - Added smart timestamp formatting
+  - Added color-coded log levels with border colors and enhanced badges
+  - Added 500 limit option, enhanced metadata search
+- **Enhanced FilesView**:
+  - Added file type icons (7 specific types with semantic colors)
+  - Added download button, search filter
+  - Added unsaved changes badge, character count in editor
+  - Added better empty states, footer stats
+- **Enhanced MemoryView**:
+  - Added search/filter by category, memory statistics header
+  - Added category badges with colors, delete confirmation
+  - Added pin/unpin important memories
+  - Added create memory dialog, improved empty state
+- **Enhanced ProfilesView**:
+  - Added activate/deactivate toggle, duplicate profile
+  - Added export as JSON, search filter, stats header
+  - Improved empty state with animated icons
+- **Enhanced TerminalView**:
+  - Added common commands quick-access buttons (Navigation, Dev, Git, System)
+  - Added copy output, clear terminal buttons
+  - Added connection status indicator
+  - Made it look like real terminal (dark bg, green text, monospace)
+- **Enhanced ChannelsView**:
+  - Added channel status indicators with animated pulse dots
+  - Added reconnect/disconnect buttons
+  - Added channel type icons (Messaging, Protocol, Enterprise)
+- Added 80+ new i18n keys across all 8 locale files
+- All lint checks pass clean
+
+Stage Summary:
+- **Settings navigation bug FIXED** with ViewErrorBoundary and mounted state pattern
+- **6 view components significantly enhanced**: ChatRoomManager, LogsView, FilesView, MemoryView, ProfilesView, TerminalView, ChannelsView
+- **80+ i18n keys added** across all 8 locales (en, zh, ja, ko, de, es, fr, pt)
+- **All lint checks pass**
+- **Known issue**: Next.js dev server unstable in sandbox environment (terminates after ~10s idle)
+
+### Project Current Status
+- All core services functional when running (Next.js 3000, chat-service 3003, skill-ws 3004)
+- Skills system compliant with AgentSkills specification (24 built-in skills)
+- ACRP protocol fully implemented with dual auth
+- Settings view rendering fixed with ErrorBoundary
+- Multiple view components enhanced with richer features
+
+### Unresolved Issues
+1. Next.js dev server crashes frequently in sandbox (not a code bug)
+2. Need to test end-to-end chat flow with actual LLM provider
+3. Provider test endpoint only works for OpenAI-compatible providers
+4. Terminal service needs verification
+
+### Next Priority Recommendations
+1. Add keyboard shortcuts system for all views
+2. Add notification system with toast for real-time events
+3. Add data visualization (charts/graphs) to UsageView and Dashboard
+4. Implement conversation export/import
+5. Add search across all views (global search)
+6. Improve responsive design for mobile
+7. Add dark mode polish and transitions

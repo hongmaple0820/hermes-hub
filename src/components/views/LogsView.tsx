@@ -10,9 +10,11 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   FileText, Search, RefreshCw, Trash2, Loader2, ChevronDown, ChevronRight,
-  Bug, Info, AlertTriangle, AlertCircle, Terminal,
+  Bug, Info, AlertTriangle, AlertCircle, Terminal, Download, Timer,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -33,14 +35,50 @@ const LOG_TYPES = [
   { key: 'access', labelKey: 'logs.access', icon: Info },
 ];
 
-const LEVEL_CONFIG: Record<string, { color: string; bgColor: string; icon: React.ElementType }> = {
-  debug: { color: 'text-gray-500', bgColor: 'bg-gray-500/10', icon: Bug },
-  info: { color: 'text-sky-600', bgColor: 'bg-sky-500/10', icon: Info },
-  warn: { color: 'text-amber-600', bgColor: 'bg-amber-500/10', icon: AlertTriangle },
-  error: { color: 'text-red-600', bgColor: 'bg-red-500/10', icon: AlertCircle },
+const LEVEL_CONFIG: Record<string, { color: string; bgColor: string; borderColor: string; icon: React.ElementType }> = {
+  debug: { color: 'text-gray-500', bgColor: 'bg-gray-500/10', borderColor: 'border-l-gray-500', icon: Bug },
+  info: { color: 'text-sky-600', bgColor: 'bg-sky-500/10', borderColor: 'border-l-sky-500', icon: Info },
+  warn: { color: 'text-amber-600', bgColor: 'bg-amber-500/10', borderColor: 'border-l-amber-500', icon: AlertTriangle },
+  error: { color: 'text-red-600', bgColor: 'bg-red-500/10', borderColor: 'border-l-red-500', icon: AlertCircle },
 };
 
-const LIMITS = [50, 100, 200];
+const LIMITS = [50, 100, 200, 500];
+
+const REFRESH_INTERVALS = [
+  { value: '0', label: 'logs.off' },
+  { value: '5', label: '5s' },
+  { value: '10', label: '10s' },
+  { value: '30', label: '30s' },
+  { value: '60', label: '60s' },
+];
+
+function formatTimestamp(ts: string): string {
+  const date = new Date(ts);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+
+  const timeStr = date.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+
+  if (isToday) return timeStr;
+
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  }) + ' ' + timeStr;
+}
+
+function formatRelativeTime(ts: string): string {
+  const diff = Date.now() - new Date(ts).getTime();
+  if (diff < 60000) return 'just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  return `${Math.floor(diff / 86400000)}d ago`;
+}
 
 export function LogsView() {
   const { t } = useI18n();
@@ -52,13 +90,12 @@ export function LogsView() {
   const [limit, setLimit] = useState(100);
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(() => new Set());
   const [autoScroll, setAutoScroll] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState('10');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    loadLogs();
-  }, [logType, limit]);
-
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     setLoading(true);
     try {
       const result = await api.getLogs(logType, limit);
@@ -68,7 +105,36 @@ export function LogsView() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [logType, limit]);
+
+  useEffect(() => {
+    loadLogs();
+  }, [loadLogs]);
+
+  // Auto-refresh logic
+  useEffect(() => {
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+
+    if (autoRefresh) {
+      const interval = parseInt(refreshInterval) * 1000;
+      if (interval > 0) {
+        refreshTimerRef.current = setInterval(() => {
+          api.getLogs(logType, limit).then((result) => {
+            setLogs(result.logs || []);
+          }).catch(() => {});
+        }, interval);
+      }
+    }
+
+    return () => {
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
+      }
+    };
+  }, [autoRefresh, refreshInterval, logType, limit]);
 
   useEffect(() => {
     if (autoScroll && scrollRef.current) {
@@ -91,11 +157,36 @@ export function LogsView() {
     setExpandedEntries(new Set());
   };
 
+  const handleExportLogs = () => {
+    const dataToExport = filteredLogs.map((log) => ({
+      timestamp: log.timestamp,
+      level: log.level,
+      logger: log.logger || '',
+      message: log.message,
+      ...(log.metadata ? { metadata: log.metadata } : {}),
+    }));
+
+    const blob = new Blob(
+      [JSON.stringify(dataToExport, null, 2)],
+      { type: 'application/json' }
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `hermes-logs-${logType}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(t('logs.exportSuccess'));
+  };
+
   const filteredLogs = logs.filter((log) => {
     const matchesLevel = levelFilter === 'all' || log.level === levelFilter;
     const matchesSearch = !searchQuery ||
       log.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      log.logger?.toLowerCase().includes(searchQuery.toLowerCase());
+      log.logger?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      JSON.stringify(log.metadata || {}).toLowerCase().includes(searchQuery.toLowerCase());
     return matchesLevel && matchesSearch;
   });
 
@@ -125,6 +216,9 @@ export function LogsView() {
           <Button variant="outline" size="icon" onClick={loadLogs} disabled={loading}>
             <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
           </Button>
+          <Button variant="outline" size="icon" onClick={handleExportLogs} disabled={filteredLogs.length === 0} title={t('logs.exportLogs')}>
+            <Download className="w-4 h-4" />
+          </Button>
           <Button variant="outline" size="icon" onClick={handleClear}>
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -132,8 +226,8 @@ export function LogsView() {
       </div>
 
       {/* Search + Filters */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-md min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder={t('logs.searchPlaceholder')}
@@ -142,7 +236,7 @@ export function LogsView() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 flex-wrap">
           <Button
             variant={levelFilter === 'all' ? 'default' : 'outline'}
             size="sm"
@@ -167,16 +261,39 @@ export function LogsView() {
         </div>
       </div>
 
-      {/* Log Type Tabs */}
-      <Tabs value={logType} onValueChange={setLogType} className="mb-4">
-        <TabsList>
-          {LOG_TYPES.map((type) => (
-            <TabsTrigger key={type.key} value={type.key} className="gap-1.5 text-xs">
-              <type.icon className="w-3.5 h-3.5" /> {t(type.labelKey)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      {/* Log Type Tabs + Auto-refresh */}
+      <div className="flex items-center justify-between mb-4">
+        <Tabs value={logType} onValueChange={setLogType}>
+          <TabsList>
+            {LOG_TYPES.map((type) => (
+              <TabsTrigger key={type.key} value={type.key} className="gap-1.5 text-xs">
+                <type.icon className="w-3.5 h-3.5" /> {t(type.labelKey)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
+        {/* Auto-refresh controls */}
+        <div className="flex items-center gap-3">
+          <Label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+            <Switch checked={autoRefresh} onCheckedChange={setAutoRefresh} />
+            <Timer className="w-3.5 h-3.5" />
+            {t('logs.autoRefresh')}
+          </Label>
+          {autoRefresh && (
+            <Select value={refreshInterval} onValueChange={setRefreshInterval}>
+              <SelectTrigger className="w-[70px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {REFRESH_INTERVALS.filter(r => r.value !== '0').map((r) => (
+                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      </div>
 
       {/* Log Entries */}
       {loading ? (
@@ -202,10 +319,10 @@ export function LogsView() {
                 const hasMetadata = log.metadata && Object.keys(log.metadata).length > 0;
 
                 return (
-                  <div key={index} className="hover:bg-accent/50 transition-colors">
+                  <div key={index} className={cn('border-l-2 transition-colors', levelCfg.borderColor, 'hover:bg-accent/50')}>
                     <div
                       className="flex items-start gap-3 px-4 py-2.5 cursor-pointer"
-                      onClick={() => hasMetadata && toggleExpand(index)}
+                      onClick={() => toggleExpand(index)}
                     >
                       {hasMetadata ? (
                         isExpanded ? (
@@ -217,10 +334,10 @@ export function LogsView() {
                         <div className="w-4 shrink-0" />
                       )}
                       <LevelIcon className={cn('w-4 h-4 shrink-0 mt-0.5', levelCfg.color)} />
-                      <span className="text-xs text-muted-foreground font-mono shrink-0 w-[170px]">
-                        {new Date(log.timestamp).toLocaleString()}
+                      <span className="text-xs text-muted-foreground font-mono shrink-0 w-[170px]" title={log.timestamp}>
+                        {formatTimestamp(log.timestamp)}
                       </span>
-                      <Badge variant="outline" className={cn('text-[10px] shrink-0', levelCfg.color)}>
+                      <Badge variant="outline" className={cn('text-[10px] shrink-0 font-semibold', levelCfg.color, levelCfg.bgColor)}>
                         {log.level.toUpperCase()}
                       </Badge>
                       {log.logger && (
@@ -229,6 +346,9 @@ export function LogsView() {
                         </span>
                       )}
                       <span className="text-sm flex-1 min-w-0 truncate">{log.message}</span>
+                      <span className="text-[10px] text-muted-foreground shrink-0 hidden lg:block">
+                        {formatRelativeTime(log.timestamp)}
+                      </span>
                     </div>
                     {isExpanded && hasMetadata && (
                       <div className="px-4 pb-3 pl-12">
@@ -245,7 +365,7 @@ export function LogsView() {
         </Card>
       )}
 
-      {/* Auto-scroll toggle */}
+      {/* Footer controls */}
       <div className="flex items-center justify-between mt-3">
         <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
           <input
@@ -256,9 +376,17 @@ export function LogsView() {
           />
           {t('logs.autoScroll')}
         </label>
-        <span className="text-xs text-muted-foreground">
-          {t('logs.showingCount', { count: filteredLogs.length, total: logs.length })}
-        </span>
+        <div className="flex items-center gap-4">
+          {autoRefresh && (
+            <span className="flex items-center gap-1 text-xs text-emerald-600">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {t('logs.live')}
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground">
+            {t('logs.showingCount', { count: filteredLogs.length, total: logs.length })}
+          </span>
+        </div>
       </div>
     </div>
   );

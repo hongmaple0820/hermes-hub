@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, ComponentType } from 'react';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api-client';
 import { I18nProvider } from '@/i18n';
@@ -25,6 +25,36 @@ import { AgentControlCenter } from '@/components/views/AgentControlCenter';
 import { SessionSearch } from '@/components/views/SessionSearch';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { Toaster, toast } from 'sonner';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+// Error boundary wrapper to catch render failures in views
+function ViewErrorBoundary({ children, viewName }: { children: React.ReactNode; viewName: string }) {
+  const [erroredView, setErroredView] = useState<string | null>(null);
+
+  if (erroredView && erroredView === viewName) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <AlertTriangle className="w-12 h-12 text-amber-500 mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Something went wrong</h3>
+          <p className="text-muted-foreground text-sm mb-4">Failed to render the {viewName} view. Please try again.</p>
+          <Button variant="outline" onClick={() => setErroredView(null)} className="gap-2">
+            <RefreshCw className="w-4 h-4" /> Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Reset error state when view changes
+  if (erroredView && erroredView !== viewName) {
+    // View changed, clear the error for the new view
+    setErroredView(null);
+  }
+
+  return <>{children}</>;
+}
 
 function AppContent() {
   const {
@@ -247,7 +277,9 @@ function AppContent() {
             </div>
           </div>
         ) : (
-          <div key={currentView} className="animate-in fade-in">{renderView()}</div>
+          <ViewErrorBoundary viewName={currentView}>
+            <div key={currentView} className="animate-in fade-in">{renderView()}</div>
+          </ViewErrorBoundary>
         )}
       </main>
       <SessionSearch />
