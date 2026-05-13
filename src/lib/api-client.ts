@@ -7,12 +7,46 @@ const API_BASE = '/api';
 class ApiClient {
   private userId: string | null = null;
 
+  private persistAuth(userId: string) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hermes-auth-user-id', userId);
+    }
+  }
+
+  private restoreAuth(): string | null {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('hermes-auth-user-id');
+    }
+    return null;
+  }
+
+  private clearPersistedAuth() {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('hermes-auth-user-id');
+    }
+  }
+
   setUserId(id: string) {
     this.userId = id;
+    this.persistAuth(id);
   }
 
   getUserId(): string | null {
     return this.userId;
+  }
+
+  logout() {
+    this.userId = null;
+    this.clearPersistedAuth();
+  }
+
+  tryRestoreAuth(): boolean {
+    const stored = this.restoreAuth();
+    if (stored) {
+      this.userId = stored;
+      return true;
+    }
+    return false;
   }
 
   private async request(path: string, options: RequestInit = {}): Promise<Response> {
@@ -74,6 +108,10 @@ class ApiClient {
   }
 
   async getMe() {
+    return this.get<{ user: any }>('/auth/me');
+  }
+
+  async getAuthMe() {
     return this.get<{ user: any }>('/auth/me');
   }
 
@@ -181,7 +219,7 @@ class ApiClient {
   }
 
   async uninstallSkill(skillId: string, agentId: string) {
-    return this.post<{ success: boolean }>(`/skills/${skillId}/uninstall`, { agentId });
+    return this.del<{ success: boolean }>(`/skills/${skillId}/uninstall?agentId=${encodeURIComponent(agentId)}`);
   }
 
   async importSkill(sourceUrl: string, skillPath?: string) {

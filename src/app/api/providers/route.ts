@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { encrypt, maskApiKey } from '@/lib/crypto';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
     // Mask API keys for security
     const masked = providers.map((p) => ({
       ...p,
-      apiKey: p.apiKey ? `${p.apiKey.slice(0, 8)}...${p.apiKey.slice(-4)}` : null,
+      apiKey: maskApiKey(p.apiKey),
     }));
 
     return NextResponse.json({ providers: masked });
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         name,
         provider,
-        apiKey: apiKey || null,
+        apiKey: apiKey ? encrypt(apiKey) : null,
         baseUrl: baseUrl || null,
         models: JSON.stringify(models || []),
         defaultModel: defaultModel || null,
@@ -64,7 +65,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ provider: newProvider }, { status: 201 });
+    // Mask API key in response
+    const maskedProvider = {
+      ...newProvider,
+      apiKey: maskApiKey(newProvider.apiKey),
+    };
+
+    return NextResponse.json({ provider: maskedProvider }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

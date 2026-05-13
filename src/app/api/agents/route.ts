@@ -1,6 +1,12 @@
+import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
+
+function safeJsonParse(str: string | null): any {
+  if (!str) return {};
+  try { return JSON.parse(str); } catch { return str; }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,7 +28,12 @@ export async function GET(request: NextRequest) {
       orderBy: { updatedAt: 'desc' },
     });
 
-    return NextResponse.json({ agents });
+    const parsed = agents.map(a => ({
+      ...a,
+      agentMetadata: safeJsonParse(a.agentMetadata),
+    }));
+
+    return NextResponse.json({ agents: parsed });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -95,16 +106,31 @@ export async function POST(request: NextRequest) {
 
     // Install skills if provided
     if (skillIds && Array.isArray(skillIds) && skillIds.length > 0) {
-      await db.agentSkill.createMany({
-        data: skillIds.map((skillId: string, index: number) => ({
-          agentId: agent.id,
-          skillId,
-          priority: index,
-        })),
-        skipDuplicates: true,
-      });
+      await Promise.all(skillIds.map((skillId: string, index: number) =>
+        db.agentSkill.create({
+          data: {
+            agentId: agent.id,
+            skillId,
+            priority: index,
+            endpointToken: `sk_ep_${randomUUID()}`,
+            callbackSecret: `cs_${randomUUID()}`,
+          },
+        })
+      ));
     }
 
+    if (skillIds && Array.isArray(skillIds) && skillIds.length > 0) {
+      const refreshedAgent = await db.agent.findUnique({
+        where: { id: agent.id },
+        include: {
+          provider: { select: { id: true, name: true, provider: true, defaultModel: true } },
+          skills: { include: { skill: true }, orderBy: { priority: 'asc' } },
+          connections: true,
+          plugins: true,
+        },
+      });
+      return NextResponse.json({ agent: refreshedAgent }, { status: 201 });
+    }
     return NextResponse.json({ agent }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {

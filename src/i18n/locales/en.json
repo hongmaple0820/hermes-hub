@@ -429,7 +429,9 @@
     "updated": "Provider updated!",
     "saving": "Saving...",
     "save": "Save Changes",
-    "isActive": "Active"
+    "isActive": "Active",
+    "deleteConfirmTitle": "Delete Provider",
+    "deleteConfirmDesc": "Are you sure you want to delete this provider? This action cannot be undone. Any agents using this provider will need to be reconfigured."
   },
   "skills": {
     "title": "Skills Marketplace",
@@ -557,7 +559,10 @@
     "daysAgo": "{count}d ago",
     "welcomeTitle": "Start a Conversation",
     "welcomeDesc": "Choose an agent and begin chatting. Your AI assistants are ready to help.",
-    "quickStartSuggestions": "Quick start suggestions"
+    "quickStartSuggestions": "Quick start suggestions",
+    "streamingError": "Streaming error occurred",
+    "deleteConversationTitle": "Delete Conversation",
+    "deleteConversationDesc": "Are you sure you want to delete this conversation? All messages will be permanently lost. This action cannot be undone."
   },
   "chatRooms": {
     "title": "Chat Rooms",
@@ -886,7 +891,9 @@
     "pause": "Pause",
     "resume": "Resume",
     "runStarted": "Job execution started",
-    "deleted": "Job deleted"
+    "deleted": "Job deleted",
+    "deleteConfirmTitle": "Delete Job",
+    "deleteConfirmDesc": "Are you sure you want to delete this scheduled job? This action cannot be undone."
   },
   "usage": {
     "title": "Usage Analytics",
@@ -1102,7 +1109,9 @@
     "charactersCount": "characters",
     "noMatchingFiles": "No files match your search",
     "itemCount": "{count} items",
-    "totalSize": "Total: {size}"
+    "totalSize": "Total: {size}",
+    "deleteConfirmTitle": "Delete File",
+    "deleteConfirmDesc": "Are you sure you want to delete this file or directory? This action cannot be undone."
   },
   "terminal": {
     "title": "Web Terminal",

@@ -429,7 +429,9 @@
     "updated": "Fornecedor atualizado!",
     "saving": "Salvando...",
     "save": "Salvar Alterações",
-    "isActive": "Ativo"
+    "isActive": "Ativo",
+    "deleteConfirmTitle": "Excluir provedor",
+    "deleteConfirmDesc": "Tem certeza de que deseja excluir este provedor? Esta ação não pode ser desfeita. Agentes que usam este provedor precisarão ser reconfigurados."
   },
   "skills": {
     "title": "Mercado de Skills",
@@ -557,7 +559,10 @@
     "daysAgo": "Ha {count} dias",
     "welcomeTitle": "Inicie uma conversa",
     "welcomeDesc": "Escolha um agente e comece a conversar. Seus assistentes de IA estao prontos.",
-    "quickStartSuggestions": "Sugestoes de inicio rapido"
+    "quickStartSuggestions": "Sugestoes de inicio rapido",
+    "streamingError": "Ocorreu um erro de streaming",
+    "deleteConversationTitle": "Excluir conversa",
+    "deleteConversationDesc": "Tem certeza de que deseja excluir esta conversa? Todas as mensagens serão perdidas permanentemente. Esta ação não pode ser desfeita."
   },
   "chatRooms": {
     "title": "Salas de Chat",
@@ -886,7 +891,9 @@
     "pause": "Pausar",
     "resume": "Retomar",
     "runStarted": "Execução da tarefa iniciada",
-    "deleted": "Tarefa excluída"
+    "deleted": "Tarefa excluída",
+    "deleteConfirmTitle": "Excluir tarefa",
+    "deleteConfirmDesc": "Tem certeza de que deseja excluir esta tarefa agendada? Esta ação não pode ser desfeita."
   },
   "usage": {
     "title": "Análise de Uso",
@@ -1102,7 +1109,9 @@
     "charactersCount": "caracteres",
     "noMatchingFiles": "Nenhum arquivo correspondente",
     "itemCount": "{count} itens",
-    "totalSize": "Total: {size}"
+    "totalSize": "Total: {size}",
+    "deleteConfirmTitle": "Excluir arquivo",
+    "deleteConfirmDesc": "Tem certeza de que deseja excluir este arquivo ou diretório? Esta ação não pode ser desfeita."
   },
   "terminal": {
     "title": "Terminal Web",

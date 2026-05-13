@@ -1,5 +1,34 @@
 import { createServer } from 'http'
 import { Server, Socket } from 'socket.io'
+import { createDecipheriv, scryptSync } from 'crypto'
+
+// ---------------------------------------------------------------------------
+// Decrypt utility (mirrors /src/lib/crypto.ts for use in mini-service)
+// ---------------------------------------------------------------------------
+
+const ALGORITHM = 'aes-256-gcm'
+
+function getEncryptionKey(): Buffer {
+  const secret = process.env.ENCRYPTION_SECRET || 'hermes-hub-default-encryption-key-change-in-production'
+  return scryptSync(secret, 'hermes-salt', 32)
+}
+
+function decrypt(encryptedText: string): string {
+  const key = getEncryptionKey()
+  const parts = encryptedText.split(':')
+  if (parts.length !== 3) {
+    // Not encrypted - return as-is for backward compatibility
+    return encryptedText
+  }
+  const iv = Buffer.from(parts[0], 'hex')
+  const tag = Buffer.from(parts[1], 'hex')
+  const encrypted = parts[2]
+  const decipher = createDecipheriv(ALGORITHM, key, iv)
+  decipher.setAuthTag(tag)
+  let decrypted = decipher.update(encrypted, 'hex', 'utf8')
+  decrypted += decipher.final('utf8')
+  return decrypted
+}
 
 const httpServer = createServer()
 const io = new Server(httpServer, {
@@ -594,7 +623,8 @@ async function handleBuiltinAgent(
   const provider = agentConfig.provider || 'openai'
   const baseUrl = agentConfig.baseUrl || 'https://api.openai.com/v1'
   const model = agentConfig.model || 'gpt-3.5-turbo'
-  const apiKey = agentConfig.apiKey
+  const rawApiKey = agentConfig.apiKey
+  const apiKey = rawApiKey ? decrypt(rawApiKey) : null
 
   if (!apiKey) {
     io.to(roomKey).emit('agent:typing', {

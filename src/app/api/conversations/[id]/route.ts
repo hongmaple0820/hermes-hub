@@ -3,6 +3,11 @@ import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { generateAgentReply } from '@/lib/agent-reply';
 
+function safeJsonParse(str: string | null): any {
+  if (!str) return {};
+  try { return JSON.parse(str); } catch { return str; }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -32,7 +37,7 @@ export async function GET(
       return NextResponse.json({ error: 'Not a participant' }, { status: 403 });
     }
 
-    return NextResponse.json({ conversation });
+    return NextResponse.json({ conversation: { ...conversation, lineage: safeJsonParse(conversation.lineage) } });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

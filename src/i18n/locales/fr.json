@@ -429,7 +429,9 @@
     "updated": "Fournisseur mis à jour !",
     "saving": "Enregistrement...",
     "save": "Enregistrer les Modifications",
-    "isActive": "Actif"
+    "isActive": "Actif",
+    "deleteConfirmTitle": "Supprimer le fournisseur",
+    "deleteConfirmDesc": "Êtes-vous sûr de vouloir supprimer ce fournisseur ? Cette action est irréversible. Les agents utilisant ce fournisseur devront être reconfigurés."
   },
   "skills": {
     "title": "Marché des Skills",
@@ -557,7 +559,10 @@
     "daysAgo": "Il y a {count} j",
     "welcomeTitle": "Debuter une conversation",
     "welcomeDesc": "Choisissez un agent et commencez a discuter. Vos assistants IA sont prets.",
-    "quickStartSuggestions": "Suggestions de demarrage rapide"
+    "quickStartSuggestions": "Suggestions de demarrage rapide",
+    "streamingError": "Une erreur de streaming s'est produite",
+    "deleteConversationTitle": "Supprimer la conversation",
+    "deleteConversationDesc": "Êtes-vous sûr de vouloir supprimer cette conversation ? Tous les messages seront définitivement perdus. Cette action est irréversible."
   },
   "chatRooms": {
     "title": "Salons de Chat",
@@ -886,7 +891,9 @@
     "pause": "Pause",
     "resume": "Reprendre",
     "runStarted": "Exécution de la tâche démarrée",
-    "deleted": "Tâche supprimée"
+    "deleted": "Tâche supprimée",
+    "deleteConfirmTitle": "Supprimer la tâche",
+    "deleteConfirmDesc": "Êtes-vous sûr de vouloir supprimer cette tâche planifiée ? Cette action est irréversible."
   },
   "usage": {
     "title": "Analyse d'Utilisation",
@@ -1102,7 +1109,9 @@
     "charactersCount": "caracteres",
     "noMatchingFiles": "Aucun fichier correspondant",
     "itemCount": "{count} elements",
-    "totalSize": "Total : {size}"
+    "totalSize": "Total : {size}",
+    "deleteConfirmTitle": "Supprimer le fichier",
+    "deleteConfirmDesc": "Êtes-vous sûr de vouloir supprimer ce fichier ou répertoire ? Cette action est irréversible."
   },
   "terminal": {
     "title": "Terminal Web",

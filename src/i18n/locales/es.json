@@ -429,7 +429,9 @@
     "updated": "¡Proveedor actualizado!",
     "saving": "Guardando...",
     "save": "Guardar Cambios",
-    "isActive": "Activo"
+    "isActive": "Activo",
+    "deleteConfirmTitle": "Eliminar proveedor",
+    "deleteConfirmDesc": "¿Está seguro de que desea eliminar este proveedor? Esta acción no se puede deshacer. Los agentes que usen este proveedor deberán ser reconfigurados."
   },
   "skills": {
     "title": "Mercado de Skills",
@@ -557,7 +559,10 @@
     "daysAgo": "Hace {count} días",
     "welcomeTitle": "Inicia una conversación",
     "welcomeDesc": "Elige un agente y comienza a chatear. Tus asistentes de IA están listos.",
-    "quickStartSuggestions": "Sugerencias de inicio rápido"
+    "quickStartSuggestions": "Sugerencias de inicio rápido",
+    "streamingError": "Ocurrió un error de transmisión",
+    "deleteConversationTitle": "Eliminar conversación",
+    "deleteConversationDesc": "¿Está seguro de que desea eliminar esta conversación? Todos los mensajes se perderán permanentemente. Esta acción no se puede deshacer."
   },
   "chatRooms": {
     "title": "Salas de Chat",
@@ -886,7 +891,9 @@
     "pause": "Pausar",
     "resume": "Reanudar",
     "runStarted": "Ejecución de tarea iniciada",
-    "deleted": "Tarea eliminada"
+    "deleted": "Tarea eliminada",
+    "deleteConfirmTitle": "Eliminar tarea",
+    "deleteConfirmDesc": "¿Está seguro de que desea eliminar esta tarea programada? Esta acción no se puede deshacer."
   },
   "usage": {
     "title": "Análisis de Uso",
@@ -1102,7 +1109,9 @@
     "charactersCount": "caracteres",
     "noMatchingFiles": "No hay archivos coincidentes",
     "itemCount": "{count} elementos",
-    "totalSize": "Total: {size}"
+    "totalSize": "Total: {size}",
+    "deleteConfirmTitle": "Eliminar archivo",
+    "deleteConfirmDesc": "¿Está seguro de que desea eliminar este archivo o directorio? Esta acción no se puede deshacer."
   },
   "terminal": {
     "title": "Terminal Web",

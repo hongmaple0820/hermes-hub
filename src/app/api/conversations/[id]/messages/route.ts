@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { generateAgentReply } from '@/lib/agent-reply';
+import { generateAgentReply, streamAgentReply } from '@/lib/agent-reply';
+
+function safeJsonParse(str: string | null): any {
+  if (!str) return {};
+  try { return JSON.parse(str); } catch { return str; }
+}
 
 export async function GET(
   request: NextRequest,
@@ -30,7 +35,12 @@ export async function GET(
       orderBy: { createdAt: 'asc' },
     });
 
-    return NextResponse.json({ messages });
+    const parsed = messages.map(m => ({
+      ...m,
+      metadata: safeJsonParse(m.metadata),
+    }));
+
+    return NextResponse.json({ messages: parsed });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -47,6 +57,11 @@ export async function POST(
   try {
     const user = await requireAuth(request);
     const { id } = await params;
+
+    // Check if the client wants SSE streaming
+    const acceptHeader = request.headers.get('accept') || '';
+    const wantsSSE = acceptHeader.includes('text/event-stream');
+
     const body = await request.json();
     const { content, type } = body;
 
@@ -81,7 +96,43 @@ export async function POST(
       },
     });
 
-    // Generate agent reply if this is an agent conversation
+    // If this is an agent conversation and the client wants SSE streaming
+    if (conversation.agentId && wantsSSE) {
+      // Return SSE stream
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            const sseGenerator = streamAgentReply({
+              agentId: conversation.agentId!,
+              conversationId: id,
+              userMessage: content,
+              userId: user.id,
+            });
+
+            for await (const sseEvent of sseGenerator) {
+              controller.enqueue(encoder.encode(sseEvent));
+            }
+
+            controller.close();
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', error: errorMessage })}\n\n`));
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+    }
+
+    // Default: synchronous response (backward compatibility)
     let agentReply = null;
     if (conversation.agentId) {
       const result = await generateAgentReply({

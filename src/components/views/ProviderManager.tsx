@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Server, Plus, Trash2, CheckCircle2, XCircle, Loader2, Eye, EyeOff, TestTube, Pencil, Link2, Unlink } from 'lucide-react';
@@ -66,6 +66,10 @@ export function ProviderManager() {
   const [testing, setTesting] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
   const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({});
+
+  // Delete confirmation
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingProvider, setDeletingProvider] = useState<any>(null);
 
   // OAuth state
   const [oauthStatuses, setOauthStatuses] = useState<Record<OAuthProvider, { status: string; hasToken: boolean; verifiedAt?: string }>>({
@@ -197,7 +201,15 @@ export function ProviderManager() {
       toast.success(t('providers.deleted'));
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeletingProvider(null);
     }
+  };
+
+  const handleDeleteClick = (provider: any) => {
+    setDeletingProvider(provider);
+    setShowDeleteConfirm(true);
   };
 
   // OAuth handlers
@@ -405,7 +417,7 @@ export function ProviderManager() {
                         <DropdownMenuItem onClick={() => handleEdit(provider)}>
                           <Pencil className="w-4 h-4 mr-2" /> {t('common.edit')}
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(provider.id)}>
+                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(provider)}>
                           <Trash2 className="w-4 h-4 mr-2" /> {t('common.delete')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -486,6 +498,33 @@ export function ProviderManager() {
           })}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={(open) => { setShowDeleteConfirm(open); if (!open) setDeletingProvider(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('providers.deleteConfirmTitle')}</DialogTitle>
+            <DialogDescription>{t('providers.deleteConfirmDesc')}</DialogDescription>
+          </DialogHeader>
+          {deletingProvider && (
+            <div className="flex items-center gap-2 p-2 rounded bg-destructive/10 text-destructive text-sm">
+              <Trash2 className="w-4 h-4 shrink-0" />
+              <span className="font-medium">{deletingProvider.name}</span>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setShowDeleteConfirm(false); setDeletingProvider(null); }}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deletingProvider && handleDelete(deletingProvider.id)}
+            >
+              {t('common.delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* OAuth Integration Section */}
       <div className="mt-8">

@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -59,6 +59,10 @@ export function JobsView() {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Delete confirmation
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingJob, setDeletingJob] = useState<Job | null>(null);
 
   const [form, setForm] = useState({
     name: '',
@@ -155,7 +159,15 @@ export function JobsView() {
       toast.success(t('jobs.deleted'));
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeletingJob(null);
     }
+  };
+
+  const handleDeleteClick = (job: Job) => {
+    setDeletingJob(job);
+    setShowDeleteConfirm(true);
   };
 
   if (loading) {
@@ -380,7 +392,7 @@ export function JobsView() {
                           <DropdownMenuItem>
                             <Pencil className="w-4 h-4 mr-2" /> {t('common.edit')}
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(job.id)}>
+                          <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(job)}>
                             <Trash2 className="w-4 h-4 mr-2" /> {t('common.delete')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -393,6 +405,32 @@ export function JobsView() {
           })}
         </div>
       )}
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={(open) => { setShowDeleteConfirm(open); if (!open) setDeletingJob(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('jobs.deleteConfirmTitle')}</DialogTitle>
+            <DialogDescription>{t('jobs.deleteConfirmDesc')}</DialogDescription>
+          </DialogHeader>
+          {deletingJob && (
+            <div className="flex items-center gap-2 p-2 rounded bg-destructive/10 text-destructive text-sm">
+              <Trash2 className="w-4 h-4 shrink-0" />
+              <span className="font-medium">{deletingJob.name}</span>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setShowDeleteConfirm(false); setDeletingJob(null); }}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deletingJob && handleDelete(deletingJob.id)}
+            >
+              {t('common.delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

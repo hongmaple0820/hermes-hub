@@ -429,7 +429,9 @@
     "updated": "프로바이더 업데이트됨!",
     "saving": "저장 중...",
     "save": "변경 저장",
-    "isActive": "활성"
+    "isActive": "활성",
+    "deleteConfirmTitle": "제공자 삭제",
+    "deleteConfirmDesc": "이 제공자를 삭제하시겠습니까? 이 작업은 취소할 수 없습니다. 이 제공자를 사용하는 에이전트는 재구성해야 합니다."
   },
   "skills": {
     "title": "스킬 마켓",
@@ -557,7 +559,10 @@
     "daysAgo": "{count}일 전",
     "welcomeTitle": "대화를 시작하세요",
     "welcomeDesc": "에이전트를 선택하고 채팅을 시작하세요. AI 어시스턴트가 도와드릴 준비가 되었습니다.",
-    "quickStartSuggestions": "빠른 시작 제안"
+    "quickStartSuggestions": "빠른 시작 제안",
+    "streamingError": "스트리밍 오류가 발생했습니다",
+    "deleteConversationTitle": "대화 삭제",
+    "deleteConversationDesc": "이 대화를 삭제하시겠습니까? 모든 메시지가 영구적으로 손실됩니다. 이 작업은 취소할 수 없습니다."
   },
   "chatRooms": {
     "title": "채팅방",
@@ -886,7 +891,9 @@
     "pause": "일시정지",
     "resume": "재개",
     "runStarted": "작업 실행이 시작되었습니다",
-    "deleted": "작업이 삭제되었습니다"
+    "deleted": "작업이 삭제되었습니다",
+    "deleteConfirmTitle": "작업 삭제",
+    "deleteConfirmDesc": "이 예약된 작업을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
   },
   "usage": {
     "title": "사용량 분석",
@@ -1102,7 +1109,9 @@
     "charactersCount": "글자",
     "noMatchingFiles": "일치하는 파일 없음",
     "itemCount": "{count}개 항목",
-    "totalSize": "합계: {size}"
+    "totalSize": "합계: {size}",
+    "deleteConfirmTitle": "파일 삭제",
+    "deleteConfirmDesc": "이 파일 또는 디렉토리를 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
   },
   "terminal": {
     "title": "웹 터미널",

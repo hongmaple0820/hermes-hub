@@ -429,7 +429,9 @@
     "updated": "プロバイダーを更新しました！",
     "saving": "保存中...",
     "save": "変更を保存",
-    "isActive": "アクティブ"
+    "isActive": "アクティブ",
+    "deleteConfirmTitle": "プロバイダーを削除",
+    "deleteConfirmDesc": "このプロバイダーを削除してもよろしいですか？この操作は取り消せません。このプロバイダーを使用するエージェントは再設定が必要です。"
   },
   "skills": {
     "title": "スキルマーケット",
@@ -557,7 +559,10 @@
     "daysAgo": "{count}日前",
     "welcomeTitle": "会話を始めましょう",
     "welcomeDesc": "エージェントを選んでチャットを始めましょう。AIアシスタントがお手伝いします。",
-    "quickStartSuggestions": "クイックスタート提案"
+    "quickStartSuggestions": "クイックスタート提案",
+    "streamingError": "ストリーミングエラーが発生しました",
+    "deleteConversationTitle": "会話を削除",
+    "deleteConversationDesc": "この会話を削除してもよろしいですか？すべてのメッセージが永久に失われます。この操作は取り消せません。"
   },
   "chatRooms": {
     "title": "チャットルーム",
@@ -886,7 +891,9 @@
     "pause": "一時停止",
     "resume": "再開",
     "runStarted": "ジョブ実行を開始しました",
-    "deleted": "ジョブを削除しました"
+    "deleted": "ジョブを削除しました",
+    "deleteConfirmTitle": "ジョブを削除",
+    "deleteConfirmDesc": "このスケジュールされたジョブを削除してもよろしいですか？この操作は取り消せません。"
   },
   "usage": {
     "title": "使用量分析",
@@ -1102,7 +1109,9 @@
     "charactersCount": "文字",
     "noMatchingFiles": "一致するファイルなし",
     "itemCount": "{count} 件",
-    "totalSize": "合計: {size}"
+    "totalSize": "合計: {size}",
+    "deleteConfirmTitle": "ファイルを削除",
+    "deleteConfirmDesc": "このファイルまたはディレクトリを削除してもよろしいですか？この操作は取り消せません。"
   },
   "terminal": {
     "title": "Webターミナル",

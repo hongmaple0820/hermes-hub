@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth'
 
 // POST /api/acrp/agents/[id]/invoke — Invoke a capability on an agent
 export async function POST(
@@ -7,6 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireAuth(request)
     const { id: agentId } = await params
     const body = await request.json()
     const { capabilityId, params: invokeParams } = body
@@ -18,19 +20,15 @@ export async function POST(
       )
     }
 
-    // Get userId from x-user-id header
-    const userId = request.headers.get('x-user-id')
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'x-user-id header is required' },
-        { status: 401 }
-      )
-    }
-
     // Verify agent exists
     const agent = await db.agent.findUnique({ where: { id: agentId } })
     if (!agent) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 })
+    }
+
+    // Ownership check: agent must belong to the authenticated user
+    if (agent.userId !== user.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Verify capability exists
@@ -61,7 +59,7 @@ export async function POST(
       data: {
         agentId,
         capabilityId,
-        invokedBy: userId,
+        invokedBy: user.id,
         params: JSON.stringify(invokeParams || {}),
         status: 'pending',
       },
@@ -77,7 +75,7 @@ export async function POST(
           capabilityId,
           params: invokeParams || {},
           invocationId: invocation.id,
-          invokedBy: userId,
+          invokedBy: user.id,
         }),
         signal: AbortSignal.timeout(5000),
       })
@@ -113,6 +111,9 @@ export async function POST(
       status: 'sent',
     })
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.error('[ACRP] invoke error:', error)
     return NextResponse.json(
       { error: 'Failed to invoke capability' },

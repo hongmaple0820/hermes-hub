@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { encrypt, maskApiKey } from '@/lib/crypto';
 
 export async function GET(
   request: NextRequest,
@@ -26,7 +27,7 @@ export async function GET(
     // Mask API key
     const masked = {
       ...provider,
-      apiKey: provider.apiKey ? `${provider.apiKey.slice(0, 8)}...${provider.apiKey.slice(-4)}` : null,
+      apiKey: maskApiKey(provider.apiKey),
     };
 
     return NextResponse.json({ provider: masked });
@@ -62,7 +63,7 @@ export async function PATCH(
     const updateData: Record<string, unknown> = {};
     if (body.name !== undefined) updateData.name = body.name;
     if (body.provider !== undefined) updateData.provider = body.provider;
-    if (body.apiKey !== undefined) updateData.apiKey = body.apiKey;
+    if (body.apiKey !== undefined) updateData.apiKey = body.apiKey ? encrypt(body.apiKey) : null;
     if (body.baseUrl !== undefined) updateData.baseUrl = body.baseUrl;
     if (body.models !== undefined) updateData.models = JSON.stringify(body.models);
     if (body.defaultModel !== undefined) updateData.defaultModel = body.defaultModel;
@@ -74,7 +75,13 @@ export async function PATCH(
       data: updateData,
     });
 
-    return NextResponse.json({ provider: updated });
+    // Mask API key in response
+    const maskedUpdated = {
+      ...updated,
+      apiKey: maskApiKey(updated.apiKey),
+    };
+
+    return NextResponse.json({ provider: maskedUpdated });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -102,6 +109,12 @@ export async function DELETE(
     if (existing.userId !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+
+    // Nullify providerId on all agents that reference this provider
+    await db.agent.updateMany({
+      where: { providerId: id },
+      data: { providerId: null },
+    });
 
     await db.lLMProvider.delete({ where: { id } });
 

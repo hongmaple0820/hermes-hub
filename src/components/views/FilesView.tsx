@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
@@ -130,6 +130,10 @@ export function FilesView() {
   const [renaming, setRenaming] = useState<{ oldPath: string; newName: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Delete confirmation
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingFile, setDeletingFile] = useState<FileEntry | null>(null);
+
   useEffect(() => {
     loadFiles();
   }, [currentPath, backend]);
@@ -209,7 +213,15 @@ export function FilesView() {
       await loadFiles();
     } catch (error: any) {
       toast.error(error.message);
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeletingFile(null);
     }
+  };
+
+  const handleDeleteClick = (file: FileEntry) => {
+    setDeletingFile(file);
+    setShowDeleteConfirm(true);
   };
 
   const handleRename = async () => {
@@ -546,7 +558,7 @@ export function FilesView() {
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setRenaming({ oldPath: file.path, newName: file.name }); }}>
                             <Pencil className="w-4 h-4 mr-2" /> {t('files.rename')}
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); handleDelete(file); }}>
+                          <DropdownMenuItem className="text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteClick(file); }}>
                             <Trash2 className="w-4 h-4 mr-2" /> {t('common.delete')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -559,6 +571,36 @@ export function FilesView() {
           </Table>
         </Card>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={(open) => { setShowDeleteConfirm(open); if (!open) setDeletingFile(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('files.deleteConfirmTitle')}</DialogTitle>
+            <DialogDescription>{t('files.deleteConfirmDesc')}</DialogDescription>
+          </DialogHeader>
+          {deletingFile && (
+            <div className="flex items-center gap-2 p-2 rounded bg-destructive/10 text-destructive text-sm">
+              <Trash2 className="w-4 h-4 shrink-0" />
+              <span className="font-medium">{deletingFile.name}</span>
+              {deletingFile.type === 'directory' && (
+                <Badge variant="outline" className="text-[10px]">{t('files.folder')}</Badge>
+              )}
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setShowDeleteConfirm(false); setDeletingFile(null); }}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deletingFile && handleDelete(deletingFile)}
+            >
+              {t('common.delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Footer stats */}
       {files.length > 0 && (

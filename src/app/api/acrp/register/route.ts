@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth'
+
+const INTERNAL_SECRET = process.env.INTERNAL_SECRET || 'acrp_internal_secret_2025'
+
+/**
+ * Check if the request comes from an internal service (skill-ws)
+ * by verifying the x-internal-secret header.
+ */
+function isInternalRequest(request: NextRequest): boolean {
+  const secret = request.headers.get('x-internal-secret')
+  return !!secret && secret === INTERNAL_SECRET
+}
 
 /**
  * POST /api/acrp/register
@@ -10,10 +22,22 @@ import { db } from '@/lib/db'
  *   1. { agentId, name, version, platform, capabilities, metadata } — from skill-ws
  *   2. { agentToken, agentInfo: { agentType, platform, version, metadata, capabilities } } — direct API
  *
+ * Auth: Either x-internal-secret header (from skill-ws) OR requireAuth (from frontend)
  * Capabilities can use either `id` or `capabilityId` as the identifier field.
  */
 export async function POST(request: NextRequest) {
   try {
+    let userId: string | null = null
+
+    // Dual auth: internal secret OR requireAuth
+    if (isInternalRequest(request)) {
+      // Internal call from skill-ws — no user auth needed
+    } else {
+      // Frontend call — require user authentication
+      const user = await requireAuth(request)
+      userId = user.id
+    }
+
     const body = await request.json()
 
     // Normalize input from both formats
@@ -62,6 +86,11 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Agent not found' },
         { status: 404 },
       )
+    }
+
+    // Ownership check for frontend calls
+    if (userId && agent.userId !== userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const now = new Date()
@@ -143,6 +172,9 @@ export async function POST(request: NextRequest) {
       capabilitiesCount: syncedCapabilityIds.length,
     })
   } catch (error: any) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.error('[ACRP:Register] Error:', error)
     return NextResponse.json(
       { success: false, error: error.message || 'Registration failed' },

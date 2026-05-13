@@ -53,7 +53,36 @@ export async function getAuthUser(request: NextRequest): Promise<{
 }
 
 /**
- * Require authentication - throws if not authenticated
+ * Extract userId from request headers/query without database validation.
+ * Returns null if no userId found.
+ */
+export function extractUserId(request: NextRequest): string | null {
+  // Try Authorization header first
+  const authHeader = request.headers.get('authorization');
+  let userId: string | null = null;
+
+  if (authHeader?.startsWith('Bearer ')) {
+    userId = authHeader.substring(7).trim();
+  }
+
+  // Fall back to x-user-id header
+  if (!userId) {
+    userId = request.headers.get('x-user-id');
+  }
+
+  // Fall back to query parameter
+  if (!userId) {
+    const url = new URL(request.url);
+    userId = url.searchParams.get('userId');
+  }
+
+  return userId;
+}
+
+/**
+ * Require authentication - throws if not authenticated.
+ * Validates that the userId exists AND the user actually exists in the database.
+ * This ensures stale/invalid userIds are rejected even without JWT.
  */
 export async function requireAuth(request: NextRequest): Promise<{
   id: string;
@@ -63,9 +92,27 @@ export async function requireAuth(request: NextRequest): Promise<{
   role: string;
   status: string;
 }> {
-  const user = await getAuthUser(request);
+  const userId = extractUserId(request);
+  if (!userId) {
+    throw new Error('Unauthorized');
+  }
+
+  // Explicitly validate the user exists in the database
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      avatar: true,
+      role: true,
+      status: true,
+    },
+  });
+
   if (!user) {
     throw new Error('Unauthorized');
   }
+
   return user;
 }

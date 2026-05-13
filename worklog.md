@@ -2191,3 +2191,320 @@ Stage Summary:
 - **Features Added**: System Health Monitor, Keyboard Shortcuts Help, enhanced Dashboard/ChatView/Sidebar/Settings
 - **i18n Coverage**: 50+ new translation keys across 8 languages
 - **Remaining Issues**: Sidebar navigation for Management/System sections may need user testing; agent creation form should validate provider selection for builtin mode; accessibility improvements (dialog descriptions)
+
+---
+Task ID: fix-1
+Agent: main
+Task: Fix skill uninstall HTTP method mismatch (405 Method Not Allowed)
+
+Work Log:
+- Read worklog.md to understand previous work on Hermes Hub project
+- Read `/home/z/my-project/src/lib/api-client.ts` — Found `uninstallSkill` method on line 183-185 using `this.post()` with `agentId` in request body
+- Read `/home/z/my-project/src/app/api/skills/[id]/uninstall/route.ts` — Confirmed backend exports `DELETE` handler and reads `agentId` from `url.searchParams.get('agentId')`
+- **Root cause**: Frontend sent POST request but backend only handles DELETE → 405 Method Not Allowed. Frontend sent `agentId` in body but backend expected it as a URL query parameter.
+- **Fix applied** to `/home/z/my-project/src/lib/api-client.ts` line 183-185:
+  - Changed `this.post<{ success: boolean }>(\`/skills/${skillId}/uninstall\`, { agentId })` 
+  - To `this.del<{ success: boolean }>(\`/skills/${skillId}/uninstall?agentId=${encodeURIComponent(agentId)}\`)`
+- No backend change needed — backend already correctly uses DELETE method and reads agentId from query params
+- Lint check passes clean
+
+Stage Summary:
+- **Bug FIXED**: Skill uninstall no longer returns 405 Method Not Allowed
+- Frontend now sends DELETE request matching the backend handler
+- agentId is now passed as a URL query parameter (with proper encoding) matching the backend's expectation
+- Backend was already correct — no changes needed on that side
+
+---
+Task ID: fix-2
+Agent: main
+Task: Fix three backend bugs in Hermes Hub
+
+Work Log:
+- **Bug 1**: Fixed agent reply senderId in `/home/z/my-project/src/lib/agent-reply.ts`
+  - Changed `senderId: userId` to `senderId: null` on line 122
+  - The agent's message should not reference the user's ID as the sender
+- **Bug 2**: Fixed agent creation response missing installed skills in `/home/z/my-project/src/app/api/agents/route.ts`
+  - After skill installation, re-fetch the agent with `db.agent.findUnique()` including skills, provider, connections, and plugins
+  - Return the refreshed agent in the response so clients see the installed skills immediately
+- **Bug 3**: Fixed AgentSkill created during agent creation lacking endpointToken/callbackSecret in same file
+  - Added `import { randomUUID } from 'crypto'` at top of file
+  - Replaced `db.agentSkill.createMany()` with `Promise.all(skillIds.map(... db.agentSkill.create()))` loop
+  - Each AgentSkill now gets `endpointToken: sk_ep_{uuid}` and `callbackSecret: cs_{uuid}`, matching the dedicated install route behavior
+- Lint check passes clean
+
+Stage Summary:
+- **Bug 1 FIXED**: Agent reply messages now correctly have `senderId: null` instead of the user's ID
+- **Bug 2 FIXED**: Agent creation POST response now includes the full skills array after installation
+- **Bug 3 FIXED**: AgentSkill records created during agent creation now include `endpointToken` and `callbackSecret`, consistent with the dedicated skill install route
+
+---
+Task ID: fix-4
+Agent: ChatRoomMessagesApiBuilder
+Task: Create missing chat-room messages API routes
+
+Work Log:
+- Read existing route patterns from `/api/chat-rooms/[roomId]/route.ts` and `/api/chat-rooms/[roomId]/compress/route.ts`
+- Read `api-client.ts` to understand frontend expectations:
+  - `getChatRoomMessages(roomId)` → GET `/chat-rooms/${roomId}/messages` → expects `{ messages: any[] }`
+  - `sendChatRoomMessage(roomId, content)` → POST `/chat-rooms/${roomId}/messages` → expects `{ message: any }`
+- Read Prisma schema: `ChatRoomMessage` model has `id`, `roomId`, `content`, `type`, `senderInfo` (JSON), `createdAt`
+- Created directory `/home/z/my-project/src/app/api/chat-rooms/[roomId]/messages/`
+- Created `/home/z/my-project/src/app/api/chat-rooms/[roomId]/messages/route.ts` with:
+  - **GET handler** — List messages for a room:
+    - Requires auth via `requireAuth(request)`
+    - Verifies room exists (404 if not found)
+    - Verifies user is a member of the room (403 if not a member)
+    - Supports cursor-based pagination with `limit` (default 50, max 100, min 1) and `before` (message ID cursor) query params
+    - Returns messages in chronological order (oldest first) via `orderBy: desc` + `reverse()`
+    - Response shape: `{ messages: ChatRoomMessage[] }`
+  - **POST handler** — Send a message to a room:
+    - Requires auth via `requireAuth(request)`
+    - Verifies room exists (404 if not found)
+    - Verifies user is a member of the room (403 if not a member)
+    - Validates content is non-empty string (400 if invalid)
+    - Creates ChatRoomMessage with `senderInfo` populated from authenticated user data (`{id, name, type: 'user', avatar}`)
+    - Supports optional `type` field (defaults to "text")
+    - Response shape: `{ message: ChatRoomMessage }`
+- Follows same patterns as existing routes: `NextRequest`, `params: Promise<{ roomId: string }>`, `requireAuth`, try/catch with error handling
+- Verified frontend expectations match: `getChatRoomMessages` expects `{ messages }`, `sendChatRoomMessage` expects `{ message }` — both match
+- Lint check passes clean
+
+Stage Summary:
+- **Missing API route created**: `/api/chat-rooms/[roomId]/messages` now responds to both GET and POST
+- **GET**: Lists messages with cursor-based pagination (`limit` + `before`), auth + membership verification, chronological order
+- **POST**: Creates messages with sender info from authenticated user, auth + membership verification, content validation
+- **Response shapes match frontend**: `{ messages: any[] }` for GET, `{ message: any }` for POST
+- **No more 404 errors** when frontend calls chat room messages endpoints
+
+
+---
+Task ID: fix-3
+Agent: main
+Task: Add requireAuth to all ACRP API endpoints
+
+Work Log:
+- Added `INTERNAL_SECRET=acrp_internal_secret_2025` to `/home/z/my-project/.env`
+- Updated 12 ACRP API route files with authentication:
+
+  1. **generate-token/route.ts**: Added `requireAuth` + ownership check (agent.userId must match user.id)
+  2. **register/route.ts**: Added dual auth — accepts either `x-internal-secret` header (from skill-ws) or `requireAuth` (from frontend). Ownership check for frontend calls.
+  3. **heartbeat/route.ts**: Added dual auth — same pattern as register (internal-secret OR requireAuth + ownership)
+  4. **status/route.ts**: Added dual auth — same pattern as register (internal-secret OR requireAuth + ownership)
+  5. **disconnect/route.ts**: Added `requireAuth` + ownership check. Changed from agentToken body lookup to agentId body + requireAuth.
+  6. **agents/route.ts**: Replaced query-param `userId` with `requireAuth(request)` to get user ID
+  7. **agents/[id]/route.ts**: Added `requireAuth` + ownership check (agent.userId must match user.id)
+  8. **agents/[id]/invoke/route.ts**: Replaced raw `x-user-id` header check with `requireAuth(request)`. Added ownership check.
+  9. **agents/[id]/command/route.ts**: Added `requireAuth` + ownership check
+  10. **agents/[id]/token/route.ts**: Added `requireAuth` + ownership check. Changed `_request` to `request` for auth access.
+  11. **invocations/route.ts**: Added `requireAuth`. Always filters by user's agents (removed query-param userId fallback).
+  12. **invocation-result/route.ts**: Added `x-internal-secret` header check (internal service only, no requireAuth since called by skill-ws)
+- Left `validate-token/route.ts` unchanged (already internal-only)
+- Updated skill-ws service (`mini-services/skill-ws/index.ts`):
+  - Added `INTERNAL_SECRET` constant (from env or default)
+  - Added `'x-internal-secret': INTERNAL_SECRET` header to all 7 fetch calls to ACRP API endpoints:
+    - `/api/acrp/status` (3 calls: connect, disconnect, stale cleanup)
+    - `/api/acrp/register` (1 call: agent:register handler)
+    - `/api/acrp/heartbeat` (1 call: agent:heartbeat handler)
+    - `/api/acrp/invocation-result` (1 call: capability:result handler)
+    - `/api/acrp/status` (agent:status handler)
+- All routes include proper error handling: `if (error instanceof Error && error.message === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })`
+- Lint check passes clean
+
+Stage Summary:
+- **All ACRP API endpoints now require authentication**
+- **Frontend routes**: Use `requireAuth(request)` which checks Authorization Bearer, x-user-id header, or userId query param
+- **Internal service routes** (register, heartbeat, status, invocation-result): Accept either `x-internal-secret` header (from skill-ws) or `requireAuth` (from frontend)
+- **invocation-result**: Internal-only, requires `x-internal-secret` header
+- **Ownership checks**: All agent-specific routes verify that the agent belongs to the authenticated user
+- **skill-ws integration**: All internal API calls now include the `x-internal-secret` header for authentication
+- **No breaking changes**: Frontend api-client already sends `x-user-id` header via the request method, which `requireAuth` accepts
+
+---
+Task ID: fix-6
+Agent: main
+Task: Add session persistence and improve the authentication system
+
+Work Log:
+- Updated `/home/z/my-project/src/lib/api-client.ts`:
+  - Added `persistAuth(userId: string)` — Saves userId to localStorage key `hermes-auth-user-id`
+  - Added `restoreAuth(): string | null` — Reads userId from localStorage
+  - Added `clearPersistedAuth()` — Removes userId from localStorage
+  - Modified `setUserId(id: string)` — Now calls `this.persistAuth(id)` to auto-persist
+  - Added `logout()` — Clears both in-memory userId and persisted auth from localStorage
+  - Added `tryRestoreAuth(): boolean` — Restores userId from localStorage if found, returns true on success
+  - Added `getAuthMe()` — Calls `/api/auth/me` endpoint for server-side session validation
+- Updated `/home/z/my-project/src/app/page.tsx`:
+  - Replaced synchronous localStorage-only session restoration with async server-validated flow
+  - On mount, calls `api.tryRestoreAuth()` first to restore from localStorage
+  - If restored, validates via `api.getAuthMe()` (/api/auth/me) to ensure userId is still valid
+  - If server validation succeeds: sets user in store, updates localStorage user data
+  - If server validation fails: clears auth via `api.logout()`, removes stale localStorage keys
+  - Added backward-compatible migration: tries legacy `hermes_token`/`hermes_user` keys if new key not found
+  - Updated `handleLogin`: removed redundant `localStorage.setItem('hermes_token', token)` since `setUserId` now auto-persists
+  - Updated `handleLogout`: uses `api.logout()` instead of `api.setUserId('')` for proper cleanup
+- Updated `/home/z/my-project/src/lib/auth.ts`:
+  - Extracted `extractUserId(request: NextRequest)` as a standalone sync function
+  - Refactored `requireAuth` to first extract userId, then explicitly validate against database
+  - Added explicit `db.user.findUnique({ where: { id: userId } })` check in `requireAuth`
+  - Throws 'Unauthorized' if userId not found OR user doesn't exist in database
+  - This ensures stale/invalid userIds are rejected even without JWT
+- Lint check passes clean
+
+Stage Summary:
+- **Session persistence problem FIXED**: Auth state is now persisted to localStorage via `hermes-auth-user-id` key
+- **Auto-persist on login**: `setUserId()` automatically saves to localStorage — no manual key management needed
+- **Server-validated restoration**: On page refresh, stored userId is validated via `/api/auth/me` before accepting
+- **Stale auth cleanup**: If server validation fails, both in-memory and localStorage auth are cleared
+- **Backward compatibility**: Legacy `hermes_token`/`hermes_user` localStorage keys are migrated to new system
+- **Explicit DB validation**: `requireAuth` now directly queries the database to verify user existence, rejecting deleted/invalid userIds
+- **Clean logout**: `api.logout()` method properly clears both in-memory state and localStorage persistence
+
+---
+Task ID: fix-5
+Agent: TerminalServiceFixer
+Task: Add user isolation and authentication to the terminal service
+
+Work Log:
+- Rewrote `/home/z/my-project/mini-services/terminal-service/index.ts` with 4 security fixes:
+
+1. **Per-user filesystem isolation**:
+   - Changed global `const filesystem = buildInitialFilesystem()` to `Map<string, VFSNode>` (`userFilesystems`)
+   - Created `templateFS` as the base template, used to bootstrap each user's filesystem
+   - Implemented `cloneVFS()` for deep-cloning VFSNode trees (including all children recursively)
+   - `getFilesystemForUser(userId)` lazily creates a cloned filesystem for each user on first access
+   - All command functions now take an explicit `fs: VFSNode` parameter instead of using a global
+   - `getNode()`, `getParentAndName()`, and all `cmd*()` functions updated to accept `fs` parameter
+   - Tab completion functions `getCompletions()` and `getPathCompletions()` also scoped per-user
+   - `handleInput()` retrieves the user's filesystem via `getFilesystemForUser(client.userId)`
+   - Filesystems persist across reconnections (not deleted on disconnect)
+
+2. **WebSocket authentication via HTTP upgrade**:
+   - Added `verifyClient` callback to `WebSocketServer` constructor
+   - Extracts `token` from URL query params during the HTTP upgrade request
+   - Validates token by calling `GET http://localhost:3000/api/auth/me` with `x-user-id` and `Authorization: Bearer` headers
+   - If validation fails or no token provided, rejects the connection with code `4001`
+   - Stores the authenticated `userId` on the request object (`req.__authenticatedUserId`)
+   - Connection handler retrieves `userId` from the request; closes with `4001` if missing (safety net)
+   - Removed the old `auth` message type that just blindly accepted any userId string
+   - Auth message type now logged and ignored (auth already handled at connection time)
+
+3. **Fix ReDoS vulnerability in find command**:
+   - Old code: `new RegExp('^' + namePattern.replace(/\*/g, '.*').replace(/\?/g, '.') + '$')`
+   - This was vulnerable to ReDoS because regex metacharacters like `.`, `+`, `^`, `$`, `{`, `}`, `(`, `)`, `|`, `[`, `]`, `\` in the namePattern were not escaped
+   - New code: `const escaped = namePattern.replace(/[.+^${}()|[\]\\]/g, '\\$&'); const regex = new RegExp('^' + escaped.replace(/\*/g, '.*').replace(/\?/g, '.') + '$');`
+   - Escapes all regex metacharacters before replacing `*` and `?` wildcards, preventing injection
+
+4. **Session authorization**:
+   - Added `userId` field to `TerminalSession` interface
+   - `createSession()` now sets `session.userId = client.userId`
+   - `switch` message handler: verifies `targetSession.userId === client.userId` before allowing session switch
+   - `close` message handler: verifies `closeSession.userId === client.userId` before allowing session close
+   - Both handlers return "access denied" error if ownership check fails
+   - Logs unauthorized access attempts with both the requesting user and the session owner
+
+- Updated health endpoint to include `activeUsers` count (from `userFilesystems.size`)
+- Updated startup log messages to indicate authentication and filesystem isolation are enabled
+- Lint check passes clean
+- Service verified starting correctly on port 3005 with health check returning proper response
+
+Stage Summary:
+- **All 4 security vulnerabilities fixed** in the terminal service
+- **Per-user filesystem isolation**: Each user gets a deep-cloned independent filesystem; no shared state
+- **Real WebSocket authentication**: Tokens validated against Next.js `/api/auth/me` during HTTP upgrade; invalid tokens rejected with code 4001
+- **ReDoS fixed**: `find` command now escapes regex metacharacters before wildcard replacement
+- **Session authorization**: Switch/close operations verify session ownership; unauthorized access is denied and logged
+- **Backward compatible**: All existing commands still work; `hermes status` still works; filesystem template preserved
+
+---
+Task ID: fix-7
+Agent: main
+Task: Add API Key encryption and response masking for LLM Provider API keys
+
+Work Log:
+- Created `/home/z/my-project/src/lib/crypto.ts` — Encryption utility module:
+  - `encrypt(text)` — AES-256-GCM encryption with random IV and auth tag
+  - `decrypt(encryptedText)` — AES-256-GCM decryption with backward compatibility for unencrypted keys
+  - `maskApiKey(key)` — Masks API keys showing only 4 prefix + masked + 4 suffix chars (encrypted keys show fully masked)
+  - Uses scryptSync key derivation with ENCRYPTION_SECRET env var
+  - Encrypted format: `iv:authTag:ciphertext` (hex-encoded, colon-separated)
+- Added `ENCRYPTION_SECRET=hermes-hub-production-encryption-key-2025` to `.env`
+- Updated `/api/providers/route.ts`:
+  - POST: API keys encrypted with `encrypt()` before saving to DB
+  - POST: Response API key masked with `maskApiKey()` instead of returning raw
+  - GET: API keys masked with `maskApiKey()` (replaced previous inline masking)
+- Updated `/api/providers/[id]/route.ts`:
+  - POST/PATCH: API keys encrypted with `encrypt()` before saving to DB
+  - GET: API key masked with `maskApiKey()` (replaced previous inline masking)
+  - PATCH: Response API key masked with `maskApiKey()`
+- Updated `/mini-services/chat-service/index.ts`:
+  - Added inline `decrypt()` function (mirrors crypto.ts logic for bun mini-service)
+  - `handleBuiltinAgent` now decrypts the API key before using it for LLM Authorization header
+  - Backward compatible: unencrypted keys (no colons in value) returned as-is
+- Lint check passes clean
+
+Stage Summary:
+- **API Keys are now encrypted at rest** in the database using AES-256-GCM
+- **API responses never expose raw keys** — all provider GET/POST/PATCH responses show masked keys (e.g., `sk-1••••••••4abc`)
+- **Backward compatible** — decrypt() handles unencrypted keys (no colons) by returning them as-is, so existing unencrypted keys continue to work
+- **Chat service decrypts keys at runtime** before making LLM API calls
+- **Encryption uses ENCRYPTION_SECRET** env var with scrypt key derivation for strong security
+
+---
+Task ID: fix-8-9
+Agent: main
+Task: Add SSE streaming for 1-on-1 chat and confirmation dialogs for destructive actions
+
+Work Log:
+- Added `chatCompletionStream` async generator to `llm-provider.ts` supporting native streaming for OpenAI/Custom/Ollama, fallback for Anthropic/Google/z-ai
+- Refactored `agent-reply.ts` with shared `prepareAgentContext` helper, added `streamAgentReply` async generator yielding SSE-formatted events (chunk, done, error)
+- Modified messages API route (`/api/conversations/[id]/messages/route.ts`) to support SSE streaming via `Accept: text/event-stream` header, backward compatible with JSON
+- Updated ChatView ConversationsPanel with SSE streaming support: ReadableStream parsing, incremental content display with Markdown rendering and blinking cursor, typing indicator while waiting, abort controller support
+- Added delete confirmation dialog to ProviderManager.tsx with `showDeleteConfirm`/`deletingProvider` state and destructive-styled alert box
+- Added delete confirmation dialog to JobsView.tsx with `showDeleteConfirm`/`deletingJob` state
+- Added delete confirmation dialog to FilesView.tsx with `showDeleteConfirm`/`deletingFile` state and folder badge for directories
+- Updated ChatView conversation delete confirmation to use i18n keys instead of hardcoded English text
+- Added i18n keys for all confirmation messages and streaming error to all 8 locale files (en, zh, ja, ko, de, es, fr, pt)
+- Lint check passes clean
+
+Stage Summary:
+- **SSE streaming**: One-on-one chat streams LLM responses in real-time with progressive display
+- **Backward compatible**: Non-SSE clients still get synchronous JSON responses
+- **Confirmation dialogs**: 4 destructive actions now have proper confirmation dialogs (delete provider, delete job, delete file, delete conversation)
+- **Full i18n**: All new dialog text translated to 8 locales
+
+---
+Task ID: fix-10
+Agent: main
+Task: Fix JSON field parsing consistency and data integrity issues
+
+Work Log:
+- **Problem 1 — JSON string fields not parsed on read**:
+  - Added `safeJsonParse()` helper to 5 API route files
+  - `/api/agents/route.ts` GET: Parse `agentMetadata` on each agent before returning
+  - `/api/agents/[id]/route.ts` GET: Parse `agentMetadata` on single agent before returning
+  - `/api/conversations/route.ts` GET: Parse `lineage` on each conversation before returning
+  - `/api/conversations/[id]/route.ts` GET: Parse `lineage` on single conversation before returning
+  - `/api/conversations/[id]/messages/route.ts` GET: Parse `metadata` on each message before returning
+  - safeJsonParse returns `{}` for null/empty, parsed object for valid JSON, raw string for invalid JSON
+- **Problem 2 — AgentSkill → Skill missing cascade delete**:
+  - Updated `prisma/schema.prisma`: Changed `skill Skill @relation(fields: [skillId], references: [id])` to add `onDelete: Cascade`
+  - Ran `bun run db:push` to apply schema change
+- **Problem 3 — Provider delete doesn't nullify Agent.providerId**:
+  - Updated `/api/providers/[id]/route.ts` DELETE: Added `db.agent.updateMany({ where: { providerId: id }, data: { providerId: null } })` before `db.lLMProvider.delete()`
+- **Problem 4 — Agent delete should handle conversations**:
+  - Updated `/api/agents/[id]/route.ts` DELETE: Added `db.conversation.updateMany({ where: { agentId: id }, data: { agentId: null } })` before `db.agent.delete()`
+- **Problem 5 — Conversation create should verify agent ownership**:
+  - Updated `/api/conversations/route.ts` POST: Added ownership check after finding agent — returns 403 if `agent.userId !== user.id && !agent.isPublic`
+- **Problem 6 — Skill.installedAt never set**:
+  - Updated `/api/skills/[id]/install/route.ts` POST: Added `db.skill.update({ where: { id }, data: { installedAt: new Date() } })` after creating AgentSkill
+- Lint check passes clean
+- db:push applied successfully
+
+Stage Summary:
+- **6 data integrity and consistency bugs fixed**
+- JSON fields now automatically parsed on read — frontend no longer needs manual JSON.parse()
+- Cascade delete on AgentSkill → Skill prevents orphaned bindings when skills are deleted
+- Provider deletion safely nullifies agent references instead of causing FK constraint errors
+- Agent deletion safely nullifies conversation references instead of causing FK constraint errors
+- Conversation creation enforces agent ownership — users can't create conversations with other users' private agents
+- Skill installedAt timestamp is now correctly set when a skill is installed to an agent

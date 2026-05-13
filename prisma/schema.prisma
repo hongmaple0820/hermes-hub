@@ -200,7 +200,7 @@ model AgentSkill {
   wsConnected Boolean @default(false) // Whether currently connected via WS for this binding
 
   agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  skill Skill @relation(fields: [skillId], references: [id])
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
 
   @@unique([agentId, skillId])
 }

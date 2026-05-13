@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
 
+function safeJsonParse(str: string | null): any {
+  if (!str) return {};
+  try { return JSON.parse(str); } catch { return str; }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -30,7 +35,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    return NextResponse.json({ agent });
+    return NextResponse.json({ agent: { ...agent, agentMetadata: safeJsonParse(agent.agentMetadata) } });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -109,6 +114,12 @@ export async function DELETE(
     if (existing.userId !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+
+    // Nullify agentId on conversations that reference this agent
+    await db.conversation.updateMany({
+      where: { agentId: id },
+      data: { agentId: null },
+    });
 
     await db.agent.delete({ where: { id } });
 

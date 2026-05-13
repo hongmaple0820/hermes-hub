@@ -429,7 +429,9 @@
     "updated": "Anbieter aktualisiert!",
     "saving": "Wird gespeichert...",
     "save": "Änderungen speichern",
-    "isActive": "Aktiv"
+    "isActive": "Aktiv",
+    "deleteConfirmTitle": "Anbieter löschen",
+    "deleteConfirmDesc": "Sind Sie sicher, dass Sie diesen Anbieter löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden. Agenten, die diesen Anbieter verwenden, müssen neu konfiguriert werden."
   },
   "skills": {
     "title": "Skills-Marktplatz",
@@ -557,7 +559,10 @@
     "daysAgo": "Vor {count} Tagen",
     "welcomeTitle": "Gespraech starten",
     "welcomeDesc": "Waehle einen Agenten und beginne zu chatten. Deine KI-Assistenten sind bereit.",
-    "quickStartSuggestions": "Schnellstart-Vorschlaege"
+    "quickStartSuggestions": "Schnellstart-Vorschlaege",
+    "streamingError": "Streaming-Fehler aufgetreten",
+    "deleteConversationTitle": "Unterhaltung löschen",
+    "deleteConversationDesc": "Sind Sie sicher, dass Sie diese Unterhaltung löschen möchten? Alle Nachrichten gehen dauerhaft verloren. Diese Aktion kann nicht rückgängig gemacht werden."
   },
   "chatRooms": {
     "title": "Chaträume",
@@ -886,7 +891,9 @@
     "pause": "Pausieren",
     "resume": "Fortsetzen",
     "runStarted": "Aufgabenausführung gestartet",
-    "deleted": "Aufgabe gelöscht"
+    "deleted": "Aufgabe gelöscht",
+    "deleteConfirmTitle": "Aufgabe löschen",
+    "deleteConfirmDesc": "Sind Sie sicher, dass Sie diese geplante Aufgabe löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden."
   },
   "usage": {
     "title": "Nutzungsanalysen",
@@ -1102,7 +1109,9 @@
     "charactersCount": "Zeichen",
     "noMatchingFiles": "Keine passenden Dateien",
     "itemCount": "{count} Elemente",
-    "totalSize": "Gesamt: {size}"
+    "totalSize": "Gesamt: {size}",
+    "deleteConfirmTitle": "Datei löschen",
+    "deleteConfirmDesc": "Sind Sie sicher, dass Sie diese Datei oder dieses Verzeichnis löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden."
   },
   "terminal": {
     "title": "Web-Terminal",

@@ -66,6 +66,12 @@ export async function POST(
     // Build the endpoint URL
     const endpointUrl = `/api/skill-protocol/events?token=${endpointToken}`;
 
+    // Update Skill.installedAt
+    await db.skill.update({
+      where: { id },
+      data: { installedAt: new Date() },
+    });
+
     return NextResponse.json({
       agentSkill,
       endpointUrl,

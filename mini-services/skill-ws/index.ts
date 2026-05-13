@@ -163,6 +163,7 @@ interface ACRPInvokePayload {
 const PORT = 3004
 const NEXTJS_API_URL = process.env.NEXTJS_API_URL || 'http://localhost:3000'
 const HEARTBEAT_INTERVAL = 30 // seconds
+const INTERNAL_SECRET = process.env.INTERNAL_SECRET || 'acrp_internal_secret_2025'
 const TOOL_CALL_TIMEOUT = 30000 // 30s timeout for tool call responses
 const ACRP_INVOKE_TIMEOUT = 60000 // 60s timeout for ACRP capability invocations
 
@@ -682,7 +683,7 @@ function handleACRPConnection(socket: Socket) {
   // Update DB: agent is connected via ACRP
   fetch(`${NEXTJS_API_URL}/api/acrp/status`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-internal-secret': INTERNAL_SECRET },
     body: JSON.stringify({
       agentId,
       status: 'online',
@@ -715,7 +716,7 @@ function handleACRPConnection(socket: Socket) {
     try {
       const registerResponse = await fetch(`${NEXTJS_API_URL}/api/acrp/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-internal-secret': INTERNAL_SECRET },
         body: JSON.stringify({
           agentId,
           name: data.name,
@@ -760,7 +761,7 @@ function handleACRPConnection(socket: Socket) {
     try {
       await fetch(`${NEXTJS_API_URL}/api/acrp/heartbeat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-internal-secret': INTERNAL_SECRET },
         body: JSON.stringify({
           agentId,
           status: data.status || 'online',
@@ -809,7 +810,7 @@ function handleACRPConnection(socket: Socket) {
     try {
       await fetch(`${NEXTJS_API_URL}/api/acrp/invocation-result`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-internal-secret': INTERNAL_SECRET },
         body: JSON.stringify({
           invocationId: data.invocationId,
           agentId,
@@ -835,7 +836,7 @@ function handleACRPConnection(socket: Socket) {
     try {
       await fetch(`${NEXTJS_API_URL}/api/acrp/status`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-internal-secret': INTERNAL_SECRET },
         body: JSON.stringify({
           agentId,
           status: data.status,
@@ -900,7 +901,7 @@ function handleACRPConnection(socket: Socket) {
     // Update DB: agent is disconnected
     fetch(`${NEXTJS_API_URL}/api/acrp/status`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-internal-secret': INTERNAL_SECRET },
       body: JSON.stringify({
         agentId,
         status: 'offline',
@@ -1539,7 +1540,7 @@ setInterval(() => {
       // Update DB
       fetch(`${NEXTJS_API_URL}/api/acrp/status`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-internal-secret': INTERNAL_SECRET },
         body: JSON.stringify({ agentId, status: 'offline', wsConnected: false }),
       }).catch((err) =>
         console.error(`[STALE:ACRP] Failed to update DB status for agent ${agentId}:`, err.message),

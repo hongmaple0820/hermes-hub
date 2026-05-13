@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth'
 
 // GET /api/acrp/agents — List all ACRP-connected agents with their capabilities
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.nextUrl.searchParams.get('userId')
+    const user = await requireAuth(request)
 
-    if (!userId) {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400 })
-    }
+    // Use the authenticated user's ID instead of query param
+    const userId = user.id
 
     // Find all agents for this user that have an ACRP token
     const agents = await db.agent.findMany({
@@ -65,6 +65,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ agents: agentsWithStatus })
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.error('[ACRP] agents list error:', error)
     return NextResponse.json(
       { error: 'Failed to list agents' },

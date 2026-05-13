@@ -7,6 +7,7 @@ import { createServer } from 'http';
 
 interface TerminalSession {
   id: string;
+  userId: string;  // Owner of this session
   cwd: string;
   history: string[];
   historyIndex: number;
@@ -63,7 +64,7 @@ const ANSI = {
 };
 
 // ---------------------------------------------------------------------------
-// Virtual Filesystem
+// Virtual Filesystem — Per-User Isolation
 // ---------------------------------------------------------------------------
 
 interface VFSNode {
@@ -231,10 +232,47 @@ HOME_URL="https://hermes-hub.dev"
   return root;
 }
 
-const filesystem = buildInitialFilesystem();
+/**
+ * Deep-clone a VFSNode so each user gets their own independent filesystem.
+ */
+function cloneVFS(node: VFSNode): VFSNode {
+  const cloned: VFSNode = {
+    type: node.type,
+    permissions: node.permissions,
+    owner: node.owner,
+    group: node.group,
+    size: node.size,
+    modified: new Date(node.modified.getTime()),
+  };
+  if (node.type === 'file') {
+    cloned.content = node.content;
+  }
+  if (node.children) {
+    cloned.children = new Map();
+    for (const [name, child] of node.children) {
+      cloned.children.set(name, cloneVFS(child));
+    }
+  }
+  return cloned;
+}
+
+// Per-user filesystem map: userId → VFSNode (root)
+const userFilesystems = new Map<string, VFSNode>();
+
+// Template filesystem used to bootstrap new user filesystems
+const templateFS = buildInitialFilesystem();
+
+function getFilesystemForUser(userId: string): VFSNode {
+  let fs = userFilesystems.get(userId);
+  if (!fs) {
+    fs = cloneVFS(templateFS);
+    userFilesystems.set(userId, fs);
+  }
+  return fs;
+}
 
 // ---------------------------------------------------------------------------
-// Filesystem Operations
+// Filesystem Operations — now take an explicit filesystem parameter
 // ---------------------------------------------------------------------------
 
 function resolvePath(cwd: string, path: string): string {
@@ -253,10 +291,10 @@ function normalizePath(path: string): string {
   return '/' + resolved.join('/');
 }
 
-function getNode(path: string): VFSNode | null {
-  if (path === '/') return filesystem;
+function getNode(fs: VFSNode, path: string): VFSNode | null {
+  if (path === '/') return fs;
   const parts = path.split('/').filter(Boolean);
-  let current = filesystem;
+  let current = fs;
   for (const part of parts) {
     if (current.type !== 'directory' || !current.children?.has(part)) return null;
     current = current.children.get(part)!;
@@ -264,12 +302,12 @@ function getNode(path: string): VFSNode | null {
   return current;
 }
 
-function getParentAndName(path: string): { parent: VFSNode | null; name: string } {
+function getParentAndName(fs: VFSNode, path: string): { parent: VFSNode | null; name: string } {
   const parts = path.split('/').filter(Boolean);
   if (parts.length === 0) return { parent: null, name: '' };
   const name = parts.pop()!;
   const parentPath = '/' + parts.join('/');
-  return { parent: getNode(parentPath || '/'), name };
+  return { parent: getNode(fs, parentPath || '/'), name };
 }
 
 function formatDisplayPath(cwd: string): string {
@@ -287,10 +325,10 @@ function formatLongListing(node: VFSNode, name: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Command Execution
+// Command Execution — now scoped per-user via filesystem parameter
 // ---------------------------------------------------------------------------
 
-function executeCommand(session: TerminalSession, input: string): string {
+function executeCommand(fs: VFSNode, session: TerminalSession, input: string): string {
   const trimmed = input.trim();
   if (!trimmed) return '';
 
@@ -303,16 +341,16 @@ function executeCommand(session: TerminalSession, input: string): string {
 
   try {
     switch (cmd) {
-      case 'ls': return cmdLs(session, args);
-      case 'cd': return cmdCd(session, args);
+      case 'ls': return cmdLs(fs, session, args);
+      case 'cd': return cmdCd(fs, session, args);
       case 'pwd': return cmdPwd(session);
-      case 'cat': return cmdCat(session, args);
+      case 'cat': return cmdCat(fs, session, args);
       case 'echo': return cmdEcho(args);
-      case 'mkdir': return cmdMkdir(session, args);
-      case 'touch': return cmdTouch(session, args);
-      case 'rm': return cmdRm(session, args);
-      case 'cp': return cmdCp(session, args);
-      case 'mv': return cmdMv(session, args);
+      case 'mkdir': return cmdMkdir(fs, session, args);
+      case 'touch': return cmdTouch(fs, session, args);
+      case 'rm': return cmdRm(fs, session, args);
+      case 'cp': return cmdCp(fs, session, args);
+      case 'mv': return cmdMv(fs, session, args);
       case 'env': return cmdEnv(session);
       case 'ps': return cmdPs();
       case 'whoami': return cmdWhoami();
@@ -321,12 +359,12 @@ function executeCommand(session: TerminalSession, input: string): string {
       case 'clear': return '__CLEAR__';
       case 'help': return cmdHelp();
       case 'hermes': return cmdHermes(args);
-      case 'grep': return cmdGrep(session, args);
-      case 'head': return cmdHead(session, args);
-      case 'tail': return cmdTail(session, args);
-      case 'wc': return cmdWc(session, args);
-      case 'find': return cmdFind(session, args);
-      case 'tree': return cmdTree(session, args);
+      case 'grep': return cmdGrep(fs, session, args);
+      case 'head': return cmdHead(fs, session, args);
+      case 'tail': return cmdTail(fs, session, args);
+      case 'wc': return cmdWc(fs, session, args);
+      case 'find': return cmdFind(fs, session, args);
+      case 'tree': return cmdTree(fs, session, args);
       case 'history': return cmdHistory(session);
       case 'export': return cmdExport(session, args);
       case 'uname': return cmdUname(args);
@@ -358,16 +396,16 @@ function parseCommand(input: string): string[] {
   return result;
 }
 
-// ---- Individual Command Implementations ----
+// ---- Individual Command Implementations (all take fs parameter) ----
 
-function cmdLs(session: TerminalSession, args: string[]): string {
+function cmdLs(fs: VFSNode, session: TerminalSession, args: string[]): string {
   let showHidden = false, longFormat = false, targetPath = session.cwd;
   for (const arg of args) {
     if (arg.includes('a')) showHidden = true;
     if (arg.includes('l')) longFormat = true;
     if (!arg.startsWith('-')) targetPath = resolvePath(session.cwd, arg);
   }
-  const node = getNode(targetPath);
+  const node = getNode(fs, targetPath);
   if (!node) return `${ANSI.FG.RED}ls: cannot access '${args.find(a => !a.startsWith('-')) || targetPath}': No such file or directory${ANSI.RESET}`;
   if (node.type === 'file') {
     const name = targetPath.split('/').pop() || targetPath;
@@ -383,10 +421,10 @@ function cmdLs(session: TerminalSession, args: string[]): string {
   return entries.join('\n') || '(empty directory)';
 }
 
-function cmdCd(session: TerminalSession, args: string[]): string {
+function cmdCd(fs: VFSNode, session: TerminalSession, args: string[]): string {
   const target = args[0] || '~';
   const newPath = resolvePath(session.cwd, target);
-  const node = getNode(newPath);
+  const node = getNode(fs, newPath);
   if (!node) return `${ANSI.FG.RED}cd: no such file or directory: ${target}${ANSI.RESET}`;
   if (node.type !== 'directory') return `${ANSI.FG.RED}cd: not a directory: ${target}${ANSI.RESET}`;
   session.cwd = newPath;
@@ -395,12 +433,12 @@ function cmdCd(session: TerminalSession, args: string[]): string {
 
 function cmdPwd(session: TerminalSession): string { return session.cwd; }
 
-function cmdCat(session: TerminalSession, args: string[]): string {
+function cmdCat(fs: VFSNode, session: TerminalSession, args: string[]): string {
   if (args.length === 0) return `${ANSI.FG.RED}cat: missing file operand${ANSI.RESET}`;
   const results: string[] = [];
   for (const arg of args) {
     const path = resolvePath(session.cwd, arg);
-    const node = getNode(path);
+    const node = getNode(fs, path);
     if (!node) { results.push(`${ANSI.FG.RED}cat: ${arg}: No such file or directory${ANSI.RESET}`); continue; }
     if (node.type === 'directory') { results.push(`${ANSI.FG.RED}cat: ${arg}: Is a directory${ANSI.RESET}`); continue; }
     results.push(node.content || '');
@@ -410,7 +448,7 @@ function cmdCat(session: TerminalSession, args: string[]): string {
 
 function cmdEcho(args: string[]): string { return args.join(' '); }
 
-function cmdMkdir(session: TerminalSession, args: string[]): string {
+function cmdMkdir(fs: VFSNode, session: TerminalSession, args: string[]): string {
   if (args.length === 0) return `${ANSI.FG.RED}mkdir: missing operand${ANSI.RESET}`;
   let recursive = false;
   const paths: string[] = [];
@@ -419,14 +457,14 @@ function cmdMkdir(session: TerminalSession, args: string[]): string {
     const fullPath = resolvePath(session.cwd, p);
     if (recursive) {
       const parts = fullPath.split('/').filter(Boolean);
-      let current = filesystem;
+      let current = fs;
       for (const part of parts) {
         if (!current.children!.has(part)) current.children!.set(part, createDir());
         current = current.children!.get(part)!;
         if (current.type !== 'directory') return `${ANSI.FG.RED}mkdir: cannot create directory '${p}': Not a directory${ANSI.RESET}`;
       }
     } else {
-      const { parent, name } = getParentAndName(fullPath);
+      const { parent, name } = getParentAndName(fs, fullPath);
       if (!parent || parent.type !== 'directory') return `${ANSI.FG.RED}mkdir: cannot create directory '${p}': No such file or directory${ANSI.RESET}`;
       if (parent.children!.has(name)) return `${ANSI.FG.RED}mkdir: cannot create directory '${p}': File exists${ANSI.RESET}`;
       parent.children!.set(name, createDir());
@@ -435,15 +473,15 @@ function cmdMkdir(session: TerminalSession, args: string[]): string {
   return '';
 }
 
-function cmdTouch(session: TerminalSession, args: string[]): string {
+function cmdTouch(fs: VFSNode, session: TerminalSession, args: string[]): string {
   if (args.length === 0) return `${ANSI.FG.RED}touch: missing file operand${ANSI.RESET}`;
   for (const arg of args) {
     if (arg.startsWith('-')) continue;
     const fullPath = resolvePath(session.cwd, arg);
-    const node = getNode(fullPath);
+    const node = getNode(fs, fullPath);
     if (node) { node.modified = new Date(); }
     else {
-      const { parent, name } = getParentAndName(fullPath);
+      const { parent, name } = getParentAndName(fs, fullPath);
       if (!parent || parent.type !== 'directory') return `${ANSI.FG.RED}touch: cannot touch '${arg}': No such file or directory${ANSI.RESET}`;
       parent.children!.set(name, createFile());
     }
@@ -451,7 +489,7 @@ function cmdTouch(session: TerminalSession, args: string[]): string {
   return '';
 }
 
-function cmdRm(session: TerminalSession, args: string[]): string {
+function cmdRm(fs: VFSNode, session: TerminalSession, args: string[]): string {
   let recursive = false, force = false;
   const paths: string[] = [];
   for (const arg of args) {
@@ -463,43 +501,43 @@ function cmdRm(session: TerminalSession, args: string[]): string {
   if (paths.length === 0) return `${ANSI.FG.RED}rm: missing operand${ANSI.RESET}`;
   for (const p of paths) {
     const fullPath = resolvePath(session.cwd, p);
-    const node = getNode(fullPath);
+    const node = getNode(fs, fullPath);
     if (!node) { if (!force) return `${ANSI.FG.RED}rm: cannot remove '${p}': No such file or directory${ANSI.RESET}`; continue; }
     if (node.type === 'directory' && !recursive) return `${ANSI.FG.RED}rm: cannot remove '${p}': Is a directory${ANSI.RESET}`;
-    const { parent, name } = getParentAndName(fullPath);
+    const { parent, name } = getParentAndName(fs, fullPath);
     if (parent && parent.type === 'directory') parent.children!.delete(name);
   }
   return '';
 }
 
-function cmdCp(session: TerminalSession, args: string[]): string {
+function cmdCp(fs: VFSNode, session: TerminalSession, args: string[]): string {
   if (args.length < 2) return `${ANSI.FG.RED}cp: missing file operand${ANSI.RESET}`;
   const srcPath = resolvePath(session.cwd, args[0]);
-  const srcNode = getNode(srcPath);
+  const srcNode = getNode(fs, srcPath);
   if (!srcNode) return `${ANSI.FG.RED}cp: cannot stat '${args[0]}': No such file or directory${ANSI.RESET}`;
   if (srcNode.type === 'directory') return `${ANSI.FG.RED}cp: -r not specified; omitting directory '${args[0]}'${ANSI.RESET}`;
   const dstPath = resolvePath(session.cwd, args[1]);
-  const dstNode = getNode(dstPath);
+  const dstNode = getNode(fs, dstPath);
   let targetParent: VFSNode | null, targetName: string;
   if (dstNode && dstNode.type === 'directory') { targetName = srcPath.split('/').pop()!; targetParent = dstNode; }
-  else { const r = getParentAndName(dstPath); targetParent = r.parent; targetName = r.name; }
+  else { const r = getParentAndName(fs, dstPath); targetParent = r.parent; targetName = r.name; }
   if (!targetParent || targetParent.type !== 'directory') return `${ANSI.FG.RED}cp: cannot create regular file '${args[1]}'${ANSI.RESET}`;
   targetParent.children!.set(targetName, createFile(srcNode.content || ''));
   return '';
 }
 
-function cmdMv(session: TerminalSession, args: string[]): string {
+function cmdMv(fs: VFSNode, session: TerminalSession, args: string[]): string {
   if (args.length < 2) return `${ANSI.FG.RED}mv: missing file operand${ANSI.RESET}`;
   const srcPath = resolvePath(session.cwd, args[0]);
-  const srcNode = getNode(srcPath);
+  const srcNode = getNode(fs, srcPath);
   if (!srcNode) return `${ANSI.FG.RED}mv: cannot stat '${args[0]}': No such file or directory${ANSI.RESET}`;
-  const { parent: srcParent, name: srcName } = getParentAndName(srcPath);
+  const { parent: srcParent, name: srcName } = getParentAndName(fs, srcPath);
   if (!srcParent) return `${ANSI.FG.RED}mv: cannot move '${args[0]}'${ANSI.RESET}`;
   const dstPath = resolvePath(session.cwd, args[1]);
-  const dstNode = getNode(dstPath);
+  const dstNode = getNode(fs, dstPath);
   let targetParent: VFSNode | null, targetName: string;
   if (dstNode && dstNode.type === 'directory') { targetName = srcName; targetParent = dstNode; }
-  else { const r = getParentAndName(dstPath); targetParent = r.parent; targetName = r.name; }
+  else { const r = getParentAndName(fs, dstPath); targetParent = r.parent; targetName = r.name; }
   if (!targetParent || targetParent.type !== 'directory') return `${ANSI.FG.RED}mv: cannot move '${args[0]}' to '${args[1]}'${ANSI.RESET}`;
   targetParent.children!.set(targetName, srcNode);
   srcParent.children!.delete(srcName);
@@ -616,10 +654,10 @@ function cmdHermes(args: string[]): string {
   }
 }
 
-function cmdGrep(session: TerminalSession, args: string[]): string {
+function cmdGrep(fs: VFSNode, session: TerminalSession, args: string[]): string {
   if (args.length < 2) return `${ANSI.FG.RED}grep: missing arguments${ANSI.RESET}`;
   const [pattern, filePath] = [args[0], resolvePath(session.cwd, args[1])];
-  const node = getNode(filePath);
+  const node = getNode(fs, filePath);
   if (!node) return `${ANSI.FG.RED}grep: ${args[1]}: No such file or directory${ANSI.RESET}`;
   if (node.type === 'directory') return `${ANSI.FG.RED}grep: ${args[1]}: Is a directory${ANSI.RESET}`;
   const matches = (node.content || '').split('\n').filter(l => l.includes(pattern));
@@ -630,7 +668,7 @@ function cmdGrep(session: TerminalSession, args: string[]): string {
   }).join('\n');
 }
 
-function cmdHead(session: TerminalSession, args: string[]): string {
+function cmdHead(fs: VFSNode, session: TerminalSession, args: string[]): string {
   let n = 10;
   const paths: string[] = [];
   for (let i = 0; i < args.length; i++) {
@@ -638,13 +676,13 @@ function cmdHead(session: TerminalSession, args: string[]): string {
     else if (!args[i].startsWith('-')) paths.push(args[i]);
   }
   if (!paths[0]) return `${ANSI.FG.RED}head: missing file operand${ANSI.RESET}`;
-  const node = getNode(resolvePath(session.cwd, paths[0]));
+  const node = getNode(fs, resolvePath(session.cwd, paths[0]));
   if (!node) return `${ANSI.FG.RED}head: ${paths[0]}: No such file or directory${ANSI.RESET}`;
   if (node.type === 'directory') return `${ANSI.FG.RED}head: ${paths[0]}: Is a directory${ANSI.RESET}`;
   return (node.content || '').split('\n').slice(0, n).join('\n');
 }
 
-function cmdTail(session: TerminalSession, args: string[]): string {
+function cmdTail(fs: VFSNode, session: TerminalSession, args: string[]): string {
   let n = 10;
   const paths: string[] = [];
   for (let i = 0; i < args.length; i++) {
@@ -652,28 +690,30 @@ function cmdTail(session: TerminalSession, args: string[]): string {
     else if (!args[i].startsWith('-')) paths.push(args[i]);
   }
   if (!paths[0]) return `${ANSI.FG.RED}tail: missing file operand${ANSI.RESET}`;
-  const node = getNode(resolvePath(session.cwd, paths[0]));
+  const node = getNode(fs, resolvePath(session.cwd, paths[0]));
   if (!node) return `${ANSI.FG.RED}tail: ${paths[0]}: No such file or directory${ANSI.RESET}`;
   if (node.type === 'directory') return `${ANSI.FG.RED}tail: ${paths[0]}: Is a directory${ANSI.RESET}`;
   return (node.content || '').split('\n').slice(-n).join('\n');
 }
 
-function cmdWc(session: TerminalSession, args: string[]): string {
+function cmdWc(fs: VFSNode, session: TerminalSession, args: string[]): string {
   if (!args[0]) return `${ANSI.FG.RED}wc: missing file operand${ANSI.RESET}`;
-  const node = getNode(resolvePath(session.cwd, args[0]));
+  const node = getNode(fs, resolvePath(session.cwd, args[0]));
   if (!node) return `${ANSI.FG.RED}wc: ${args[0]}: No such file or directory${ANSI.RESET}`;
   if (node.type === 'directory') return `${ANSI.FG.RED}wc: ${args[0]}: Is a directory${ANSI.RESET}`;
   const c = node.content || '';
   return `  ${c.split('\n').length}\t${c.split(/\s+/).filter(Boolean).length}\t${c.length}\t${args[0]}`;
 }
 
-function cmdFind(session: TerminalSession, args: string[]): string {
+function cmdFind(fs: VFSNode, session: TerminalSession, args: string[]): string {
   let searchPath = session.cwd, namePattern = '*';
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '-name' && args[i + 1]) { namePattern = args[++i]; }
     else if (!args[i].startsWith('-')) searchPath = resolvePath(session.cwd, args[i]);
   }
-  const regex = new RegExp('^' + namePattern.replace(/\*/g, '.*').replace(/\?/g, '.') + '$');
+  // Fix ReDoS: escape all regex metacharacters before replacing wildcards
+  const escaped = namePattern.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp('^' + escaped.replace(/\*/g, '.*').replace(/\?/g, '.') + '$');
   const results: string[] = [];
   function walk(path: string, node: VFSNode) {
     const name = path.split('/').pop() || path;
@@ -682,15 +722,15 @@ function cmdFind(session: TerminalSession, args: string[]): string {
       for (const [n, c] of node.children) walk(path + '/' + n, c);
     }
   }
-  const rootNode = getNode(searchPath);
+  const rootNode = getNode(fs, searchPath);
   if (!rootNode) return `${ANSI.FG.RED}find: '${searchPath}': No such file or directory${ANSI.RESET}`;
   walk(searchPath === '/' ? '' : searchPath, rootNode);
   return results.join('\n') || '';
 }
 
-function cmdTree(session: TerminalSession, args: string[]): string {
+function cmdTree(fs: VFSNode, session: TerminalSession, args: string[]): string {
   const targetPath = args[0] ? resolvePath(session.cwd, args[0]) : session.cwd;
-  const node = getNode(targetPath);
+  const node = getNode(fs, targetPath);
   if (!node) return `${ANSI.FG.RED}tree: '${targetPath}': No such file or directory${ANSI.RESET}`;
   if (node.type !== 'directory') return targetPath;
   const lines: string[] = [targetPath];
@@ -749,26 +789,26 @@ function cmdMan(args: string[]): string {
 }
 
 // ---------------------------------------------------------------------------
-// Tab Completion
+// Tab Completion — now takes fs parameter
 // ---------------------------------------------------------------------------
 
-function getCompletions(session: TerminalSession, input: string): string[] {
+function getCompletions(fs: VFSNode, session: TerminalSession, input: string): string[] {
   const parts = input.split(/\s+/);
   if (parts.length > 1 || input.endsWith(' ')) {
-    return getPathCompletions(session, parts.length > 1 ? parts[parts.length - 1] : '');
+    return getPathCompletions(fs, session, parts.length > 1 ? parts[parts.length - 1] : '');
   }
   const commands = ['ls','cd','pwd','cat','echo','mkdir','touch','rm','cp','mv','env','ps','whoami','date','uptime','clear','help','hermes','grep','head','tail','wc','find','tree','history','export','uname','hostname','id','which','man'];
   return commands.filter(cmd => cmd.startsWith(parts[0].toLowerCase()));
 }
 
-function getPathCompletions(session: TerminalSession, partial: string): string[] {
+function getPathCompletions(fs: VFSNode, session: TerminalSession, partial: string): string[] {
   let dir: string, prefix: string;
   if (partial.includes('/')) {
     const lastSlash = partial.lastIndexOf('/');
     dir = resolvePath(session.cwd, partial.slice(0, lastSlash + 1));
     prefix = partial.slice(lastSlash + 1);
   } else { dir = session.cwd; prefix = partial; }
-  const node = getNode(dir);
+  const node = getNode(fs, dir);
   if (!node || node.type !== 'directory') return [];
   return Array.from(node.children!.entries())
     .filter(([name]) => name.startsWith(prefix))
@@ -782,6 +822,27 @@ function getPathCompletions(session: TerminalSession, partial: string): string[]
 
 function buildPrompt(session: TerminalSession): string {
   return `${ANSI.FG.GREEN}${ANSI.BOLD}hermes${ANSI.RESET}@${ANSI.FG.GREEN}${ANSI.BOLD}hub${ANSI.RESET}:${ANSI.FG.BLUE}${ANSI.BOLD}${formatDisplayPath(session.cwd)}${ANSI.RESET}$ `;
+}
+
+// ---------------------------------------------------------------------------
+// Authentication — Validate token via Next.js API
+// ---------------------------------------------------------------------------
+
+async function validateToken(token: string): Promise<string | null> {
+  try {
+    const response = await fetch('http://localhost:3000/api/auth/me', {
+      headers: {
+        'x-user-id': token,
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.user?.id || null;
+  } catch (err) {
+    console.error('[AUTH] Failed to validate token:', err);
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -799,6 +860,7 @@ const httpServer = createServer((req, res) => {
       service: 'hermes-terminal',
       port: PORT,
       connectedClients: clients.size,
+      activeUsers: userFilesystems.size,
       uptime: process.uptime(),
     }));
   } else {
@@ -808,7 +870,33 @@ const httpServer = createServer((req, res) => {
 });
 httpServer.listen(PORT);
 
-const wss = new WebSocketServer({ server: httpServer });
+const wss = new WebSocketServer({
+  server: httpServer,
+  verifyClient: async (info, callback) => {
+    // Extract token from URL query params during the HTTP upgrade
+    const url = new URL(info.req.url || '/', `http://${info.req.headers.host || 'localhost'}`);
+    const token = url.searchParams.get('token');
+
+    if (!token) {
+      console.log('[AUTH] Rejected connection: no token provided');
+      callback(false, 4001, 'Authentication required: token query parameter missing');
+      return;
+    }
+
+    const userId = await validateToken(token);
+    if (!userId) {
+      console.log(`[AUTH] Rejected connection: invalid token`);
+      callback(false, 4001, 'Authentication failed: invalid token');
+      return;
+    }
+
+    // Store the validated userId on the request for use in the connection handler
+    (info.req as any).__authenticatedUserId = userId;
+    console.log(`[AUTH] Accepted connection for user: ${userId}`);
+    callback(true);
+  },
+});
+
 const clients = new Map<WebSocket, AuthenticatedClient>();
 let pidCounter = 1000;
 
@@ -825,6 +913,7 @@ function createSession(ws: WebSocket, client: AuthenticatedClient, sessionId?: s
   const pid = ++pidCounter;
   const session: TerminalSession = {
     id, pid,
+    userId: client.userId,  // Tag session with owner
     cwd: '/home/hermes',
     history: [],
     historyIndex: 0,
@@ -875,6 +964,7 @@ function handleInput(ws: WebSocket, client: AuthenticatedClient, data: string) {
   }
 
   const sessionId = session.id;
+  const fs = getFilesystemForUser(client.userId);
 
   // Handle escape sequences for arrow keys
   if (data === '\x1b[A') { // Up arrow
@@ -927,7 +1017,7 @@ function handleInput(ws: WebSocket, client: AuthenticatedClient, data: string) {
 
   // Tab completion
   if (data === '\t') {
-    const completions = getCompletions(session, session.lineBuffer);
+    const completions = getCompletions(fs, session, session.lineBuffer);
     if (completions.length === 1) {
       // Replace the current word with the completion
       const parts = session.lineBuffer.split(/\s+/);
@@ -995,7 +1085,7 @@ function handleInput(ws: WebSocket, client: AuthenticatedClient, data: string) {
 
     // Process command
     if (cmdLine.trim()) {
-      const output = executeCommand(session, cmdLine);
+      const output = executeCommand(fs, session, cmdLine);
       if (output === '__CLEAR__') {
         send(ws, { type: 'output', id: sessionId, data: ANSI.CLEAR_SCREEN });
       } else if (output) {
@@ -1041,24 +1131,32 @@ function handleInput(ws: WebSocket, client: AuthenticatedClient, data: string) {
 }
 
 wss.on('connection', (ws: WebSocket, req) => {
-  console.log(`[CONNECT] New WebSocket connection from ${req.socket.remoteAddress}`);
+  // Retrieve the authenticated userId stored by verifyClient
+  const authenticatedUserId = (req as any).__authenticatedUserId as string | undefined;
 
-  const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
-  const token = url.searchParams.get('token');
+  if (!authenticatedUserId) {
+    // This should never happen if verifyClient works correctly, but as a safety net
+    console.log('[CONNECT] Closing unauthenticated connection');
+    ws.close(4001, 'Authentication required');
+    return;
+  }
+
+  console.log(`[CONNECT] User ${authenticatedUserId} connected from ${req.socket.remoteAddress}`);
+
+  // Ensure user has their own filesystem
+  getFilesystemForUser(authenticatedUserId);
 
   const client: AuthenticatedClient = {
     ws,
-    userId: token || 'anonymous',
+    userId: authenticatedUserId,
     sessions: new Map(),
     activeSessionId: null,
   };
 
   clients.set(ws, client);
 
-  // If token provided, auto-create a session
-  if (token) {
-    createSession(ws, client);
-  }
+  // Auto-create a session for the authenticated user
+  createSession(ws, client);
 
   ws.on('message', (raw: Buffer) => {
     const text = raw.toString();
@@ -1068,9 +1166,8 @@ wss.on('connection', (ws: WebSocket, req) => {
 
       switch (data.type) {
         case 'auth': {
-          client.userId = data.userId || 'anonymous';
-          console.log(`[AUTH] User ${client.userId} authenticated`);
-          if (client.sessions.size === 0) createSession(ws, client);
+          // Auth is already handled during connection; ignore re-auth
+          console.log(`[AUTH] User ${client.userId} sent auth message (already authenticated)`);
           break;
         }
 
@@ -1080,26 +1177,39 @@ wss.on('connection', (ws: WebSocket, req) => {
         }
 
         case 'switch': {
-          if (client.sessions.has(data.sessionId)) {
-            client.activeSessionId = data.sessionId;
-            const session = client.sessions.get(data.sessionId)!;
-            send(ws, { type: 'output', id: data.sessionId, data: buildPrompt(session) });
-          } else {
+          const targetSession = client.sessions.get(data.sessionId);
+          if (!targetSession) {
             send(ws, { type: 'error', message: `Session ${data.sessionId} not found` });
+            break;
           }
+          // Verify session ownership
+          if (targetSession.userId !== client.userId) {
+            send(ws, { type: 'error', message: `Session ${data.sessionId} access denied` });
+            console.log(`[AUTH] User ${client.userId} denied access to session ${data.sessionId} owned by ${targetSession.userId}`);
+            break;
+          }
+          client.activeSessionId = data.sessionId;
+          send(ws, { type: 'output', id: data.sessionId, data: buildPrompt(targetSession) });
           break;
         }
 
         case 'close': {
-          if (client.sessions.has(data.sessionId)) {
-            client.sessions.delete(data.sessionId);
-            send(ws, { type: 'exited', id: data.sessionId, exitCode: 0 });
-            if (client.activeSessionId === data.sessionId) {
-              client.activeSessionId = client.sessions.size > 0
-                ? client.sessions.keys().next().value! : null;
-            }
-          } else {
+          const closeSession = client.sessions.get(data.sessionId);
+          if (!closeSession) {
             send(ws, { type: 'error', message: `Session ${data.sessionId} not found` });
+            break;
+          }
+          // Verify session ownership
+          if (closeSession.userId !== client.userId) {
+            send(ws, { type: 'error', message: `Session ${data.sessionId} access denied` });
+            console.log(`[AUTH] User ${client.userId} denied close of session ${data.sessionId} owned by ${closeSession.userId}`);
+            break;
+          }
+          client.sessions.delete(data.sessionId);
+          send(ws, { type: 'exited', id: data.sessionId, exitCode: 0 });
+          if (client.activeSessionId === data.sessionId) {
+            client.activeSessionId = client.sessions.size > 0
+              ? client.sessions.keys().next().value! : null;
           }
           break;
         }
@@ -1127,10 +1237,11 @@ wss.on('connection', (ws: WebSocket, req) => {
       const session = client.activeSessionId ? client.sessions.get(client.activeSessionId) : null;
       if (!session) return;
 
+      const fs = getFilesystemForUser(client.userId);
       const inputStr = text.trim();
       if (!inputStr) return;
 
-      const output = executeCommand(session, inputStr);
+      const output = executeCommand(fs, session, inputStr);
       if (output === '__CLEAR__') {
         send(ws, { type: 'output', id: session.id, data: ANSI.CLEAR_SCREEN });
       } else if (output) {
@@ -1141,12 +1252,14 @@ wss.on('connection', (ws: WebSocket, req) => {
   });
 
   ws.on('close', (code) => {
-    console.log(`[DISCONNECT] Client ${client.userId} disconnected (code: ${code})`);
+    console.log(`[DISCONNECT] User ${client.userId} disconnected (code: ${code})`);
     clients.delete(ws);
+    // Note: we keep the user's filesystem for persistence across reconnections
+    // If cleanup is desired, uncomment: userFilesystems.delete(client.userId);
   });
 
   ws.on('error', (error) => {
-    console.error(`[ERROR] WebSocket error for ${client.userId}:`, error);
+    console.error(`[ERROR] WebSocket error for user ${client.userId}:`, error);
     clients.delete(ws);
   });
 });
@@ -1157,6 +1270,8 @@ wss.on('connection', (ws: WebSocket, req) => {
 
 console.log(`[Hermes Terminal Service] WebSocket + HTTP server running on port ${PORT}`);
 console.log(`[Hermes Terminal Service] Health check: http://localhost:${PORT}/health`);
+console.log(`[Hermes Terminal Service] Authentication: token required (validated via /api/auth/me)`);
+console.log(`[Hermes Terminal Service] Per-user filesystem isolation enabled`);
 console.log(`[Hermes Terminal Service] Ready to accept connections`);
 
 const shutdown = () => {

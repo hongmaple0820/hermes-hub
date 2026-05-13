@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
 
+function safeJsonParse(str: string | null): any {
+  if (!str) return {};
+  try { return JSON.parse(str); } catch { return str; }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth(request);
@@ -24,6 +29,7 @@ export async function GET(request: NextRequest) {
 
     const conversations = participations.map((p) => ({
       ...p.conversation,
+      lineage: safeJsonParse(p.conversation.lineage),
       lastMessage: p.conversation.messages[0] || null,
       unreadCount: 0,
     }));
@@ -58,6 +64,9 @@ export async function POST(request: NextRequest) {
     const agent = await db.agent.findUnique({ where: { id: agentId } });
     if (!agent) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
+    }
+    if (agent.userId !== user.id && !agent.isPublic) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Check if conversation already exists

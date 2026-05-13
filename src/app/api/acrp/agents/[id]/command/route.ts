@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth'
 
 // POST /api/acrp/agents/[id]/command — Send a command to an agent
 export async function POST(
@@ -7,6 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireAuth(request)
     const { id: agentId } = await params
     const body = await request.json()
     const { command, params: commandParams } = body
@@ -22,6 +24,11 @@ export async function POST(
     const agent = await db.agent.findUnique({ where: { id: agentId } })
     if (!agent) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 })
+    }
+
+    // Ownership check: agent must belong to the authenticated user
+    if (agent.userId !== user.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Send command via skill-ws
@@ -53,6 +60,9 @@ export async function POST(
 
     return NextResponse.json({ success: true })
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.error('[ACRP] command error:', error)
     return NextResponse.json(
       { error: 'Failed to send command' },

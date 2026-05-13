@@ -503,6 +503,8 @@ function ConversationsPanel() {
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [streaming, setStreaming] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
   const [showNewChat, setShowNewChat] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [lineage, setLineage] = useState<{ ancestors: any[]; totalMessages: number } | null>(null);
@@ -510,6 +512,7 @@ function ConversationsPanel() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const selectedConv = conversations.find((c: any) => c.id === selectedConversationId);
 
@@ -560,7 +563,7 @@ function ConversationsPanel() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, sending]);
+  }, [messages, sending, streamingContent]);
 
   const handleStartChat = async (agentId: string) => {
     try {
@@ -595,6 +598,8 @@ function ConversationsPanel() {
     const userMsg = input.trim();
     setInput('');
     setSending(true);
+    setStreaming(false);
+    setStreamingContent('');
 
     const tempUserMsg = {
       id: `temp-${Date.now()}`,
@@ -607,28 +612,123 @@ function ConversationsPanel() {
     setMessages((prev) => [...prev, tempUserMsg]);
 
     try {
-      const result = await api.sendMessage(selectedConversationId, userMsg);
-      setMessages((prev) => {
-        const filtered = prev.filter((m) => m.id !== tempUserMsg.id);
-        return [...filtered, result.message];
+      // Try SSE streaming first
+      const abortController = new AbortController();
+      abortRef.current = abortController;
+
+      const response = await fetch(`/api/conversations/${selectedConversationId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          'x-user-id': api.getUserId() || '',
+        },
+        body: JSON.stringify({ content: userMsg }),
+        signal: abortController.signal,
       });
 
-      if (result.agentReply) {
-        const agentMsg = {
-          id: `agent-${Date.now()}`,
-          content: result.agentReply.content,
-          type: 'text',
-          senderType: 'agent',
-          senderName: selectedConv?.agent?.name || 'Agent',
-          createdAt: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, agentMsg]);
+      if (response.headers.get('content-type')?.includes('text/event-stream')) {
+        // SSE streaming response
+        setSending(false);
+        setStreaming(true);
+        setStreamingContent('');
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('No response body');
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let accumulated = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data: ')) continue;
+
+            try {
+              const data = JSON.parse(trimmed.slice(6));
+
+              if (data.type === 'chunk' && data.content) {
+                accumulated += data.content;
+                setStreamingContent(accumulated);
+              } else if (data.type === 'done') {
+                // Stream complete - replace streaming content with final message
+                setStreaming(false);
+                setStreamingContent('');
+                const agentMsg = {
+                  id: data.messageId || `agent-${Date.now()}`,
+                  content: accumulated,
+                  type: 'text',
+                  senderType: 'agent',
+                  senderName: selectedConv?.agent?.name || 'Agent',
+                  createdAt: new Date().toISOString(),
+                };
+                setMessages((prev) => [...prev, agentMsg]);
+              } else if (data.type === 'error') {
+                setStreaming(false);
+                setStreamingContent('');
+                toast.error(data.error || t('chat.streamingError'));
+                // Still show whatever was accumulated
+                if (accumulated) {
+                  const agentMsg = {
+                    id: `agent-${Date.now()}`,
+                    content: accumulated,
+                    type: 'text',
+                    senderType: 'agent',
+                    senderName: selectedConv?.agent?.name || 'Agent',
+                    createdAt: new Date().toISOString(),
+                  };
+                  setMessages((prev) => [...prev, agentMsg]);
+                }
+              }
+            } catch {
+              // Skip malformed JSON
+            }
+          }
+        }
+
+        abortRef.current = null;
+      } else {
+        // Non-SSE response (fallback to JSON)
+        const result = await response.json();
+        setMessages((prev) => {
+          const filtered = prev.filter((m) => m.id !== tempUserMsg.id);
+          return [...filtered, result.message];
+        });
+
+        if (result.agentReply) {
+          const agentMsg = {
+            id: `agent-${Date.now()}`,
+            content: result.agentReply.content,
+            type: 'text',
+            senderType: 'agent',
+            senderName: selectedConv?.agent?.name || 'Agent',
+            createdAt: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, agentMsg]);
+        }
       }
     } catch (error: any) {
-      toast.error(error.message);
-      setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
+      if (error.name === 'AbortError') {
+        // User cancelled the stream
+        setStreaming(false);
+        setStreamingContent('');
+      } else {
+        toast.error(error.message);
+        setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
+      }
     } finally {
       setSending(false);
+      setStreaming(false);
+      setStreamingContent('');
+      abortRef.current = null;
     }
   };
 
@@ -797,10 +897,10 @@ function ConversationsPanel() {
         <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{t('common.delete')}</DialogTitle>
+              <DialogTitle>{t('chat.deleteConversationTitle')}</DialogTitle>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete this conversation? This action cannot be undone.
+              {t('chat.deleteConversationDesc')}
             </p>
             <DialogFooter>
               <DialogClose asChild>
@@ -886,8 +986,23 @@ function ConversationsPanel() {
                   ))
                 )}
 
-                {/* Typing Indicator */}
-                {sending && (
+                {/* Streaming content - show as agent message being built */}
+                {streaming && streamingContent && (
+                  <div className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <Avatar className="w-8 h-8 shrink-0">
+                      <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                        <Bot className="w-4 h-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="max-w-[70%] bg-card border border-border rounded-2xl rounded-bl-md px-4 py-2.5">
+                      <MarkdownRenderer content={streamingContent} />
+                      <span className="inline-block w-1.5 h-4 bg-primary/60 animate-pulse ml-0.5 align-text-bottom" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Typing Indicator (shown while waiting for first chunk) */}
+                {sending && !streaming && (
                   <TypingIndicator
                     agentName={selectedConv?.agent?.name || 'Agent'}
                   />
@@ -936,7 +1051,7 @@ function ConversationsPanel() {
                   {/* Send button */}
                   <Button
                     onClick={handleSend}
-                    disabled={sending || !input.trim()}
+                    disabled={sending || streaming || !input.trim()}
                     size="icon"
                     className="w-8 h-8 shrink-0"
                   >

@@ -332,6 +332,119 @@ export async function chatCompletion(
 }
 
 /**
+ * Streaming chat completion - yields content chunks as they arrive
+ * Uses OpenAI-compatible streaming API for openai/ollama/custom providers
+ * Falls back to chunked non-streaming for anthropic/google/z-ai
+ */
+export async function* chatCompletionStream(
+  config: LLMProviderConfig,
+  messages: ChatMessage[],
+  model?: string,
+  options: ChatCompletionOptions = {}
+): AsyncGenerator<{ type: 'chunk' | 'done'; content?: string; model?: string; usage?: { promptTokens: number; completionTokens: number; totalTokens: number } }> {
+  const effectiveModel = model || config.defaultModel || 'gpt-3.5-turbo';
+
+  // Providers that support OpenAI-compatible streaming
+  if (['openai', 'custom', 'ollama'].includes(config.provider)) {
+    const baseUrl = config.provider === 'ollama'
+      ? (config.baseUrl || 'http://localhost:11434')
+      : (config.baseUrl || (config.provider === 'openai' ? 'https://api.openai.com/v1' : 'http://localhost:8080/v1'));
+
+    const url = config.provider === 'ollama'
+      ? `${baseUrl}/api/chat`
+      : `${baseUrl}/chat/completions`;
+
+    const body: Record<string, unknown> = config.provider === 'ollama'
+      ? {
+          model: effectiveModel,
+          messages: messages.map(({ role, content }) => ({ role, content })),
+          stream: true,
+          options: {
+            temperature: options.temperature ?? 0.7,
+            num_predict: options.maxTokens ?? 2048,
+            top_p: options.topP ?? 1,
+          },
+        }
+      : {
+          model: effectiveModel,
+          messages: messages.map(({ role, content }) => ({ role, content })),
+          temperature: options.temperature ?? 0.7,
+          max_tokens: options.maxTokens ?? 2048,
+          top_p: options.topP ?? 1,
+          stream: true,
+        };
+
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (config.apiKey && config.provider !== 'ollama') {
+      headers['Authorization'] = `Bearer ${config.apiKey}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Streaming API error: ${response.status} - ${error}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body for streaming');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullContent = '';
+    let returnedModel = effectiveModel;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed === 'data: [DONE]') continue;
+        if (!trimmed.startsWith('data: ')) continue;
+
+        try {
+          const data = JSON.parse(trimmed.slice(6));
+
+          // OpenAI/Custom format
+          if (data.choices?.[0]?.delta?.content) {
+            const chunk = data.choices[0].delta.content;
+            fullContent += chunk;
+            yield { type: 'chunk', content: chunk };
+          }
+          // Ollama format
+          if (data.message?.content) {
+            const chunk = data.message.content;
+            fullContent += chunk;
+            yield { type: 'chunk', content: chunk };
+          }
+          if (data.model) returnedModel = data.model;
+        } catch {
+          // Skip malformed JSON lines
+        }
+      }
+    }
+
+    yield { type: 'done', content: fullContent, model: returnedModel };
+    return;
+  }
+
+  // For providers without native streaming support (anthropic, google, z-ai),
+  // fall back to non-streaming and yield the full content at once
+  const result = await chatCompletion(config, messages, model, options);
+  yield { type: 'chunk', content: result.content };
+  yield { type: 'done', content: result.content, model: result.model, usage: result.usage };
+}
+
+/**
  * Test provider connection by listing models or making a minimal request
  */
 export async function testProviderConnection(config: LLMProviderConfig): Promise<{

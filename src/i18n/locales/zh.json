@@ -429,7 +429,9 @@
     "updated": "供应商已更新！",
     "saving": "保存中...",
     "save": "保存修改",
-    "isActive": "激活"
+    "isActive": "激活",
+    "deleteConfirmTitle": "删除供应商",
+    "deleteConfirmDesc": "确定要删除此供应商吗？此操作无法撤销。使用此供应商的智能体将需要重新配置。"
   },
   "skills": {
     "title": "技能市场",
@@ -557,7 +559,10 @@
     "daysAgo": "{count}天前",
     "welcomeTitle": "开始对话",
     "welcomeDesc": "选择一个智能体并开始聊天。您的AI助手已准备就绪。",
-    "quickStartSuggestions": "快速开始建议"
+    "quickStartSuggestions": "快速开始建议",
+    "streamingError": "流式传输出错",
+    "deleteConversationTitle": "删除对话",
+    "deleteConversationDesc": "确定要删除此对话吗？所有消息将永久丢失。此操作无法撤销。"
   },
   "chatRooms": {
     "title": "聊天室",
@@ -886,7 +891,9 @@
     "pause": "暂停",
     "resume": "恢复",
     "runStarted": "任务执行已开始",
-    "deleted": "任务已删除"
+    "deleted": "任务已删除",
+    "deleteConfirmTitle": "删除任务",
+    "deleteConfirmDesc": "确定要删除此定时任务吗？此操作无法撤销。"
   },
   "usage": {
     "title": "用量分析",
@@ -1102,7 +1109,9 @@
     "charactersCount": "字符",
     "noMatchingFiles": "没有匹配的文件",
     "itemCount": "{count} 个项目",
-    "totalSize": "总计: {size}"
+    "totalSize": "总计: {size}",
+    "deleteConfirmTitle": "删除文件",
+    "deleteConfirmDesc": "确定要删除此文件或目录吗？此操作无法撤销。"
   },
   "terminal": {
     "title": "Web 终端",

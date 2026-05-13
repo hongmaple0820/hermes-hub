@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
+const INTERNAL_SECRET = process.env.INTERNAL_SECRET || 'acrp_internal_secret_2025'
+
 /**
  * POST /api/acrp/invocation-result
  * Record the result of a capability invocation.
  * Called by the skill-ws service when an agent sends capability:result.
+ *
+ * Auth: x-internal-secret header (internal service only)
  *
  * Body: {
  *   invocationId: string;
@@ -19,6 +23,15 @@ import { db } from '@/lib/db'
  */
 export async function POST(request: NextRequest) {
   try {
+    // Internal service auth: verify x-internal-secret header
+    const secret = request.headers.get('x-internal-secret')
+    if (!secret || secret !== INTERNAL_SECRET) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 },
+      )
+    }
+
     const body = await request.json()
     const { invocationId, agentId, capabilityId, result, error, duration, invokedBy, params } = body
 
