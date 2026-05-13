@@ -8,7 +8,7 @@ import {
   LogOut, ChevronLeft, ChevronRight, Zap, Languages,
   Radio, Clock, BarChart3, UserCircle, Brain, ScrollText, Folder, Terminal,
   Monitor, ChevronDown, Pin, PinOff, Maximize2, Minimize2, GripVertical,
-  HelpCircle,
+  HelpCircle, Workflow,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -31,41 +31,50 @@ const sectionLabelKeys: Record<string, string> = {
   system: 'sidebar.sectionSystem',
 };
 
-const navSections = [
+interface NavItem {
+  id: ViewMode;
+  labelKey: string;
+  icon: typeof LayoutDashboard;
+  shortcut?: string;
+  isNew?: boolean;
+}
+
+const navSections: { label: string; items: NavItem[] }[] = [
   {
     label: 'main',
     items: [
-      { id: 'dashboard' as ViewMode, labelKey: 'nav.dashboard', icon: LayoutDashboard, shortcut: '⌘1' },
-      { id: 'agents' as ViewMode, labelKey: 'nav.agents', icon: Bot, shortcut: '⌘2' },
-      { id: 'providers' as ViewMode, labelKey: 'nav.providers', icon: Server, shortcut: '⌘3' },
-      { id: 'skills' as ViewMode, labelKey: 'nav.skills', icon: Puzzle, shortcut: '⌘4' },
-      { id: 'agent-control' as ViewMode, labelKey: 'nav.agentControl', icon: Monitor, shortcut: '⌘5', isNew: true },
-      { id: 'channels' as ViewMode, labelKey: 'nav.channels', icon: Radio, shortcut: '⌘6' },
+      { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard, shortcut: '⌘1' },
+      { id: 'agents', labelKey: 'nav.agents', icon: Bot, shortcut: '⌘2' },
+      { id: 'providers', labelKey: 'nav.providers', icon: Server, shortcut: '⌘3' },
+      { id: 'skills', labelKey: 'nav.skills', icon: Puzzle, shortcut: '⌘4' },
+      { id: 'agent-control', labelKey: 'nav.agentControl', icon: Monitor, shortcut: '⌘5', isNew: true },
+      { id: 'channels', labelKey: 'nav.channels', icon: Radio, shortcut: '⌘6' },
     ],
   },
   {
     label: 'communication',
     items: [
-      { id: 'chat' as ViewMode, labelKey: 'nav.chat', icon: MessageSquare, shortcut: '⌘7' },
-      { id: 'chat-rooms' as ViewMode, labelKey: 'nav.chatRooms', icon: Users, shortcut: '⌘8' },
+      { id: 'chat', labelKey: 'nav.chat', icon: MessageSquare, shortcut: '⌘7' },
+      { id: 'chat-rooms', labelKey: 'nav.chatRooms', icon: Users, shortcut: '⌘8' },
     ],
   },
   {
     label: 'management',
     items: [
-      { id: 'jobs' as ViewMode, labelKey: 'nav.jobs', icon: Clock },
-      { id: 'usage' as ViewMode, labelKey: 'nav.usage', icon: BarChart3 },
-      { id: 'profiles' as ViewMode, labelKey: 'nav.profiles', icon: UserCircle },
-      { id: 'memory' as ViewMode, labelKey: 'nav.memory', icon: Brain },
+      { id: 'jobs', labelKey: 'nav.jobs', icon: Clock },
+      { id: 'usage', labelKey: 'nav.usage', icon: BarChart3 },
+      { id: 'profiles', labelKey: 'nav.profiles', icon: UserCircle },
+      { id: 'memory', labelKey: 'nav.memory', icon: Brain },
+      { id: 'workflows', labelKey: 'nav.workflows', icon: Workflow, isNew: true },
     ],
   },
   {
     label: 'system',
     items: [
-      { id: 'logs' as ViewMode, labelKey: 'nav.logs', icon: ScrollText },
-      { id: 'files' as ViewMode, labelKey: 'nav.files', icon: Folder },
-      { id: 'terminal' as ViewMode, labelKey: 'nav.terminal', icon: Terminal },
-      { id: 'settings' as ViewMode, labelKey: 'nav.settings', icon: Settings, shortcut: '⌘,' },
+      { id: 'logs', labelKey: 'nav.logs', icon: ScrollText },
+      { id: 'files', labelKey: 'nav.files', icon: Folder },
+      { id: 'terminal', labelKey: 'nav.terminal', icon: Terminal },
+      { id: 'settings', labelKey: 'nav.settings', icon: Settings, shortcut: '⌘,' },
     ],
   },
 ];

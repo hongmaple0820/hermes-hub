@@ -18,7 +18,8 @@ export type ViewMode =
   | 'files'
   | 'terminal'
   | 'agent-control'
-  | 'notifications';
+  | 'notifications'
+  | 'workflows';
 
 export interface Notification {
   id: string;
@@ -84,6 +85,12 @@ interface AppState {
   setProfiles: (profiles: any[]) => void;
   activeProfileId: string | null;
   setActiveProfileId: (id: string | null) => void;
+
+  // Workflows
+  workflows: any[];
+  setWorkflows: (workflows: any[]) => void;
+  selectedWorkflowId: string | null;
+  setSelectedWorkflowId: (id: string | null) => void;
 
   // Notifications
   notifications: Notification[];
@@ -155,13 +162,19 @@ export const useAppStore = create<AppState>((set) => ({
   activeProfileId: null,
   setActiveProfileId: (activeProfileId) => set({ activeProfileId }),
 
+  // Workflows
+  workflows: [],
+  setWorkflows: (workflows) => set({ workflows }),
+  selectedWorkflowId: null,
+  setSelectedWorkflowId: (selectedWorkflowId) => set({ selectedWorkflowId }),
+
   // Notifications
   notifications: [],
   addNotification: (notification) => set((state) => {
     const newNotification: Notification = {
       ...notification,
-      id: notification.id || `notif-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      timestamp: notification.timestamp || new Date().toISOString(),
+      id: (notification as any).id || `notif-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      timestamp: (notification as any).timestamp || new Date().toISOString(),
       read: false,
     };
     // Avoid duplicates by ID

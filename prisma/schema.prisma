@@ -40,6 +40,8 @@ model User {
   appSettings     AppSettings[]
   oAuthTokens     OAuthToken[]
   notifications   Notification[]
+  workflows       Workflow[]
+  workflowExecutions WorkflowExecution[]
 }
 
 model Friendship {
@@ -642,6 +644,76 @@ model CapabilityInvocation {
 
   @@index([agentId, createdAt])
   @@index([capabilityId])
+  @@index([status])
+}
+
+// ==================== Workflow System ====================
+
+model Workflow {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  icon        String?   // Lucide icon name
+  color       String?   // Tailwind color class
+
+  // DAG definition
+  nodes       String   @default("[]") // JSON: WorkflowNode[]
+  edges       String   @default("[]") // JSON: WorkflowEdge[]
+
+  // Configuration
+  trigger     String   @default("{}") // JSON: { type: "manual" | "webhook" | "schedule" | "event", config: {...} }
+  variables   String   @default("{}") // JSON: { [key]: { type, default, description } }
+  timeout     Int      @default(300)  // Global timeout in seconds
+  retryPolicy String   @default("{}") // JSON: { maxRetries, backoffMs, retryOn: [...] }
+  errorPolicy String   @default("stop") // stop, skip, fallback
+
+  // Status
+  status      String   @default("draft") // draft, active, archived
+  version     Int      @default(1)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  executions  WorkflowExecution[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model WorkflowExecution {
+  id          String   @id @default(cuid())
+  workflowId  String
+  userId      String
+
+  // Execution state
+  status      String   @default("pending") // pending, running, completed, failed, cancelled
+  triggerType String   @default("manual")  // manual, webhook, schedule, event, api
+  triggerData String   @default("{}")      // JSON: trigger-specific data
+
+  // Results
+  nodeResults String   @default("{}") // JSON: { [nodeId]: { status, output, error, duration } }
+  variables   String   @default("{}") // JSON: runtime variable values
+  finalOutput String?                 // Final output of the workflow
+
+  // Timing
+  startedAt   DateTime?
+  completedAt DateTime?
+  duration    Int?                    // Total execution time in ms
+
+  // Error tracking
+  error       String?
+  failedNodeId String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId, createdAt])
+  @@index([userId])
   @@index([status])
 }
 

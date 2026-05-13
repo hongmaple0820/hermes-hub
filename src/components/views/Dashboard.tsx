@@ -10,7 +10,7 @@ import {
   Bot, Server, Puzzle, Monitor, MessageSquare, Users,
   Activity, ArrowUpRight, Zap, Wifi, WifiOff, TrendingUp,
   Clock, Cpu, Globe, Shield, Sparkles, BarChart3, Radio,
-  CheckCircle, Eye, LogOut, Plus, Settings, Timer, Uptime,
+  CheckCircle, Eye, LogOut, Plus, Settings, Timer,
   ArrowDownRight, RefreshCw, Database, HelpCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

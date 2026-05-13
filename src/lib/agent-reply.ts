@@ -2,11 +2,17 @@
  * Agent Reply Logic
  * Gets agent's provider, builds messages, calls LLM, saves response
  * Supports both synchronous and streaming (SSE) modes
+ *
+ * Enhanced with:
+ * - Agent Memory: Automatically injects memory context into system prompts
+ * - Tool Chain Execution: For builtin agents with skills, uses agentic tool chain loop
  */
 
 import { db } from '@/lib/db';
 import { decrypt } from '@/lib/crypto';
 import { chatCompletion, chatCompletionStream, type ChatMessage, type LLMProviderConfig } from './llm-provider';
+import { buildToolDefinitions, executeToolChain, createLLMCaller, type SkillExecutionResult } from './skill-executor';
+import { getMemoryManager, type MemoryContext } from './agent-memory';
 
 interface AgentReplyParams {
   agentId: string;
@@ -19,6 +25,7 @@ interface AgentReplyResult {
   success: boolean;
   content: string;
   error?: string;
+  toolResults?: SkillExecutionResult[];
 }
 
 /**
@@ -66,6 +73,21 @@ async function prepareAgentContext(params: AgentReplyParams) {
       .map((as) => `- ${as.skill.displayName}: ${as.skill.description}`)
       .join('\n');
     systemPrompt += `\n\nYou have the following skills available:\n${skillDescriptions}`;
+    systemPrompt += `\n\nWhen you need to use a skill, respond with a tool call. You can call multiple tools if needed. After receiving tool results, you can continue using tools or provide your final answer.`;
+  }
+
+  // 4. Inject agent memory into system prompt
+  let memoryContext: MemoryContext | null = null;
+  try {
+    const memoryManager = getMemoryManager(agentId);
+    memoryContext = await memoryManager.buildMemoryContext();
+
+    if (memoryContext.hasMemory) {
+      systemPrompt += memoryContext.fullContext;
+    }
+  } catch (error) {
+    console.error('[AgentReply] Failed to load memory context:', error);
+    // Continue without memory — don't block the agent reply
   }
 
   messages.push({ role: 'system', content: systemPrompt });
@@ -87,7 +109,7 @@ async function prepareAgentContext(params: AgentReplyParams) {
     messages.push({ role: 'user', content: userMessage });
   }
 
-  // 4. Determine the LLM provider config
+  // 5. Determine the LLM provider config
   let providerConfig: LLMProviderConfig;
   let model: string | undefined;
 
@@ -118,52 +140,92 @@ async function prepareAgentContext(params: AgentReplyParams) {
     model = agent.model || undefined;
   }
 
-  return { agent, messages, providerConfig, model };
+  return { agent, messages, providerConfig, model, memoryContext };
 }
 
 /**
  * Generate an agent reply to a user message (synchronous)
+ *
+ * For builtin agents with skills installed, uses the tool chain execution
+ * which creates an agentic loop (plan → execute tools → iterate).
+ * For agents without skills, uses the standard single LLM call.
  */
 export async function generateAgentReply(params: AgentReplyParams): Promise<AgentReplyResult> {
   try {
     const { agent, messages, providerConfig, model } = await prepareAgentContext(params);
     const { agentId, conversationId } = params;
 
-    // Call the LLM
-    const result = await chatCompletion(providerConfig, messages, model, {
-      temperature: agent.temperature ?? 0.7,
-      maxTokens: agent.maxTokens ?? 2048,
-    });
+    let resultContent: string;
+    let toolResults: SkillExecutionResult[] = [];
+    let resultModel: string = model || 'unknown';
+    let resultUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | undefined;
+
+    // Check if agent has skills — use tool chain for agentic behavior
+    const hasSkills = agent.skills && agent.skills.length > 0;
+
+    if (hasSkills) {
+      // Use tool chain execution for agentic loop
+      const llmCaller = createLLMCaller(providerConfig, model, {
+        temperature: agent.temperature ?? 0.7,
+        maxTokens: agent.maxTokens ?? 2048,
+      });
+
+      const chainResult = await executeToolChain(
+        agentId,
+        params.userMessage,
+        conversationId,
+        llmCaller,
+        5 // max iterations
+      );
+
+      resultContent = chainResult.content;
+      toolResults = chainResult.toolResults;
+    } else {
+      // Standard single LLM call (no skills)
+      const result = await chatCompletion(providerConfig, messages, model, {
+        temperature: agent.temperature ?? 0.7,
+        maxTokens: agent.maxTokens ?? 2048,
+      });
+
+      resultContent = result.content;
+      resultModel = result.model;
+      resultUsage = result.usage;
+    }
 
     // Save the agent's reply as a message
     await db.message.create({
       data: {
         conversationId,
-        content: result.content,
+        content: resultContent,
         type: 'text',
         senderId: null,
         senderType: 'agent',
         senderName: agent.name,
         metadata: JSON.stringify({
           agentId: agent.id,
-          model: result.model,
-          usage: result.usage,
+          model: resultModel,
+          usage: resultUsage,
+          toolResults: toolResults.length > 0 ? toolResults.map(tr => ({
+            skillName: tr.skillName,
+            success: tr.success,
+            executionTime: tr.executionTime,
+          })) : undefined,
         }),
       },
     });
 
     // Track usage
-    if (result.usage) {
+    if (resultUsage) {
       await db.usageRecord.create({
         data: {
           userId: params.userId,
           agentId: params.agentId,
           conversationId: params.conversationId,
-          model: result.model,
+          model: resultModel,
           provider: agent.provider?.provider,
-          inputTokens: result.usage.promptTokens || 0,
-          outputTokens: result.usage.completionTokens || 0,
-          estimatedCost: ((result.usage.promptTokens || 0) * 0.00001 + (result.usage.completionTokens || 0) * 0.00003),
+          inputTokens: resultUsage.promptTokens || 0,
+          outputTokens: resultUsage.completionTokens || 0,
+          estimatedCost: ((resultUsage.promptTokens || 0) * 0.00001 + (resultUsage.completionTokens || 0) * 0.00003),
         },
       }).catch(() => {});
     }
@@ -174,7 +236,16 @@ export async function generateAgentReply(params: AgentReplyParams): Promise<Agen
       data: { status: 'online' },
     });
 
-    return { success: true, content: result.content };
+    // Learn from interaction (auto-update agent memory)
+    try {
+      const memoryManager = getMemoryManager(agentId);
+      await memoryManager.learnFromInteraction(params.userMessage, resultContent);
+    } catch (error) {
+      console.error('[AgentReply] Failed to learn from interaction:', error);
+      // Non-critical — don't fail the reply
+    }
+
+    return { success: true, content: resultContent, toolResults: toolResults.length > 0 ? toolResults : undefined };
   } catch (error) {
     // Update agent status to error
     await db.agent.update({
@@ -190,30 +261,61 @@ export async function generateAgentReply(params: AgentReplyParams): Promise<Agen
 /**
  * Stream an agent reply using SSE
  * Yields SSE-formatted events as strings for direct writing to the response
+ *
+ * Note: Tool chain execution doesn't support streaming — if the agent has skills,
+ * we execute the tool chain synchronously and then stream the final result.
+ * For agents without skills, we stream normally.
  */
 export async function* streamAgentReply(params: AgentReplyParams): AsyncGenerator<string> {
   const { agentId, conversationId } = params;
   let fullContent = '';
   let returnedModel = '';
   let streamUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | undefined;
+  let toolResults: SkillExecutionResult[] = [];
 
   try {
     const { agent, messages, providerConfig, model } = await prepareAgentContext(params);
 
-    // Stream the LLM response
-    const stream = chatCompletionStream(providerConfig, messages, model, {
-      temperature: agent.temperature ?? 0.7,
-      maxTokens: agent.maxTokens ?? 2048,
-    });
+    // Check if agent has skills — use tool chain (non-streaming)
+    const hasSkills = agent.skills && agent.skills.length > 0;
 
-    for await (const event of stream) {
-      if (event.type === 'chunk' && event.content) {
-        fullContent += event.content;
-        yield `data: ${JSON.stringify({ type: 'chunk', content: event.content })}\n\n`;
-      } else if (event.type === 'done') {
-        if (event.model) returnedModel = event.model;
-        if (event.content) fullContent = event.content;
-        if (event.usage) streamUsage = event.usage;
+    if (hasSkills) {
+      // Tool chain execution is synchronous — execute and then yield the result
+      const llmCaller = createLLMCaller(providerConfig, model, {
+        temperature: agent.temperature ?? 0.7,
+        maxTokens: agent.maxTokens ?? 2048,
+      });
+
+      const chainResult = await executeToolChain(
+        agentId,
+        params.userMessage,
+        conversationId,
+        llmCaller,
+        5
+      );
+
+      fullContent = chainResult.content;
+      toolResults = chainResult.toolResults;
+
+      // Yield the full content as a single chunk
+      yield `data: ${JSON.stringify({ type: 'chunk', content: fullContent })}\n\n`;
+      yield `data: ${JSON.stringify({ type: 'done' })}\n\n`;
+    } else {
+      // Standard streaming LLM call (no skills)
+      const stream = chatCompletionStream(providerConfig, messages, model, {
+        temperature: agent.temperature ?? 0.7,
+        maxTokens: agent.maxTokens ?? 2048,
+      });
+
+      for await (const event of stream) {
+        if (event.type === 'chunk' && event.content) {
+          fullContent += event.content;
+          yield `data: ${JSON.stringify({ type: 'chunk', content: event.content })}\n\n`;
+        } else if (event.type === 'done') {
+          if (event.model) returnedModel = event.model;
+          if (event.content) fullContent = event.content;
+          if (event.usage) streamUsage = event.usage;
+        }
       }
     }
 
@@ -229,6 +331,11 @@ export async function* streamAgentReply(params: AgentReplyParams): AsyncGenerato
         metadata: JSON.stringify({
           agentId: agent.id,
           model: returnedModel,
+          toolResults: toolResults.length > 0 ? toolResults.map(tr => ({
+            skillName: tr.skillName,
+            success: tr.success,
+            executionTime: tr.executionTime,
+          })) : undefined,
         }),
       },
     });
@@ -254,6 +361,14 @@ export async function* streamAgentReply(params: AgentReplyParams): AsyncGenerato
       where: { id: agentId },
       data: { status: 'online' },
     });
+
+    // Learn from interaction
+    try {
+      const memoryManager = getMemoryManager(agentId);
+      await memoryManager.learnFromInteraction(params.userMessage, fullContent);
+    } catch (error) {
+      console.error('[AgentReply] Failed to learn from interaction:', error);
+    }
 
     // Emit done event with the saved message ID
     yield `data: ${JSON.stringify({ type: 'done', messageId: savedMessage.id })}\n\n`;
