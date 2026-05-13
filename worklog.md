@@ -2673,3 +2673,41 @@ Stage Summary:
 - Sidebar shortcuts now visible only on hover for cleaner UI
 - Setup Guide upgraded to detailed 5-step visual walkthrough with code snippets
 - All new text fully internationalized across 8 languages
+
+---
+Task ID: session-continuation
+Agent: main
+Task: Continue from previous session - execute P0 fixes, QA testing, and UI/UX enhancements
+
+Work Log:
+- Verified code was already pushed to remote (up-to-date)
+- Created cron job for 15-minute periodic review (job_id: 146890)
+- Implemented JWT authentication system:
+  - Created src/lib/jwt.ts using jose library (HS256, 7-day access + 30-day refresh tokens)
+  - Updated login/register to issue JWT tokens and set httpOnly cookies
+  - Updated auth.ts to verify JWT from cookie/header with backward compat
+  - Created /api/auth/refresh and /api/auth/logout endpoints
+  - Updated api-client.ts to send Authorization: Bearer <jwt> with auto-refresh on 401
+  - Updated page.tsx to use api.setAuth(token, userId)
+- Fixed chat-service health endpoint (Socket.IO listener interception pattern)
+- Fixed terminal-service health endpoint query string handling
+- Ran agent-browser QA testing - found 12 issues
+- Fixed all QA bugs:
+  - Dashboard stat card text issues (duplicate text, missing counts, trailing dash)
+  - Temperature slider floating-point display
+  - Skill install state not reflecting in Skill Store
+  - CopyButton stuck showing "Copied!" text
+- Enhanced UI/UX:
+  - Service Health dashboard in Settings/About tab
+  - ChatView empty state with capability showcase and first message suggestions
+  - Keyboard shortcut indicators (⌘1-8) in Sidebar
+  - Agent Control Center 5-step setup guide
+  - i18n keys for all new features across 8 locales
+- Committed and pushed: 85ef364
+
+Stage Summary:
+- **P0 JWT Authentication fully implemented** - No more raw userId as token
+- **Chat-service health endpoint fixed** - All 4 services now return 200
+- **All QA bugs fixed** - 12 issues resolved
+- **UI/UX significantly enhanced** - 5 new features added
+- **Code pushed to remote**: github.com/hongmaple0820/hermes-hub main
