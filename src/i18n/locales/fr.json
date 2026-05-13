@@ -577,6 +577,7 @@
     "welcomeDesc": "Choisissez un agent et commencez a discuter. Vos assistants IA sont prets.",
     "quickStartSuggestions": "Suggestions de demarrage rapide",
     "streamingError": "Une erreur de streaming s'est produite",
+    "stopStreaming": "Arrêter le streaming",
     "deleteConversationTitle": "Supprimer la conversation",
     "deleteConversationDesc": "Êtes-vous sûr de vouloir supprimer cette conversation ? Tous les messages seront définitivement perdus. Cette action est irréversible.",
     "emptyTitle": "Pas encore de conversations",
@@ -1527,7 +1528,14 @@
     "collapseAll": "Réduire toutes les sections",
     "expandAll": "Développer toutes les sections",
     "rightClickToRemove": "Clic droit pour supprimer",
-    "shortcut": "Raccourci"
+    "shortcut": "Raccourci",
+    "expandSidebar": "Développer la barre latérale",
+    "collapseSidebar": "Réduire la barre latérale",
+    "unpin": "Retirer des favoris",
+    "language": "Langue",
+    "logout": "Déconnexion",
+    "expandSection": "Développer la section {section}",
+    "collapseSection": "Réduire la section {section}"
   },
   "commandPalette": {
     "placeholder": "Rechercher commandes, vues, agents...",

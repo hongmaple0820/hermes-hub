@@ -528,6 +528,7 @@ export function AgentManager() {
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t('agents.createTitle')}</DialogTitle>
+              <DialogDescription className="sr-only">{t('agents.createTitle')}</DialogDescription>
             </DialogHeader>
             {renderFormFields(false)}
           </DialogContent>
@@ -568,6 +569,7 @@ export function AgentManager() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t('agents.editTitle')}</DialogTitle>
+            <DialogDescription className="sr-only">{t('agents.editTitle')}</DialogDescription>
           </DialogHeader>
           {renderFormFields(true)}
         </DialogContent>

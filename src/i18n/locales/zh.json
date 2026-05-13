@@ -577,6 +577,7 @@
     "welcomeDesc": "选择一个智能体并开始聊天。您的AI助手已准备就绪。",
     "quickStartSuggestions": "快速开始建议",
     "streamingError": "流式传输出错",
+    "stopStreaming": "停止流式输出",
     "deleteConversationTitle": "删除对话",
     "deleteConversationDesc": "确定要删除此对话吗？所有消息将永久丢失。此操作无法撤销。",
     "emptyTitle": "还没有对话",
@@ -1527,7 +1528,14 @@
     "collapseAll": "折叠所有分区",
     "expandAll": "展开所有分区",
     "rightClickToRemove": "右键点击移除",
-    "shortcut": "快捷键"
+    "shortcut": "快捷键",
+    "expandSidebar": "展开侧边栏",
+    "collapseSidebar": "收起侧边栏",
+    "unpin": "取消收藏",
+    "language": "语言",
+    "logout": "退出登录",
+    "expandSection": "展开{section}分区",
+    "collapseSection": "收起{section}分区"
   },
   "commandPalette": {
     "placeholder": "搜索命令、视图、Agent...",

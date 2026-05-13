@@ -12,7 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import {
@@ -32,7 +32,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import {
   Bot, Send, Plus, Loader2, ArrowLeft, MessageSquare, Users, GitBranch, ArrowRight,
   Paperclip, Smile, Check, CheckCheck, Clock, Copy, Trash2, Search, ChevronDown,
-  Sparkles, Zap, BookOpen, Code, Globe, Radio, X, Download, Upload
+  Sparkles, Zap, BookOpen, Code, Globe, Radio, X, Download, Upload, Square
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -705,6 +705,8 @@ function ConversationsPanel() {
                   createdAt: new Date().toISOString(),
                 };
                 setMessages((prev) => [...prev, agentMsg]);
+                // Refresh conversations list for sidebar preview
+                api.getConversations().then(result => setConversations(result.conversations || [])).catch(() => {});
               } else if (data.type === 'error') {
                 setStreaming(false);
                 setStreamingContent('');
@@ -747,6 +749,8 @@ function ConversationsPanel() {
             createdAt: new Date().toISOString(),
           };
           setMessages((prev) => [...prev, agentMsg]);
+          // Refresh conversations list for sidebar preview
+          api.getConversations().then(result => setConversations(result.conversations || [])).catch(() => {});
         }
       }
     } catch (error: any) {
@@ -805,6 +809,7 @@ function ConversationsPanel() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{t('chat.startNewChatTitle')}</DialogTitle>
+                  <DialogDescription className="sr-only">{t('chat.startNewChatTitle')}</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-2 mt-4">
                   {agents.length === 0 ? (
@@ -932,6 +937,7 @@ function ConversationsPanel() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{t('chat.deleteConversationTitle')}</DialogTitle>
+              <DialogDescription className="sr-only">{t('chat.deleteConversationDesc')}</DialogDescription>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">
               {t('chat.deleteConversationDesc')}
@@ -1081,6 +1087,24 @@ function ConversationsPanel() {
                       <TooltipContent side="top" className="text-xs">Emoji</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
+
+                  {/* Stop streaming button */}
+                  {streaming && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="w-8 h-8 shrink-0"
+                      onClick={() => {
+                        abortRef.current?.abort();
+                        setStreaming(false);
+                        setStreamingContent('');
+                      }}
+                      aria-label={t('chat.stopStreaming')}
+                      title={t('chat.stopStreaming')}
+                    >
+                      <Square className="w-4 h-4" />
+                    </Button>
+                  )}
 
                   {/* Send button */}
                   <Button

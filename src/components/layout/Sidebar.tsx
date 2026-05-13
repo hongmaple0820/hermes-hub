@@ -288,6 +288,8 @@ export function Sidebar({ onLogout, onOpenKeyboardHelp }: SidebarProps) {
                   size="icon"
                   className="relative w-7 h-7 shrink-0 text-muted-foreground hover:text-foreground hover:bg-accent"
                   onClick={toggleAllSections}
+                  aria-label={allSectionsCollapsed ? t('sidebar.expandAll') : t('sidebar.collapseAll')}
+                  title={allSectionsCollapsed ? t('sidebar.expandAll') : t('sidebar.collapseAll')}
                 >
                   {allSectionsCollapsed ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
                 </Button>
@@ -303,6 +305,8 @@ export function Sidebar({ onLogout, onOpenKeyboardHelp }: SidebarProps) {
         {!isMobile && (
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            aria-label={sidebarCollapsed ? t('sidebar.expandSidebar') : t('sidebar.collapseSidebar')}
+            title={sidebarCollapsed ? t('sidebar.expandSidebar') : t('sidebar.collapseSidebar')}
             className="absolute -right-3 top-14 z-10 w-6 h-6 rounded-full bg-background border border-border flex items-center justify-center hover:bg-accent hover:scale-110 transition-all duration-200 shadow-sm"
           >
             {sidebarCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
@@ -373,6 +377,8 @@ export function Sidebar({ onLogout, onOpenKeyboardHelp }: SidebarProps) {
                         <button
                           key={`fav-${item.id}`}
                           onClick={() => setCurrentView(item.id)}
+                          aria-label={t(item.labelKey)}
+                          title={t(item.labelKey)}
                           onContextMenu={(e) => {
                             e.preventDefault();
                             toggleFavorite(item.id);
@@ -432,6 +438,8 @@ export function Sidebar({ onLogout, onOpenKeyboardHelp }: SidebarProps) {
                               {/* Unpin button on hover */}
                               <button
                                 className="opacity-0 group-hover/item:opacity-100 transition-opacity relative z-10 p-0.5 rounded hover:bg-accent"
+                                aria-label={t('sidebar.unpin')}
+                                title={t('sidebar.unpin')}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   toggleFavorite(item.id);
@@ -493,6 +501,8 @@ export function Sidebar({ onLogout, onOpenKeyboardHelp }: SidebarProps) {
                     {navSections.length > 1 && !effectivelyCollapsed && (
                       <button
                         onClick={() => toggleSection(section.label)}
+                        aria-label={isSectionCollapsed ? t('sidebar.expandSection', { section: t(sectionLabelKey) }) : t('sidebar.collapseSection', { section: t(sectionLabelKey) })}
+                        title={isSectionCollapsed ? t('sidebar.expandSection', { section: t(sectionLabelKey) }) : t('sidebar.collapseSection', { section: t(sectionLabelKey) })}
                         className="w-full flex items-center gap-1.5 px-3 pt-2 pb-1.5 group cursor-pointer"
                       >
                         <span className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.12em] flex-1 text-left group-hover:text-muted-foreground transition-colors duration-200">
@@ -528,6 +538,8 @@ export function Sidebar({ onLogout, onOpenKeyboardHelp }: SidebarProps) {
                           <button
                             key={item.id}
                             onClick={() => setCurrentView(item.id)}
+                            aria-label={t(item.labelKey)}
+                            title={t(item.labelKey)}
                             onContextMenu={(e) => {
                               e.preventDefault();
                               toggleFavorite(item.id);
@@ -688,6 +700,8 @@ export function Sidebar({ onLogout, onOpenKeyboardHelp }: SidebarProps) {
                   'flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-all duration-200 rounded-lg px-2 py-1.5 hover:bg-accent hover:scale-[1.02] w-full',
                   effectivelyCollapsed && 'justify-center px-0'
                 )}
+                aria-label={t('sidebar.language')}
+                title={t('sidebar.language')}
               >
                 <Languages className="w-4 h-4 shrink-0" />
                 {!effectivelyCollapsed && (
@@ -726,6 +740,8 @@ export function Sidebar({ onLogout, onOpenKeyboardHelp }: SidebarProps) {
               <TooltipTrigger asChild>
                 <button
                   onClick={onOpenKeyboardHelp}
+                  aria-label={t('keyboard.title')}
+                  title={t('keyboard.title')}
                   className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200 hover:scale-105"
                 >
                   <HelpCircle className="w-4 h-4" />
@@ -739,6 +755,8 @@ export function Sidebar({ onLogout, onOpenKeyboardHelp }: SidebarProps) {
           ) : (
             <button
               onClick={onOpenKeyboardHelp}
+              aria-label={t('keyboard.title')}
+              title={t('keyboard.title')}
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-all duration-200 rounded-lg px-2 py-1.5 hover:bg-accent hover:scale-[1.02] w-full"
             >
               <HelpCircle className="w-4 h-4 shrink-0" />
@@ -802,6 +820,8 @@ export function Sidebar({ onLogout, onOpenKeyboardHelp }: SidebarProps) {
                 size="icon"
                 className="w-7 h-7 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 hover:scale-110 transition-all duration-200"
                 onClick={onLogout}
+                aria-label={t('sidebar.logout')}
+                title={t('sidebar.logout')}
               >
                 <LogOut className="w-3.5 h-3.5" />
               </Button>

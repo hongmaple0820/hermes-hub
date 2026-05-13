@@ -232,6 +232,11 @@ class ApiClient {
     return this.post<{ success: boolean; message: string; models?: string[] }>(`/providers/${id}/test`);
   }
 
+  // Provider encryption status
+  async getProviderEncryptionStatus(id: string) {
+    return this.get<{ encrypted: boolean; maskedKey: string }>(`/providers/${id}/encryption-status`);
+  }
+
   // Agents
   async getAgents() {
     return this.get<{ agents: any[] }>('/agents');
@@ -773,6 +778,19 @@ class ApiClient {
         total: number;
       };
     }>('/analytics/dashboard');
+  }
+
+  // Usage Analytics
+  async getUsageAnalytics() {
+    return this.get<{
+      totalInputTokens: number;
+      totalOutputTokens: number;
+      totalTokens: number;
+      estimatedCost: number;
+      dailyUsage: { date: string; inputTokens: number; outputTokens: number; cost: number }[];
+      byAgent: { agentId: string; agentName: string; tokens: number; cost: number }[];
+      byModel: { model: string; tokens: number; cost: number }[];
+    }>('/analytics/usage');
   }
 
   // Context Engine

@@ -2073,6 +2073,7 @@ socket.on('skill:heartbeat-ack', (data) => {
                 </div>
               </div>
             </DialogTitle>
+            <DialogDescription className="sr-only">{skill.description}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">

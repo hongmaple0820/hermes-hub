@@ -577,6 +577,7 @@
     "welcomeDesc": "에이전트를 선택하고 채팅을 시작하세요. AI 어시스턴트가 도와드릴 준비가 되었습니다.",
     "quickStartSuggestions": "빠른 시작 제안",
     "streamingError": "스트리밍 오류가 발생했습니다",
+    "stopStreaming": "스트리밍 중지",
     "deleteConversationTitle": "대화 삭제",
     "deleteConversationDesc": "이 대화를 삭제하시겠습니까? 모든 메시지가 영구적으로 손실됩니다. 이 작업은 취소할 수 없습니다.",
     "emptyTitle": "대화가 아직 없습니다",
@@ -1527,7 +1528,14 @@
     "collapseAll": "모든 섹션 접기",
     "expandAll": "모든 섹션 펼치기",
     "rightClickToRemove": "우클릭으로 제거",
-    "shortcut": "단축키"
+    "shortcut": "단축키",
+    "expandSidebar": "사이드바 펼치기",
+    "collapseSidebar": "사이드바 접기",
+    "unpin": "즐겨찾기에서 제거",
+    "language": "언어",
+    "logout": "로그아웃",
+    "expandSection": "{section} 섹션 펼치기",
+    "collapseSection": "{section} 섹션 접기"
   },
   "commandPalette": {
     "placeholder": "명령, 보기, Agent 검색...",

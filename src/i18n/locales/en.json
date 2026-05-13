@@ -577,6 +577,7 @@
     "welcomeDesc": "Choose an agent and begin chatting. Your AI assistants are ready to help.",
     "quickStartSuggestions": "Quick start suggestions",
     "streamingError": "Streaming error occurred",
+    "stopStreaming": "Stop streaming",
     "deleteConversationTitle": "Delete Conversation",
     "deleteConversationDesc": "Are you sure you want to delete this conversation? All messages will be permanently lost. This action cannot be undone.",
     "emptyTitle": "No Conversations Yet",
@@ -1528,7 +1529,14 @@
     "collapseAll": "Collapse all sections",
     "expandAll": "Expand all sections",
     "rightClickToRemove": "Right-click to remove",
-    "shortcut": "Shortcut"
+    "shortcut": "Shortcut",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar",
+    "unpin": "Unpin from favorites",
+    "language": "Language",
+    "logout": "Log out",
+    "expandSection": "Expand {section} section",
+    "collapseSection": "Collapse {section} section"
   },
   "commandPalette": {
     "placeholder": "Search commands, views, agents...",

@@ -5,6 +5,7 @@
  */
 
 import { db } from '@/lib/db';
+import { decrypt } from '@/lib/crypto';
 import { chatCompletion, chatCompletionStream, type ChatMessage, type LLMProviderConfig } from './llm-provider';
 
 interface AgentReplyParams {
@@ -91,9 +92,19 @@ async function prepareAgentContext(params: AgentReplyParams) {
   let model: string | undefined;
 
   if (agent.provider) {
+    // Decrypt API key — it's stored encrypted in the database
+    let decryptedApiKey = agent.provider.apiKey ?? undefined;
+    if (decryptedApiKey) {
+      try {
+        decryptedApiKey = decrypt(decryptedApiKey);
+      } catch {
+        // If decryption fails, the key might be plaintext (legacy) — use as-is
+      }
+    }
+
     providerConfig = {
       provider: agent.provider.provider,
-      apiKey: agent.provider.apiKey ?? undefined,
+      apiKey: decryptedApiKey,
       baseUrl: agent.provider.baseUrl ?? undefined,
       defaultModel: agent.provider.defaultModel ?? undefined,
       config: JSON.parse(agent.provider.config || '{}'),
@@ -141,6 +152,22 @@ export async function generateAgentReply(params: AgentReplyParams): Promise<Agen
       },
     });
 
+    // Track usage
+    if (result.usage) {
+      await db.usageRecord.create({
+        data: {
+          userId: params.userId,
+          agentId: params.agentId,
+          conversationId: params.conversationId,
+          model: result.model,
+          provider: agent.provider?.provider,
+          inputTokens: result.usage.promptTokens || 0,
+          outputTokens: result.usage.completionTokens || 0,
+          estimatedCost: ((result.usage.promptTokens || 0) * 0.00001 + (result.usage.completionTokens || 0) * 0.00003),
+        },
+      }).catch(() => {});
+    }
+
     // Update agent status
     await db.agent.update({
       where: { id: agentId },
@@ -168,6 +195,7 @@ export async function* streamAgentReply(params: AgentReplyParams): AsyncGenerato
   const { agentId, conversationId } = params;
   let fullContent = '';
   let returnedModel = '';
+  let streamUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | undefined;
 
   try {
     const { agent, messages, providerConfig, model } = await prepareAgentContext(params);
@@ -185,6 +213,7 @@ export async function* streamAgentReply(params: AgentReplyParams): AsyncGenerato
       } else if (event.type === 'done') {
         if (event.model) returnedModel = event.model;
         if (event.content) fullContent = event.content;
+        if (event.usage) streamUsage = event.usage;
       }
     }
 
@@ -203,6 +232,22 @@ export async function* streamAgentReply(params: AgentReplyParams): AsyncGenerato
         }),
       },
     });
+
+    // Track usage
+    if (streamUsage) {
+      await db.usageRecord.create({
+        data: {
+          userId: params.userId,
+          agentId: params.agentId,
+          conversationId: params.conversationId,
+          model: returnedModel,
+          provider: agent.provider?.provider,
+          inputTokens: streamUsage.promptTokens || 0,
+          outputTokens: streamUsage.completionTokens || 0,
+          estimatedCost: ((streamUsage.promptTokens || 0) * 0.00001 + (streamUsage.completionTokens || 0) * 0.00003),
+        },
+      }).catch(() => {});
+    }
 
     // Update agent status
     await db.agent.update({

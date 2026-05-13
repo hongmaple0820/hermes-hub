@@ -577,6 +577,7 @@
     "welcomeDesc": "Escolha um agente e comece a conversar. Seus assistentes de IA estao prontos.",
     "quickStartSuggestions": "Sugestoes de inicio rapido",
     "streamingError": "Ocorreu um erro de streaming",
+    "stopStreaming": "Parar streaming",
     "deleteConversationTitle": "Excluir conversa",
     "deleteConversationDesc": "Tem certeza de que deseja excluir esta conversa? Todas as mensagens serão perdidas permanentemente. Esta ação não pode ser desfeita.",
     "emptyTitle": "Sem conversas ainda",
@@ -1527,7 +1528,14 @@
     "collapseAll": "Recolher todas as seções",
     "expandAll": "Expandir todas as seções",
     "rightClickToRemove": "Clique direito para remover",
-    "shortcut": "Atalho"
+    "shortcut": "Atalho",
+    "expandSidebar": "Expandir barra lateral",
+    "collapseSidebar": "Recolher barra lateral",
+    "unpin": "Remover dos favoritos",
+    "language": "Idioma",
+    "logout": "Sair",
+    "expandSection": "Expandir seção {section}",
+    "collapseSection": "Recolher seção {section}"
   },
   "commandPalette": {
     "placeholder": "Pesquisar comandos, visualizacoes, agents...",

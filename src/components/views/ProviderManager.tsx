@@ -337,7 +337,7 @@ export function ProviderManager() {
             <Button className="gap-2"><Plus className="w-4 h-4" /> {t('providers.add')}</Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>{t('providers.addTitle')}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t('providers.addTitle')}</DialogTitle><DialogDescription className="sr-only">{t('providers.addTitle')}</DialogDescription></DialogHeader>
             {renderFormFields(false)}
           </DialogContent>
         </Dialog>
@@ -346,7 +346,7 @@ export function ProviderManager() {
       {/* Edit Dialog */}
       <Dialog open={showEdit} onOpenChange={(open) => { setShowEdit(open); if (!open) { setEditingProvider(null); setForm({ ...defaultForm }); } }}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{t('providers.editTitle')}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('providers.editTitle')}</DialogTitle><DialogDescription className="sr-only">{t('providers.editTitle')}</DialogDescription></DialogHeader>
           {renderFormFields(true)}
         </DialogContent>
       </Dialog>

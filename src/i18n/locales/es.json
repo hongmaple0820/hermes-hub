@@ -577,6 +577,7 @@
     "welcomeDesc": "Elige un agente y comienza a chatear. Tus asistentes de IA están listos.",
     "quickStartSuggestions": "Sugerencias de inicio rápido",
     "streamingError": "Ocurrió un error de transmisión",
+    "stopStreaming": "Detener transmisión",
     "deleteConversationTitle": "Eliminar conversación",
     "deleteConversationDesc": "¿Está seguro de que desea eliminar esta conversación? Todos los mensajes se perderán permanentemente. Esta acción no se puede deshacer.",
     "emptyTitle": "Sin conversaciones aun",
@@ -1527,7 +1528,14 @@
     "collapseAll": "Contraer todas las secciones",
     "expandAll": "Expandir todas las secciones",
     "rightClickToRemove": "Clic derecho para eliminar",
-    "shortcut": "Atajo"
+    "shortcut": "Atajo",
+    "expandSidebar": "Expandir barra lateral",
+    "collapseSidebar": "Colapsar barra lateral",
+    "unpin": "Quitar de favoritos",
+    "language": "Idioma",
+    "logout": "Cerrar sesión",
+    "expandSection": "Expandir sección {section}",
+    "collapseSection": "Colapsar sección {section}"
   },
   "commandPalette": {
     "placeholder": "Buscar comandos, vistas, agents...",

@@ -577,6 +577,7 @@
     "welcomeDesc": "Waehle einen Agenten und beginne zu chatten. Deine KI-Assistenten sind bereit.",
     "quickStartSuggestions": "Schnellstart-Vorschlaege",
     "streamingError": "Streaming-Fehler aufgetreten",
+    "stopStreaming": "Streaming stoppen",
     "deleteConversationTitle": "Unterhaltung löschen",
     "deleteConversationDesc": "Sind Sie sicher, dass Sie diese Unterhaltung löschen möchten? Alle Nachrichten gehen dauerhaft verloren. Diese Aktion kann nicht rückgängig gemacht werden.",
     "emptyTitle": "Noch keine Gesprache",
@@ -1527,7 +1528,14 @@
     "collapseAll": "Alle Bereiche einklappen",
     "expandAll": "Alle Bereiche aufklappen",
     "rightClickToRemove": "Rechtsklick zum Entfernen",
-    "shortcut": "Tastenkuerzel"
+    "shortcut": "Tastenkuerzel",
+    "expandSidebar": "Seitenleiste ausklappen",
+    "collapseSidebar": "Seitenleiste einklappen",
+    "unpin": "Aus Favoriten entfernen",
+    "language": "Sprache",
+    "logout": "Abmelden",
+    "expandSection": "{section}-Bereich ausklappen",
+    "collapseSection": "{section}-Bereich einklappen"
   },
   "commandPalette": {
     "placeholder": "Befehle, Ansichten, Agents suchen...",

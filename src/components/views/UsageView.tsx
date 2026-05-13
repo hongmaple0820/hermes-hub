@@ -1,28 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api-client';
 import { useI18n } from '@/i18n';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  BarChart3, DollarSign, Zap, Hash, Users, Loader2, TrendingUp, Database,
+  BarChart3, DollarSign, Zap, Hash, Users, Loader2, TrendingUp,
   Activity, CheckCircle2, XCircle, Clock, AlertTriangle, RefreshCw,
+  Bot, Cpu, Coins,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
-interface UsageData {
+// ============ Types ============
+
+interface UsageAnalyticsData {
   totalInputTokens: number;
   totalOutputTokens: number;
+  totalTokens: number;
   estimatedCost: number;
-  sessionCount: number;
-  cacheHitRate: number;
-  modelBreakdown: { model: string; inputTokens: number; outputTokens: number; cost: number }[];
-  dailyTrend: { date: string; inputTokens: number; outputTokens: number; cost: number }[];
+  dailyUsage: { date: string; inputTokens: number; outputTokens: number; cost: number }[];
+  byAgent: { agentId: string; agentName: string; tokens: number; cost: number }[];
+  byModel: { model: string; tokens: number; cost: number }[];
 }
 
 interface SkillAnalyticsData {
@@ -33,14 +34,17 @@ interface SkillAnalyticsData {
   topSkills: { capabilityId: string; name: string; total: number; successCount: number; successRate: number }[];
 }
 
-const PERIODS = [
-  { key: '7d', labelKey: 'usage.7days' },
-  { key: '30d', labelKey: 'usage.30days' },
-  { key: '90d', labelKey: 'usage.90days' },
-];
+// ============ Constants ============
 
-// Donut chart colors for top 5 skills
 const DONUT_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#ec4899'];
+
+const BAR_COLORS = {
+  input: '#10b981',
+  output: '#8b5cf6',
+  cost: '#f59e0b',
+};
+
+// ============ Helpers ============
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -49,7 +53,9 @@ function formatTokens(n: number): string {
 }
 
 function formatCost(n: number): string {
-  return `$${n.toFixed(4)}`;
+  if (n < 0.01 && n > 0) return `$${n.toFixed(6)}`;
+  if (n < 1) return `$${n.toFixed(4)}`;
+  return `$${n.toFixed(2)}`;
 }
 
 function formatDuration(ms: number | null): string {
@@ -68,7 +74,31 @@ function formatTimeAgo(dateStr: string): string {
   return `${Math.floor(diff / 86400000)}d ago`;
 }
 
-// CSS-only Donut Chart Component
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// ============ Sub-components ============
+
+function StatusBadge({ status }: { status: string }) {
+  const config: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
+    success: { color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20', icon: <CheckCircle2 className="w-3 h-3" />, label: 'Success' },
+    failed: { color: 'text-red-600 bg-red-500/10 border-red-500/20', icon: <XCircle className="w-3 h-3" />, label: 'Failed' },
+    timeout: { color: 'text-amber-600 bg-amber-500/10 border-amber-500/20', icon: <AlertTriangle className="w-3 h-3" />, label: 'Timeout' },
+    pending: { color: 'text-muted-foreground bg-muted border-border', icon: <Clock className="w-3 h-3" />, label: 'Pending' },
+    sent: { color: 'text-cyan-600 bg-cyan-500/10 border-cyan-500/20', icon: <RefreshCw className="w-3 h-3" />, label: 'Sent' },
+    executing: { color: 'text-violet-600 bg-violet-500/10 border-violet-500/20', icon: <Activity className="w-3 h-3" />, label: 'Executing' },
+  };
+  const c = config[status] || config.pending;
+  return (
+    <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border', c.color)}>
+      {c.icon}
+      {c.label}
+    </span>
+  );
+}
+
 function SkillDonutChart({ data }: { data: { name: string; count: number }[] }) {
   const { t } = useI18n();
   const total = data.reduce((sum, d) => sum + d.count, 0);
@@ -83,7 +113,6 @@ function SkillDonutChart({ data }: { data: { name: string; count: number }[] }) 
     );
   }
 
-  // Build conic-gradient segments using reduce to avoid mutation
   const top5 = data.slice(0, 5);
   const top5Total = top5.reduce((sum, d) => sum + d.count, 0);
 
@@ -104,7 +133,6 @@ function SkillDonutChart({ data }: { data: { name: string; count: number }[] }) 
     [],
   );
 
-  // If there are remaining skills beyond top 5, add "Other" segment
   if (top5Total < total) {
     const otherCount = total - top5Total;
     const angle = (otherCount / total) * 360;
@@ -125,15 +153,11 @@ function SkillDonutChart({ data }: { data: { name: string; count: number }[] }) 
 
   return (
     <div className="flex flex-col sm:flex-row items-center gap-6">
-      {/* Donut chart */}
       <div className="relative w-40 h-40 shrink-0">
         <div
           className="w-full h-full rounded-full"
-          style={{
-            background: `conic-gradient(${gradientStops})`,
-          }}
+          style={{ background: `conic-gradient(${gradientStops})` }}
         />
-        {/* Center hole */}
         <div className="absolute inset-4 rounded-full bg-background flex items-center justify-center">
           <div className="text-center">
             <p className="text-lg font-bold">{total}</p>
@@ -141,15 +165,10 @@ function SkillDonutChart({ data }: { data: { name: string; count: number }[] }) 
           </div>
         </div>
       </div>
-
-      {/* Legend */}
       <div className="space-y-2 text-sm flex-1 min-w-0">
         {segments.map((s, i) => (
           <div key={i} className="flex items-center gap-2">
-            <span
-              className="w-3 h-3 rounded-full shrink-0"
-              style={{ backgroundColor: s.color }}
-            />
+            <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
             <span className="truncate flex-1 min-w-0">{s.name}</span>
             <span className="text-muted-foreground shrink-0">{s.percentage}%</span>
             <span className="text-muted-foreground text-xs shrink-0">({s.count})</span>
@@ -160,79 +179,147 @@ function SkillDonutChart({ data }: { data: { name: string; count: number }[] }) 
   );
 }
 
-// Status badge for invocations
-function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
-    success: { color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20', icon: <CheckCircle2 className="w-3 h-3" />, label: 'Success' },
-    failed: { color: 'text-red-600 bg-red-500/10 border-red-500/20', icon: <XCircle className="w-3 h-3" />, label: 'Failed' },
-    timeout: { color: 'text-amber-600 bg-amber-500/10 border-amber-500/20', icon: <AlertTriangle className="w-3 h-3" />, label: 'Timeout' },
-    pending: { color: 'text-muted-foreground bg-muted border-border', icon: <Clock className="w-3 h-3" />, label: 'Pending' },
-    sent: { color: 'text-cyan-600 bg-cyan-500/10 border-cyan-500/20', icon: <RefreshCw className="w-3 h-3" />, label: 'Sent' },
-    executing: { color: 'text-violet-600 bg-violet-500/10 border-violet-500/20', icon: <Activity className="w-3 h-3" />, label: 'Executing' },
-  };
-  const c = config[status] || config.pending;
+// Daily Token Usage Bar Chart (CSS-based, stacked bars)
+function DailyTokenBarChart({ data }: { data: { date: string; inputTokens: number; outputTokens: number; cost: number }[] }) {
+  const { t } = useI18n();
+  const maxTokens = Math.max(...data.map((d) => d.inputTokens + d.outputTokens), 1);
+
   return (
-    <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border', c.color)}>
-      {c.icon}
-      {c.label}
-    </span>
+    <div className="space-y-3">
+      {/* Chart */}
+      <div className="flex items-end gap-[3px] h-44">
+        {data.map((day, i) => {
+          const totalH = ((day.inputTokens + day.outputTokens) / maxTokens) * 100;
+          const inputH = day.inputTokens / (day.inputTokens + day.outputTokens || 1) * totalH;
+          const outputH = totalH - inputH;
+          return (
+            <div
+              key={i}
+              className="flex-1 flex flex-col justify-end min-w-[3px] group relative cursor-pointer"
+              style={{ height: '100%' }}
+            >
+              <div className="flex flex-col w-full" style={{ height: `${totalH}%` }}>
+                <div
+                  className="w-full rounded-t-sm transition-opacity group-hover:opacity-80"
+                  style={{ height: `${(outputH / totalH) * 100}%`, backgroundColor: BAR_COLORS.output, minHeight: day.outputTokens > 0 ? '2px' : '0' }}
+                />
+                <div
+                  className="w-full rounded-b-sm transition-opacity group-hover:opacity-80"
+                  style={{ height: `${(inputH / totalH) * 100}%`, backgroundColor: BAR_COLORS.input, minHeight: day.inputTokens > 0 ? '2px' : '0' }}
+                />
+              </div>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col bg-popover text-popover-foreground text-[10px] px-2 py-1.5 rounded shadow-lg border whitespace-nowrap z-10">
+                <span className="font-medium">{formatDate(day.date)}</span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: BAR_COLORS.input }} />
+                  {t('usage.inputTokens')}: {formatTokens(day.inputTokens)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: BAR_COLORS.output }} />
+                  {t('usage.outputTokens')}: {formatTokens(day.outputTokens)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: BAR_COLORS.cost }} />
+                  Cost: {formatCost(day.cost)}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {/* X-axis labels */}
+      <div className="flex justify-between text-[10px] text-muted-foreground">
+        <span>{data[0] ? formatDate(data[0].date) : ''}</span>
+        <span>{data[data.length - 1] ? formatDate(data[data.length - 1].date) : ''}</span>
+      </div>
+      {/* Legend */}
+      <div className="flex gap-4 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: BAR_COLORS.input }} /> {t('usage.inputTokens')}</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: BAR_COLORS.output }} /> {t('usage.outputTokens')}</span>
+      </div>
+    </div>
   );
 }
 
+// Cost card with status indicator
+function CostCard({ cost }: { cost: number }) {
+  const { t } = useI18n();
+  const costStatus = cost > 50
+    ? { color: 'text-red-600', bgColor: 'bg-red-500/10', borderColor: 'border-red-500/20', labelKey: 'usage.costHigh', icon: AlertTriangle }
+    : cost > 20
+      ? { color: 'text-amber-600', bgColor: 'bg-amber-500/10', borderColor: 'border-amber-500/20', labelKey: 'usage.costMedium', icon: Coins }
+      : { color: 'text-emerald-600', bgColor: 'bg-emerald-500/10', borderColor: 'border-emerald-500/20', labelKey: 'usage.costLow', icon: CheckCircle2 };
+
+  const Icon = costStatus.icon;
+
+  return (
+    <Card className={cn('border', costStatus.borderColor)}>
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">{t('usage.estimatedCost')}</p>
+            <p className="text-3xl font-bold mt-1">{formatCost(cost)}</p>
+            <Badge variant="outline" className={cn('text-[10px] mt-2', costStatus.color, costStatus.bgColor)}>
+              <Icon className="w-3 h-3 mr-1" />
+              {t(costStatus.labelKey)}
+            </Badge>
+          </div>
+          <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center', costStatus.bgColor)}>
+            <DollarSign className={cn('w-6 h-6', costStatus.color)} />
+          </div>
+        </div>
+        <div className="mt-4 text-[11px] text-muted-foreground">
+          Estimated based on $0.01/1K input tokens + $0.03/1K output tokens
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============ Main Component ============
+
 export function UsageView() {
   const { t } = useI18n();
-  const [period, setPeriod] = useState('30d');
-  const [usage, setUsage] = useState<UsageData | null>(null);
+  const [usage, setUsage] = useState<UsageAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [skillAnalytics, setSkillAnalytics] = useState<SkillAnalyticsData | null>(null);
   const [skillLoading, setSkillLoading] = useState(true);
 
-  useEffect(() => {
-    loadUsage();
-  }, [period]);
-
-  useEffect(() => {
-    loadSkillAnalytics();
-  }, []);
-
-  const loadUsage = async () => {
+  const loadUsage = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const result = await api.getUsage(period);
-      setUsage(result.usage || result || null);
-    } catch {
-      // Provide mock data for UI display
+      const result = await api.getUsageAnalytics();
+      setUsage(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load usage data');
+      // Provide empty default data so the UI still renders
       setUsage({
-        totalInputTokens: 2450000,
-        totalOutputTokens: 890000,
-        estimatedCost: 12.35,
-        sessionCount: 156,
-        cacheHitRate: 0.34,
-        modelBreakdown: [
-          { model: 'gpt-4o', inputTokens: 1200000, outputTokens: 450000, cost: 8.2 },
-          { model: 'claude-3.5', inputTokens: 800000, outputTokens: 300000, cost: 3.1 },
-          { model: 'gpt-4o-mini', inputTokens: 350000, outputTokens: 120000, cost: 0.85 },
-          { model: 'gemini-pro', inputTokens: 100000, outputTokens: 20000, cost: 0.2 },
-        ],
-        dailyTrend: Array.from({ length: 30 }, (_, i) => ({
-          date: new Date(Date.now() - (29 - i) * 86400000).toISOString().slice(5, 10),
-          inputTokens: Math.floor(Math.random() * 100000 + 50000),
-          outputTokens: Math.floor(Math.random() * 40000 + 15000),
-          cost: Math.random() * 0.8 + 0.2,
-        })),
+        totalInputTokens: 0,
+        totalOutputTokens: 0,
+        totalTokens: 0,
+        estimatedCost: 0,
+        dailyUsage: Array.from({ length: 7 }, (_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - (6 - i));
+          return { date: d.toISOString().slice(0, 10), inputTokens: 0, outputTokens: 0, cost: 0 };
+        }),
+        byAgent: [],
+        byModel: [],
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadSkillAnalytics = async () => {
+  const loadSkillAnalytics = useCallback(async () => {
     setSkillLoading(true);
     try {
       const result = await api.getSkillAnalytics();
       setSkillAnalytics(result);
     } catch {
-      // Return empty/zero data on error
       setSkillAnalytics({
         totalInvocations: 0,
         invocationsBySkill: [],
@@ -243,18 +330,15 @@ export function UsageView() {
     } finally {
       setSkillLoading(false);
     }
-  };
+  }, []);
 
-  const estimatedCost = usage?.estimatedCost ?? usage?.totalCost ?? 0;
-  const costStatus = usage
-    ? estimatedCost > 50
-      ? { color: 'text-red-600', bgColor: 'bg-red-500/10', labelKey: 'usage.costHigh' }
-      : estimatedCost > 20
-        ? { color: 'text-amber-600', bgColor: 'bg-amber-500/10', labelKey: 'usage.costMedium' }
-        : { color: 'text-emerald-600', bgColor: 'bg-emerald-500/10', labelKey: 'usage.costLow' }
-    : null;
+  useEffect(() => {
+    loadUsage();
+    loadSkillAnalytics();
+  }, [loadUsage, loadSkillAnalytics]);
 
-  if (loading || !usage) {
+  // Loading state
+  if (loading && !usage) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
         <div className="flex items-center justify-center py-20">
@@ -264,35 +348,39 @@ export function UsageView() {
     );
   }
 
-  const modelBreakdown = usage.modelBreakdown || [];
-  const dailyTrend = usage.dailyTrend || [];
-  const maxModelInput = Math.max(...modelBreakdown.map((m) => m.inputTokens), 1);
-  const maxDailyCost = Math.max(...dailyTrend.map((d) => d.cost), 0.01);
+  if (!usage) return null;
 
-  // Calculate overall success rate from skill analytics
   const totalInvocations = skillAnalytics?.totalInvocations ?? 0;
   const successCount = skillAnalytics?.invocationsByStatus?.success ?? 0;
   const successRate = totalInvocations > 0 ? (successCount / totalInvocations) * 100 : 0;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">{t('usage.title')}</h1>
-          <p className="text-muted-foreground text-sm">{t('usage.subtitle')}</p>
+          <p className="text-muted-foreground text-sm">{t('usage.subtitle')} — Last 7 days</p>
         </div>
-        <Tabs value={period} onValueChange={setPeriod}>
-          <TabsList>
-            {PERIODS.map((p) => (
-              <TabsTrigger key={p.key} value={p.key} className="text-xs">
-                {t(p.labelKey)}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={loadUsage}
+          disabled={loading}
+          className="gap-1.5"
+        >
+          <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
+          Refresh
+        </Button>
       </div>
 
-      {/* Stat Cards */}
+      {error && (
+        <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* Top Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -318,125 +406,156 @@ export function UsageView() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t('usage.estimatedCost')}</CardTitle>
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
-              <DollarSign className="w-4 h-4 text-amber-600" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Tokens</CardTitle>
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+              <BarChart3 className="w-4 h-4 text-cyan-600" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCost(estimatedCost)}</div>
-            {costStatus && (
-              <Badge variant="outline" className={cn('text-[10px] mt-1', costStatus.color)}>
-                {t(costStatus.labelKey)}
-              </Badge>
+            <div className="text-2xl font-bold">{formatTokens(usage.totalTokens)}</div>
+          </CardContent>
+        </Card>
+        <CostCard cost={usage.estimatedCost} />
+      </div>
+
+      {/* Daily Token Usage + Cost Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {/* Daily Token Bar Chart */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base">Daily Token Usage</CardTitle>
+            <CardDescription>Input and output tokens per day over the last 7 days</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DailyTokenBarChart data={usage.dailyUsage} />
+          </CardContent>
+        </Card>
+
+        {/* Daily Cost Trend */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Daily Cost</CardTitle>
+            <CardDescription>Estimated cost per day</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-[3px] h-44">
+              {usage.dailyUsage.map((day, i) => {
+                const maxCost = Math.max(...usage.dailyUsage.map((d) => d.cost), 0.001);
+                return (
+                  <div
+                    key={i}
+                    className="flex-1 rounded-t-sm transition-opacity hover:opacity-80 cursor-pointer group relative min-w-[3px]"
+                    style={{
+                      height: `${(day.cost / maxCost) * 100}%`,
+                      backgroundColor: BAR_COLORS.cost,
+                    }}
+                  >
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-popover text-popover-foreground text-[10px] px-1.5 py-0.5 rounded shadow whitespace-nowrap z-10">
+                      {formatDate(day.date)}: {formatCost(day.cost)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
+              <span>{usage.dailyUsage[0] ? formatDate(usage.dailyUsage[0].date) : ''}</span>
+              <span>{usage.dailyUsage[usage.dailyUsage.length - 1] ? formatDate(usage.dailyUsage[usage.dailyUsage.length - 1].date) : ''}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Breakdown by Agent + Model */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* By Agent */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Bot className="w-4 h-4 text-primary" />
+              Cost by Agent
+            </CardTitle>
+            <CardDescription>Token usage and cost breakdown per agent</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {usage.byAgent.length > 0 ? (
+              <ScrollArea className="max-h-72">
+                <div className="space-y-3">
+                  {usage.byAgent.map((agent) => {
+                    const maxTokens = usage.byAgent[0]?.tokens || 1;
+                    return (
+                      <div key={agent.agentId} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium truncate">{agent.agentName}</span>
+                          <span className="text-muted-foreground shrink-0 ml-2">
+                            {formatTokens(agent.tokens)} · {formatCost(agent.cost)}
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-muted rounded-full">
+                          <div
+                            className="h-2 bg-primary rounded-full transition-all"
+                            style={{ width: `${(agent.tokens / maxTokens) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8">
+                <Bot className="w-8 h-8 text-muted-foreground/40 mb-2" />
+                <p className="text-sm text-muted-foreground">No agent usage data yet</p>
+              </div>
             )}
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t('usage.sessionCount')}</CardTitle>
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-              <Users className="w-4 h-4 text-cyan-600" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{usage.sessionCount}</div>
-          </CardContent>
-        </Card>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Model Usage Breakdown */}
+        {/* By Model */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{t('modelBreakdown')}</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-primary" />
+              {t('modelBreakdown')}
+            </CardTitle>
             <CardDescription>{t('modelBreakdownDesc')}</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {modelBreakdown.map((model) => (
-                <div key={model.model} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium">{model.model}</span>
-                    <span className="text-muted-foreground">{formatTokens(model.inputTokens + model.outputTokens)} · {formatCost(model.cost)}</span>
-                  </div>
-                  <div className="flex gap-1 h-4">
-                    <div
-                      className="bg-emerald-500 rounded-l-sm min-w-[2px]"
-                      style={{ width: `${(model.inputTokens / maxModelInput) * 70}%` }}
-                      title={`${t('usage.inputTokens')}: ${formatTokens(model.inputTokens)}`}
-                    />
-                    <div
-                      className="bg-violet-400 rounded-r-sm min-w-[2px]"
-                      style={{ width: `${(model.outputTokens / maxModelInput) * 30}%` }}
-                      title={`${t('usage.outputTokens')}: ${formatTokens(model.outputTokens)}`}
-                    />
-                  </div>
-                  <div className="flex gap-4 text-[10px] text-muted-foreground">
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-500" /> {t('usage.inputTokens')}: {formatTokens(model.inputTokens)}</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-violet-400" /> {t('usage.outputTokens')}: {formatTokens(model.outputTokens)}</span>
-                  </div>
+            {usage.byModel.length > 0 ? (
+              <ScrollArea className="max-h-72">
+                <div className="space-y-3">
+                  {usage.byModel.map((model) => {
+                    const maxTokens = usage.byModel[0]?.tokens || 1;
+                    return (
+                      <div key={model.model} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium truncate">{model.model}</span>
+                          <span className="text-muted-foreground shrink-0 ml-2">
+                            {formatTokens(model.tokens)} · {formatCost(model.cost)}
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-muted rounded-full">
+                          <div
+                            className="h-2 bg-violet-500 rounded-full transition-all"
+                            style={{ width: `${(model.tokens / maxTokens) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Daily Trend */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t('usage.dailyTrend')}</CardTitle>
-            <CardDescription>{t('usage.dailyTrendDesc')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-end gap-[2px] h-40">
-              {dailyTrend.map((day, i) => (
-                <div
-                  key={i}
-                  className="flex-1 rounded-t-sm bg-amber-400 hover:bg-amber-500 transition-colors cursor-pointer group relative min-w-[3px]"
-                  style={{ height: `${(day.cost / maxDailyCost) * 100}%` }}
-                  title={`${day.date}: ${formatCost(day.cost)}`}
-                >
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-popover text-popover-foreground text-[10px] px-1.5 py-0.5 rounded shadow whitespace-nowrap z-10">
-                    {day.date}: {formatCost(day.cost)}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
-              <span>{dailyTrend[0]?.date}</span>
-              <span>{dailyTrend[dailyTrend.length - 1]?.date}</span>
-            </div>
+              </ScrollArea>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8">
+                <Cpu className="w-8 h-8 text-muted-foreground/40 mb-2" />
+                <p className="text-sm text-muted-foreground">No model usage data yet</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Cache Hit Rate */}
-      <Card className="mt-6">
-        <CardContent className="flex items-center justify-between py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-              <Database className="w-5 h-5 text-cyan-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium">{t('usage.cacheHitRate')}</p>
-              <p className="text-xs text-muted-foreground">{t('usage.cacheHitRateDesc')}</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold">{((usage.cacheHitRate ?? 0) * 100).toFixed(1)}%</p>
-            <div className="w-32 h-2 bg-muted rounded-full mt-1">
-              <div
-                className="h-2 bg-cyan-500 rounded-full transition-all"
-                style={{ width: `${(usage.cacheHitRate ?? 0) * 100}%` }}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* ========== Skill Analytics Section ========== */}
-      <div className="mt-8">
+      <div className="mt-2">
         <div className="flex items-center gap-2 mb-4">
           <Activity className="w-5 h-5 text-primary" />
           <h2 className="text-xl font-bold">{t('analytics.skillAnalytics')}</h2>
@@ -460,7 +579,7 @@ export function UsageView() {
                 <CardContent>
                   <div className="text-2xl font-bold">{totalInvocations}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {t('analytics.invocationStatus')}: {skillAnalytics?.invocationsByStatus?.success ?? 0} {t('analytics.successRate').split(' ')[0].toLowerCase()} / {skillAnalytics?.invocationsByStatus?.failed ?? 0} failed / {skillAnalytics?.invocationsByStatus?.timeout ?? 0} timeout
+                    {skillAnalytics?.invocationsByStatus?.success ?? 0} success / {skillAnalytics?.invocationsByStatus?.failed ?? 0} failed / {skillAnalytics?.invocationsByStatus?.timeout ?? 0} timeout
                   </p>
                 </CardContent>
               </Card>
@@ -495,9 +614,7 @@ export function UsageView() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{skillAnalytics?.topSkills?.length ?? 0}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {t('analytics.overview')}
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">{t('analytics.overview')}</p>
                 </CardContent>
               </Card>
             </div>

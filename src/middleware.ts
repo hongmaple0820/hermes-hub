@@ -6,6 +6,7 @@ import {
   signAccessToken,
   COOKIE_OPTIONS,
 } from '@/lib/jwt';
+import { checkRateLimit, getConfigForPath, getRateLimitHeaders } from '@/lib/rate-limit';
 
 /**
  * Routes that don't require authentication.
@@ -32,6 +33,28 @@ const PUBLIC_ROUTES = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // ── Rate Limiting (runs BEFORE auth check) ──
+  if (pathname.startsWith('/api/')) {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || 'unknown';
+    const userId = request.headers.get('x-user-id') ?? undefined;
+
+    const { allowed, remaining, resetAt } = checkRateLimit(ip, userId, pathname);
+    const config = getConfigForPath(pathname);
+    const rateLimitHeaders = getRateLimitHeaders(config, remaining, resetAt);
+
+    if (!allowed) {
+      const response = NextResponse.json(
+        { error: 'Too Many Requests', retryAfter: Math.ceil((resetAt - Date.now()) / 1000) },
+        { status: 429 }
+      );
+      Object.entries(rateLimitHeaders).forEach(([k, v]) => response.headers.set(k, v));
+      response.headers.set('Retry-After', String(Math.ceil((resetAt - Date.now()) / 1000)));
+      return response;
+    }
+  }
 
   // Skip public routes
   if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {

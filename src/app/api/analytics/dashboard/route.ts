@@ -37,7 +37,12 @@ export async function GET(request: NextRequest) {
     // Get skills
     const skills = await db.skill.findMany({
       where: { isEnabled: true },
-      select: { id: true, invokeCount: true },
+      select: { id: true },
+    });
+
+    // Get total invocations from AgentSkill bindings
+    const agentSkillInvocations = await db.agentSkill.aggregate({
+      _sum: { invokeCount: true },
     });
 
     // Get chat rooms
@@ -88,7 +93,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Total invocations
-    const totalInvocations = skills.reduce((sum, s) => sum + (s.invokeCount || 0), 0);
+    const totalInvocations = agentSkillInvocations._sum.invokeCount || 0;
 
     return NextResponse.json({
       agents: {

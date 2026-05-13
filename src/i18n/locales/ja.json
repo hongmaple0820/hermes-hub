@@ -577,6 +577,7 @@
     "welcomeDesc": "エージェントを選んでチャットを始めましょう。AIアシスタントがお手伝いします。",
     "quickStartSuggestions": "クイックスタート提案",
     "streamingError": "ストリーミングエラーが発生しました",
+    "stopStreaming": "ストリーミングを停止",
     "deleteConversationTitle": "会話を削除",
     "deleteConversationDesc": "この会話を削除してもよろしいですか？すべてのメッセージが永久に失われます。この操作は取り消せません。",
     "emptyTitle": "会話がまだありません",
@@ -1527,7 +1528,14 @@
     "collapseAll": "すべてのセクションを折りたたむ",
     "expandAll": "すべてのセクションを展開",
     "rightClickToRemove": "右クリックで削除",
-    "shortcut": "ショートカット"
+    "shortcut": "ショートカット",
+    "expandSidebar": "サイドバーを展開",
+    "collapseSidebar": "サイドバーを折りたたむ",
+    "unpin": "お気に入りから削除",
+    "language": "言語",
+    "logout": "ログアウト",
+    "expandSection": "{section}セクションを展開",
+    "collapseSection": "{section}セクションを折りたたむ"
   },
   "commandPalette": {
     "placeholder": "コマンド、ビュー、Agentを検索...",
