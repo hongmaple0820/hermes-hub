@@ -31,7 +31,8 @@ import {
   Upload, AlertTriangle, Trash2, Info, ExternalLink, CheckCircle2,
   XCircle, Wifi, WifiOff, Server, Database, Globe, Monitor, Heart,
   RefreshCw, EyeIcon, Sun, Moon, MonitorSmartphone, Zap, Hexagon,
-  FileText, Scale, Code, Sparkles, Type, Move, Keyboard, Terminal
+  FileText, Scale, Code, Sparkles, Type, Move, Keyboard, Terminal,
+  FlaskConical, Folder, ScrollText, Search
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -92,8 +93,21 @@ const AUTO_REFRESH_OPTIONS = [
   { value: '60', label: '60s' },
 ];
 
+// Advanced Features definition: hidden from sidebar by default
+const ADVANCED_FEATURES = [
+  { id: 'agent-control', labelKey: 'settingsPage.featureAcrpControl', descKey: 'settingsPage.featureAcrpControlDesc', icon: Hexagon },
+  { id: 'terminal', labelKey: 'settingsPage.featureTerminal', descKey: 'settingsPage.featureTerminalDesc', icon: Terminal },
+  { id: 'files', labelKey: 'settingsPage.featureFiles', descKey: 'settingsPage.featureFilesDesc', icon: Folder },
+  { id: 'logs', labelKey: 'settingsPage.featureLogs', descKey: 'settingsPage.featureLogsDesc', icon: ScrollText },
+  { id: 'profiles', labelKey: 'settingsPage.featureProfiles', descKey: 'settingsPage.featureProfilesDesc', icon: User },
+  { id: 'channels', labelKey: 'settingsPage.featureChannels', descKey: 'settingsPage.featureChannelsDesc', icon: Radio },
+  { id: 'jobs', labelKey: 'settingsPage.featureJobs', descKey: 'settingsPage.featureJobsDesc', icon: Clock },
+  { id: 'memory', labelKey: 'settingsPage.featureMemory', descKey: 'settingsPage.featureMemoryDesc', icon: Brain },
+  { id: 'session-search', labelKey: 'settingsPage.featureSessionSearch', descKey: 'settingsPage.featureSessionSearchDesc', icon: Search },
+];
+
 export function Settings({ onLogout }: SettingsProps) {
-  const { user, providers, channels, agents, conversations } = useAppStore();
+  const { user, providers, channels, agents, conversations, advancedFeatures, setAdvancedFeatures } = useAppStore();
   const { t } = useI18n();
   const { theme: rawTheme, setTheme } = useTheme();
   // During SSR/hydration, theme may be undefined; default to 'system'
@@ -150,6 +164,29 @@ export function Settings({ onLogout }: SettingsProps) {
   const [serviceHealth, setServiceHealth] = useState<Record<string, { uptime?: string; responseTime?: number }>>({});
   const [healthRefreshing, setHealthRefreshing] = useState(false);
   const healthRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Advanced Features state (persisted to localStorage)
+  const [advancedFeatureState, setAdvancedFeatureState] = useState<Record<string, boolean>>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const stored = localStorage.getItem('hermes-advanced-features');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const handleAdvancedFeatureToggle = (featureId: string, enabled: boolean) => {
+    const newState = { ...advancedFeatureState, [featureId]: enabled };
+    setAdvancedFeatureState(newState);
+    setAdvancedFeatures(newState);
+    try {
+      localStorage.setItem('hermes-advanced-features', JSON.stringify(newState));
+    } catch {
+      // Ignore storage errors
+    }
+    toast.success(t('settingsPage.saved'));
+  };
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -611,7 +648,7 @@ export function Settings({ onLogout }: SettingsProps) {
   const agentCount = agents?.length || 0;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">{t('settingsPage.title')}</h1>
         <p className="text-muted-foreground text-sm">{t('settingsPage.subtitle')}</p>
@@ -630,6 +667,9 @@ export function Settings({ onLogout }: SettingsProps) {
           </TabsTrigger>
           <TabsTrigger value="data" className="gap-1.5 text-xs">
             <Database className="w-3.5 h-3.5" /> {t('settingsPage.dataManagementTab')}
+          </TabsTrigger>
+          <TabsTrigger value="advanced" className="gap-1.5 text-xs">
+            <FlaskConical className="w-3.5 h-3.5" /> {t('settingsPage.advancedTab')}
           </TabsTrigger>
           <TabsTrigger value="about" className="gap-1.5 text-xs">
             <Info className="w-3.5 h-3.5" /> {t('settingsPage.aboutTab')}
@@ -1620,6 +1660,51 @@ export function Settings({ onLogout }: SettingsProps) {
                   >
                     <Trash2 className="w-3.5 h-3.5" /> {t('settingsPage.clearAgents')}
                   </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ==================== ADVANCED FEATURES TAB ==================== */}
+        <TabsContent value="advanced">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <SectionHeader
+                  icon={FlaskConical}
+                  title={t('settingsPage.advancedFeatures')}
+                  description={t('settingsPage.advancedFeaturesDesc')}
+                />
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {t('settingsPage.advancedFeaturesNote')}
+                </p>
+                <div className="space-y-1">
+                  {ADVANCED_FEATURES.map((feature) => {
+                    const isEnabled = advancedFeatureState[feature.id] === true;
+                    return (
+                      <div key={feature.id}>
+                        <div className="flex items-center justify-between py-3">
+                          <div className="flex items-start gap-3 flex-1 mr-4">
+                            <div className="mt-0.5 p-1.5 rounded-md bg-muted">
+                              <feature.icon className="w-3.5 h-3.5 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{t(feature.labelKey)}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">{t(feature.descKey)}</p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={isEnabled}
+                            onCheckedChange={(v) => handleAdvancedFeatureToggle(feature.id, v)}
+                          />
+                        </div>
+                        <Separator />
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

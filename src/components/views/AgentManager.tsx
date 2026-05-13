@@ -62,7 +62,7 @@ const AGENT_EMOJIS: Record<string, string> = {
 type FilterMode = 'all' | 'builtin' | 'acrp';
 
 export function AgentManager() {
-  const { agents, setAgents, providers, setCurrentView, setSelectedAgentId } = useAppStore();
+  const { agents, setAgents, providers, skills, setCurrentView, setSelectedAgentId } = useAppStore();
   const { t } = useI18n();
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);

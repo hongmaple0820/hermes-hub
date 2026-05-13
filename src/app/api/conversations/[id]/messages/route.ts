@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { generateAgentReply, streamAgentReply } from '@/lib/agent-reply';
+import { generateAgentReply, streamAgentReply, previewSkillUsage } from '@/lib/agent-reply';
 
 function safeJsonParse(str: string | null): any {
   if (!str) return {};
@@ -95,8 +95,12 @@ export async function POST(
     const acceptHeader = request.headers.get('accept') || '';
     const wantsSSE = acceptHeader.includes('text/event-stream');
 
+    // Check for mode=preview query parameter
+    const { searchParams } = new URL(request.url);
+    const mode = searchParams.get('mode');
+
     const body = await request.json();
-    const { content, type } = body;
+    const { content, type, approved_skills } = body;
 
     if (!content) {
       return NextResponse.json({ error: 'Content is required' }, { status: 400 });
@@ -128,6 +132,21 @@ export async function POST(
         senderName: user.name,
       },
     });
+
+    // If mode=preview, do a dry-run to see which skills the agent wants to use
+    if (mode === 'preview' && conversation.agentId) {
+      const previewResult = await previewSkillUsage({
+        agentId: conversation.agentId,
+        conversationId: id,
+        userMessage: content,
+        userId: user.id,
+      });
+
+      return NextResponse.json({
+        message,
+        ...previewResult,
+      }, { status: 201 });
+    }
 
     // If this is an agent conversation and the client wants SSE streaming
     if (conversation.agentId && wantsSSE) {
@@ -177,6 +196,7 @@ export async function POST(
         conversationId: id,
         userMessage: content,
         userId: user.id,
+        approvedSkills: approved_skills, // Only execute approved skills
       });
 
       if (result.success) {

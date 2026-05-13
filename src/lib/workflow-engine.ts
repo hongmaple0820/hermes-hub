@@ -99,6 +99,8 @@ export interface ExecuteOptions {
   triggerType?: 'manual' | 'webhook' | 'schedule' | 'event' | 'api';
   triggerData?: Record<string, any>;
   onProgress?: (event: ProgressEvent) => void;
+  /** If provided, use this existing execution record instead of creating a new one */
+  executionId?: string;
 }
 
 export interface ProgressEvent {
@@ -1141,7 +1143,7 @@ export class WorkflowEngine {
     finalOutput?: any;
     error?: string;
   }> {
-    const { userId, variables: inputVariables = {}, triggerType = 'manual', triggerData = {}, onProgress } = options;
+    const { userId, variables: inputVariables = {}, triggerType = 'manual', triggerData = {}, onProgress, executionId: providedExecutionId } = options;
 
     // Load workflow from database
     const workflowRecord = await db.workflow.findUnique({
@@ -1188,20 +1190,35 @@ export class WorkflowEngine {
     }
     Object.assign(runtimeVariables, inputVariables);
 
-    // Create execution record
-    const execution = await db.workflowExecution.create({
-      data: {
-        workflowId,
-        userId,
-        status: 'pending',
-        triggerType,
-        triggerData: JSON.stringify(triggerData),
-        variables: JSON.stringify(runtimeVariables),
-        nodeResults: '{}',
-      },
-    });
+    let executionId: string;
+    let executionStartedAt: Date | undefined;
 
-    const executionId = execution.id;
+    if (providedExecutionId) {
+      // Use an existing execution record (e.g., created by the API route)
+      const existingExecution = await db.workflowExecution.findUnique({
+        where: { id: providedExecutionId },
+      });
+      if (!existingExecution) {
+        throw new Error(`Execution record "${providedExecutionId}" not found`);
+      }
+      executionId = providedExecutionId;
+      executionStartedAt = existingExecution.startedAt ?? undefined;
+    } else {
+      // Create a new execution record
+      const execution = await db.workflowExecution.create({
+        data: {
+          workflowId,
+          userId,
+          status: 'pending',
+          triggerType,
+          triggerData: JSON.stringify(triggerData),
+          variables: JSON.stringify(runtimeVariables),
+          nodeResults: '{}',
+        },
+      });
+      executionId = execution.id;
+      executionStartedAt = execution.startedAt ?? undefined;
+    }
 
     // Register active execution
     const executionTracker = { cancelled: false };
@@ -1242,7 +1259,7 @@ export class WorkflowEngine {
           status: 'failed',
           error: error instanceof Error ? error.message : 'Unknown error',
           completedAt: new Date(),
-          duration: Date.now() - (execution.startedAt?.getTime() || Date.now()),
+          duration: Date.now() - (executionStartedAt?.getTime() || Date.now()),
         },
       });
 

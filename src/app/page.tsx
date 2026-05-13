@@ -8,9 +8,13 @@ import { I18nProvider } from '@/i18n';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Toaster, toast } from 'sonner';
 import { AuthPage } from '@/components/auth/AuthPage';
+import { PageTransition } from '@/components/shared/PageTransition';
+import { StatCardSkeleton } from '@/components/shared/SkeletonLoaders';
 
 // Lazy-load all view components to reduce initial bundle size and memory usage
 const Dashboard = lazy(() => import('@/components/views/Dashboard').then(m => ({ default: m.Dashboard })));
+const AnalyticsDashboard = lazy(() => import('@/components/views/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
+const AgentPanel = lazy(() => import('@/components/views/AgentPanel').then(m => ({ default: m.AgentPanel })));
 const AgentManager = lazy(() => import('@/components/views/AgentManager').then(m => ({ default: m.AgentManager })));
 const AgentDetail = lazy(() => import('@/components/views/AgentDetail').then(m => ({ default: m.AgentDetail })));
 const ProviderManager = lazy(() => import('@/components/views/ProviderManager').then(m => ({ default: m.ProviderManager })));
@@ -72,26 +76,36 @@ class ViewErrorBoundary extends React.Component<{
   render() {
     if (this.state.hasError) {
       return (
-        <div className="p-6 max-w-7xl mx-auto">
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+        <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+          <div className="flex flex-col items-center justify-center py-16 sm:py-20 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-rose-500/10 flex items-center justify-center mb-5">
+              <svg className="w-8 h-8 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
               </svg>
             </div>
             <h3 className="text-lg font-semibold mb-2">Something went wrong</h3>
-            <p className="text-muted-foreground text-sm mb-1">Failed to render the {this.props.viewName} view.</p>
+            <p className="text-muted-foreground text-sm mb-1 max-w-sm">Failed to render the <span className="font-medium text-foreground">{this.props.viewName}</span> view.</p>
             {this.state.errorMessage && (
-              <p className="text-muted-foreground text-xs mb-4 font-mono bg-muted px-2 py-1 rounded max-w-md truncate">
-                {this.state.errorMessage}
-              </p>
+              <div className="mt-3 mb-5 p-3 rounded-xl bg-muted/80 max-w-md">
+                <p className="text-muted-foreground text-xs font-mono break-all leading-relaxed">
+                  {this.state.errorMessage}
+                </p>
+              </div>
             )}
-            <button
-              onClick={() => this.setState({ hasError: false, errorMessage: '' })}
-              className="px-4 py-2 rounded-md border border-border text-sm hover:bg-accent transition-colors"
-            >
-              Retry
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => this.setState({ hasError: false, errorMessage: '' })}
+                className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-5 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                Reload Page
+              </button>
+            </div>
           </div>
         </div>
       );
@@ -336,7 +350,7 @@ function AppContent() {
       case 'dashboard':
         return <Dashboard />;
       case 'agents':
-        return <AgentManager />;
+        return <AgentPanel />;
       case 'agent-detail':
         return <AgentDetail />;
       case 'providers':
@@ -366,7 +380,7 @@ function AppContent() {
       case 'agent-control':
         return <AgentControlCenter />;
       case 'analytics':
-        return <Dashboard />;
+        return <AnalyticsDashboard />;
       case 'workflows':
         return <WorkflowEditor />;
       case 'notifications':
@@ -388,18 +402,20 @@ function AppContent() {
           </Suspense>
         </div>
         {isLoading ? (
-          <div className="p-6 max-w-7xl mx-auto space-y-6">
+          <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
             <div className="h-24 rounded-xl bg-muted animate-pulse" />
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <StatCardSkeleton key={i} />
               ))}
             </div>
           </div>
         ) : (
           <ViewErrorBoundary viewName={currentView}>
             <Suspense fallback={<ViewLoader />}>
-              <div key={currentView} className="animate-in fade-in">{renderView()}</div>
+              <PageTransition viewKey={currentView}>
+                {renderView()}
+              </PageTransition>
             </Suspense>
           </ViewErrorBoundary>
         )}

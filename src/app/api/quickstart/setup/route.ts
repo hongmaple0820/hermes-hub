@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
+import { getMemoryManager } from '@/lib/agent-memory';
 
 /**
  * Bilingual system prompt for the default Hermes Assistant agent.
@@ -66,7 +67,18 @@ export async function performQuickstartSetup(userId: string) {
     },
   });
 
-  // 3. Install basic skills (web-search, translation) to the agent
+  // 3. Initialize agent memory with default entries
+  try {
+    const memoryManager = getMemoryManager(agent.id);
+    await memoryManager.updateMemory('memory', 'I am Hermes Assistant, a helpful AI assistant created for the user.');
+    // 'user' section starts empty — will be auto-learned from conversations
+    await memoryManager.updateMemory('soul', 'Friendly, professional, and helpful. I communicate clearly and proactively offer suggestions.');
+  } catch (error) {
+    console.error('[Quickstart] Failed to initialize memory:', error);
+    // Non-critical — don't fail setup if memory init fails
+  }
+
+  // 4. Install basic skills (web-search, translation) to the agent
   const basicSkillNames = ['web-search', 'translation'];
   const skills = await db.skill.findMany({
     where: { name: { in: basicSkillNames } },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { WorkflowEngine } from '@/lib/workflow-engine';
 
 /**
  * POST /api/workflow-executions/[id]/resume
@@ -47,35 +48,52 @@ export async function POST(
       );
     }
 
-    // Parse existing node results and update the specific node with the input
-    const nodeResults = typeof execution.nodeResults === 'string'
-      ? JSON.parse(execution.nodeResults)
-      : execution.nodeResults || {};
+    // Resume the execution via the workflow engine
+    const engine = new WorkflowEngine();
 
-    // Update the node result with the provided input
-    nodeResults[nodeId] = {
-      ...(nodeResults[nodeId] || {}),
-      status: 'completed',
-      output: input,
-      resumedAt: new Date().toISOString(),
-    };
+    try {
+      // Start the resume asynchronously — the engine will update the DB and continue execution
+      engine.resume(id, nodeId, input).then((result) => {
+        // Execution completed or paused again — state is already persisted by the engine
+        console.log(`[Resume] Execution ${id} resumed, finished with status: ${result.status}`);
+      }).catch((error) => {
+        console.error(`[Resume] Execution ${id} failed after resume:`, error);
+        // Attempt to mark as failed if still running
+        db.workflowExecution.update({
+          where: { id },
+          data: {
+            status: 'failed',
+            error: error instanceof Error ? error.message : 'Unknown error during resumed execution',
+            completedAt: new Date(),
+          },
+        }).catch(() => {
+          // Ignore DB update errors — the engine may have already updated the record
+        });
+      });
+    } catch (engineError) {
+      // Engine initialization/resume failed — update status to failed
+      const errorMessage = engineError instanceof Error ? engineError.message : 'Unknown engine error';
+      console.error(`[Resume] Engine resume failed for execution ${id}:`, engineError);
 
-    // Update execution status back to running
-    const updated = await db.workflowExecution.update({
-      where: { id },
-      data: {
-        status: 'running',
-        nodeResults: JSON.stringify(nodeResults),
-      },
-    });
+      await db.workflowExecution.update({
+        where: { id },
+        data: {
+          status: 'failed',
+          error: `Resume failed: ${errorMessage}`,
+          completedAt: new Date(),
+        },
+      });
 
-    // TODO: Trigger async execution engine to continue from the resumed node
-    // The engine will process remaining nodes and update the execution record
+      return NextResponse.json(
+        { error: 'Failed to resume execution', details: errorMessage },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       execution: {
-        id: updated.id,
-        status: updated.status,
+        id,
+        status: 'running',
         nodeId,
         resumedAt: new Date().toISOString(),
       },

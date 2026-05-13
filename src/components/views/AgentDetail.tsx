@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -20,6 +20,7 @@ import {
   Copy, ExternalLink, ChevronDown, ChevronUp, ArrowUp, ArrowDown,
   Settings, Zap, Activity, Shield, Key, Globe, Radio, Clock,
   CheckCircle2, XCircle, Loader2, BookOpen, Share2, Network,
+  Edit, Brain, Users, Sparkles,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -121,6 +122,51 @@ export function AgentDetail() {
   // Callback URL edit state
   const [editingCallback, setEditingCallback] = useState<string | null>(null);
   const [callbackValue, setCallbackValue] = useState('');
+
+  // Editable system prompt state
+  const [editingSystemPrompt, setEditingSystemPrompt] = useState(false);
+  const [systemPromptValue, setSystemPromptValue] = useState('');
+
+  // Memory state
+  const [agentMemory, setAgentMemory] = useState<any>(null);
+  const [loadingMemory, setLoadingMemory] = useState(false);
+
+  // Recent conversations state
+  const [recentConversations, setRecentConversations] = useState<any[]>([]);
+
+  // Load memory
+  useEffect(() => {
+    if (!agent) return;
+    const loadMemory = async () => {
+      setLoadingMemory(true);
+      try {
+        const result = await api.getMemory(agent.id);
+        setAgentMemory(result.memory || {});
+      } catch {
+        setAgentMemory(null);
+      } finally {
+        setLoadingMemory(false);
+      }
+    };
+    loadMemory();
+  }, [agent?.id]);
+
+  // Load recent conversations for this agent
+  useEffect(() => {
+    if (!agent) return;
+    const loadConversations = async () => {
+      try {
+        const result = await api.getConversations();
+        const agentConvs = (result.conversations || [])
+          .filter((c: any) => c.agentId === agent.id || c.agent?.id === agent.id)
+          .slice(0, 5);
+        setRecentConversations(agentConvs);
+      } catch {
+        setRecentConversations([]);
+      }
+    };
+    loadConversations();
+  }, [agent?.id]);
 
   const refreshAgent = useCallback(async () => {
     try {
@@ -412,16 +458,18 @@ export function AgentDetail() {
             <span className="text-xs text-muted-foreground">{t('agentDetail.connectionsActive', { count: activeConnections })}</span>
           </div>
         </div>
-        <Button className="gap-2" onClick={handleStartChat}>
-          <MessageSquare className="w-4 h-4" /> Chat
+        <Button className="gap-2 min-h-[44px]" onClick={handleStartChat}>
+          <MessageSquare className="w-4 h-4" /> <span className="hidden sm:inline">{t('agentDetail.chatWithAgent')}</span><span className="sm:hidden">{t('agentDetail.chatWithAgent')}</span>
         </Button>
       </div>
 
       {/* Content Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 flex-wrap gap-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="skills">{t('agentDetail.installedSkills')} ({(agent.skills || []).length})</TabsTrigger>
+          <TabsTrigger value="memory">{t('agentDetail.memory')}</TabsTrigger>
+          <TabsTrigger value="conversations">{t('agentDetail.recentConversations')}</TabsTrigger>
           <TabsTrigger value="connections">{t('agentDetail.connections')} ({(agent.connections || []).length})</TabsTrigger>
           <TabsTrigger value="plugins">{t('agentDetail.plugins')} ({(agent.plugins || []).length})</TabsTrigger>
           <TabsTrigger value="integration">{t('agentDetail.integration')}</TabsTrigger>
@@ -443,11 +491,42 @@ export function AgentDetail() {
             </Card>
 
             <Card>
-              <CardHeader><CardTitle className="text-base">{t('agentDetail.systemPrompt')}</CardTitle></CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base">{t('agentDetail.systemPrompt')}</CardTitle>
+                {!editingSystemPrompt && (
+                  <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => { setEditingSystemPrompt(true); setSystemPromptValue(agent.systemPrompt || ''); }}>
+                    <Edit className="w-3 h-3" /> {t('common.edit')}
+                  </Button>
+                )}
+              </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {agent.systemPrompt || t('agentDetail.noSystemPrompt')}
-                </p>
+                {editingSystemPrompt ? (
+                  <div className="space-y-3">
+                    <Textarea
+                      className="min-h-[160px] font-mono text-xs"
+                      value={systemPromptValue}
+                      onChange={(e) => setSystemPromptValue(e.target.value)}
+                      placeholder={t('agentDetail.noSystemPrompt')}
+                    />
+                    <div className="flex items-center gap-2 justify-end">
+                      <Button variant="outline" size="sm" onClick={() => setEditingSystemPrompt(false)}>{t('common.cancel')}</Button>
+                      <Button size="sm" onClick={async () => {
+                        try {
+                          await api.updateAgent(agent.id, { systemPrompt: systemPromptValue });
+                          await refreshAgent();
+                          setEditingSystemPrompt(false);
+                          toast.success(t('agentDetail.configSaved'));
+                        } catch (error: any) {
+                          toast.error(error.message);
+                        }
+                      }}>{t('common.save')}</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {agent.systemPrompt || t('agentDetail.noSystemPrompt')}
+                  </p>
+                )}
               </CardContent>
             </Card>
 
@@ -766,6 +845,111 @@ export function AgentDetail() {
                       </Card>
                     );
                   })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ==================== MEMORY TAB ==================== */}
+        <TabsContent value="memory">
+          <div className="space-y-6">
+            {loadingMemory ? (
+              <Card>
+                <CardContent className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </CardContent>
+              </Card>
+            ) : !agentMemory ? (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Brain className="w-10 h-10 text-muted-foreground/40 mb-3" />
+                  <p className="text-sm font-medium text-muted-foreground">{t('agentDetail.noMemory')}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t('agentDetail.noMemoryDesc')}</p>
+                </CardContent>
+              </Card>
+            ) : (
+              ['memory', 'user', 'soul'].map((section) => {
+                const sectionData = agentMemory[section];
+                const sectionLabels: Record<string, { title: string; desc: string; icon: React.ReactNode }> = {
+                  memory: { title: t('agentDetail.memoryKnowledge'), desc: t('agentDetail.memoryKnowledgeDesc'), icon: <BookOpen className="w-4 h-4" /> },
+                  user: { title: t('agentDetail.memoryPreferences'), desc: t('agentDetail.memoryPreferencesDesc'), icon: <Users className="w-4 h-4" /> },
+                  soul: { title: t('agentDetail.memoryPersonality'), desc: t('agentDetail.memoryPersonalityDesc'), icon: <Sparkles className="w-4 h-4" /> },
+                };
+                const info = sectionLabels[section];
+                if (!info) return null;
+                return (
+                  <Card key={section}>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        {info.icon} {info.title}
+                      </CardTitle>
+                      <CardDescription>{info.desc}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {sectionData ? (
+                        <div className="p-3 rounded-lg bg-accent/50">
+                          <p className="text-sm whitespace-pre-wrap">{typeof sectionData === 'string' ? sectionData : JSON.stringify(sectionData, null, 2)}</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">{t('agentDetail.memoryEmpty')}</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+          </div>
+        </TabsContent>
+
+        {/* ==================== RECENT CONVERSATIONS TAB ==================== */}
+        <TabsContent value="conversations">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base">{t('agentDetail.recentConversations')}</CardTitle>
+                <CardDescription>{t('agentDetail.recentConversationsDesc')}</CardDescription>
+              </div>
+              <Button className="gap-2" onClick={handleStartChat}>
+                <MessageSquare className="w-4 h-4" /> {t('agentDetail.chatWithAgent')}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {recentConversations.length === 0 ? (
+                <div className="text-center py-8">
+                  <MessageSquare className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">{t('agentDetail.noConversations')}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t('agentDetail.noConversationsDesc')}</p>
+                  <Button className="mt-4 gap-2" onClick={handleStartChat}>
+                    <MessageSquare className="w-4 h-4" /> {t('agentDetail.chatWithAgent')}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {recentConversations.map((conv: any) => (
+                    <div
+                      key={conv.id}
+                      className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors cursor-pointer"
+                      onClick={() => {
+                        const { setSelectedConversationId, setCurrentView } = useAppStore.getState();
+                        setSelectedConversationId(conv.id);
+                        setCurrentView('chat');
+                      }}
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <MessageSquare className="w-4 h-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{conv.name || conv.title || 'Conversation'}</p>
+                        {conv.lastMessage?.content && (
+                          <p className="text-xs text-muted-foreground truncate">{conv.lastMessage.content.substring(0, 80)}</p>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground shrink-0">
+                        {conv.lastMessage?.createdAt ? new Date(conv.lastMessage.createdAt).toLocaleDateString() : ''}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>

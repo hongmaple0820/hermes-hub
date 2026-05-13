@@ -447,11 +447,16 @@ class ApiClient {
   // Memory
   async getMemory(agentId?: string) {
     const query = agentId ? `?agentId=${agentId}` : '';
-    return this.get<{ memory: any }>(`/memory${query}`);
+    return this.get<{ agentId: string; sections: Record<string, { id: string; content: string; modifiedAt: string }>; memory: Record<string, string>; totalEntries: number }>(`/memory${query}`);
   }
 
   async updateMemory(section: string, content: string, agentId?: string) {
-    return this.post('/memory', { section, content, agentId });
+    return this.put<{ memory: any }>('/memory', { section, content, agentId });
+  }
+
+  async clearMemory(agentId: string, section?: string) {
+    const query = section ? `?agentId=${agentId}&section=${section}` : `?agentId=${agentId}`;
+    return this.del<{ success: boolean }>(`/memory${query}`);
   }
 
   // Usage
@@ -826,6 +831,26 @@ class ApiClient {
 
   async quickstartSetup() {
     return this.post<{ provider: any; agent: any; skills: any[]; message: string }>('/quickstart/setup', {});
+  }
+
+  // Agent Collaboration
+  async collaborateAgents(data: {
+    type: string;
+    fromAgentId: string;
+    toAgentIds: string[];
+    task: string;
+    context?: Record<string, unknown>;
+    options?: Record<string, unknown>;
+  }) {
+    return this.post<{ collaboration: any }>('/agents/collaborate', data);
+  }
+
+  async getCollaborationHistory(agentId: string, type?: string, limit?: number) {
+    const params = new URLSearchParams();
+    params.set('agentId', agentId);
+    if (type) params.set('type', type);
+    if (limit) params.set('limit', String(limit));
+    return this.get<{ history: any[]; total: number }>(`/agents/collaborate?${params.toString()}`);
   }
 }
 

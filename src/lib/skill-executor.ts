@@ -112,19 +112,32 @@ const BUILTIN_HANDLERS: Record<string, (params: Record<string, unknown>) => Prom
   },
 
   'weather-query': async (params) => {
-    // No real weather API in SDK — return realistic mock
+    // LLM-powered weather info (no real weather API available)
     const location = String(params.location || 'Unknown');
     const unit = String(params.unit || 'celsius');
-    const isCelsius = unit !== 'fahrenheit';
-    const temp = isCelsius ? Math.floor(Math.random() * 30 + 5) : Math.floor(Math.random() * 60 + 40);
-    const conditions = ['Sunny', 'Partly Cloudy', 'Cloudy', 'Light Rain', 'Clear', 'Windy'];
-    const condition = conditions[Math.floor(Math.random() * conditions.length)];
-    const humidity = Math.floor(Math.random() * 50 + 30);
 
-    return {
-      content: `Weather for ${location}: ${condition}, ${temp}°${isCelsius ? 'C' : 'F'}, Humidity: ${humidity}%`,
-      data: { location, temperature: temp, unit: isCelsius ? 'celsius' : 'fahrenheit', conditions: condition, humidity, wind: `${Math.floor(Math.random() * 20 + 3)} km/h` },
-    };
+    try {
+      const zai = await getZAI();
+      const result = await zai.chat.completions.create({
+        messages: [
+          { role: 'system', content: `You are a weather information assistant. Provide a realistic weather description for the requested location. Include temperature (in ${unit}), conditions, humidity, and wind. Format your response as a concise weather report. If you don't know the exact current weather, provide typical weather for the location and season, and note that it's an estimate.` },
+          { role: 'user', content: `What is the weather in ${location}?` },
+        ],
+        temperature: 0.7,
+      });
+
+      const content = result.choices?.[0]?.message?.content || result.content || '';
+      return {
+        content: content || `Weather information for ${location} is not available right now.`,
+        data: { location, unit, source: 'llm-estimate', description: content },
+      };
+    } catch (error) {
+      console.error('[SkillExecutor] Weather LLM error, using fallback:', error);
+      return {
+        content: `Weather information for ${location} is not available right now. Please check a weather service for current conditions.`,
+        data: { location, unit, source: 'fallback', error: error instanceof Error ? error.message : 'LLM error' },
+      };
+    }
   },
 
   'code-execution': async (params) => {
@@ -211,24 +224,50 @@ const BUILTIN_HANDLERS: Record<string, (params: Record<string, unknown>) => Prom
   },
 
   'document-processing': async (params) => {
-    // No document processing API — realistic mock
-    const action = String(params.action || 'analyze');
+    // LLM-powered text processing (summarize, extract key points, format)
+    const action = String(params.action || 'summarize');
+    const text = String(params.text || params.content || '');
     const fileUrl = String(params.fileUrl || '');
 
-    return {
-      content: `Document ${action} completed${fileUrl ? ` on ${fileUrl}` : ''}. Extracted 3 key sections, 12 entities, and generated a summary.`,
-      data: {
-        action,
-        fileUrl,
-        result: {
-          sections: 3,
-          entities: 12,
-          wordCount: Math.floor(Math.random() * 5000 + 500),
-          language: 'English',
-          summaryGenerated: true,
-        },
-      },
+    if (!text && !fileUrl) {
+      return {
+        content: 'No text or document provided for processing. Please provide text content to analyze.',
+        data: { action, result: null, error: 'No input provided' },
+      };
+    }
+
+    const actionPrompts: Record<string, string> = {
+      summarize: 'Provide a clear and concise summary of the following text.',
+      'extract-key-points': 'Extract the key points from the following text as a bulleted list.',
+      analyze: 'Analyze the following text and provide insights on structure, tone, and main themes.',
+      rewrite: 'Rewrite the following text to be clearer and more concise while preserving meaning.',
+      translate: 'If the text is not in English, translate it to English. If it is in English, identify the language style and suggest improvements.',
     };
+
+    const systemPrompt = actionPrompts[action] || actionPrompts.summarize;
+
+    try {
+      const zai = await getZAI();
+      const result = await zai.chat.completions.create({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: text },
+        ],
+        temperature: 0.3,
+      });
+
+      const content = result.choices?.[0]?.message?.content || result.content || '';
+      return {
+        content: content || `Document ${action} completed.`,
+        data: { action, result: content, charCount: text.length, source: 'llm' },
+      };
+    } catch (error) {
+      console.error('[SkillExecutor] Document processing LLM error:', error);
+      return {
+        content: `Document ${action} could not be completed. Error: ${error instanceof Error ? error.message : 'LLM error'}`,
+        data: { action, result: null, error: error instanceof Error ? error.message : 'LLM error' },
+      };
+    }
   },
 
   'translation': async (params) => {
@@ -266,13 +305,14 @@ const BUILTIN_HANDLERS: Record<string, (params: Record<string, unknown>) => Prom
   },
 
   'reminder': async (params) => {
+    // COMING SOON — reminders require a scheduling system
     const message = String(params.message || '');
     const time = String(params.time || '');
     const repeat = String(params.repeat || '');
 
     return {
-      content: `Reminder set: "${message}" at ${time}${repeat ? ` (repeat: ${repeat})` : ''}. The system will notify you at the specified time.`,
-      data: { message, time, repeat, status: 'scheduled', id: `reminder_${Date.now()}` },
+      content: `[Coming Soon] Reminders are not yet available. This feature requires a scheduling system. Your reminder "${message}" at ${time} was not scheduled.`,
+      data: { message, time, repeat, status: 'coming-soon', note: 'Reminders require a scheduling system which is not yet implemented.' },
     };
   },
 
@@ -321,32 +361,63 @@ const BUILTIN_HANDLERS: Record<string, (params: Record<string, unknown>) => Prom
   },
 
   'data-analysis': async (params) => {
-    const analysis = String(params.analysis || 'summary');
+    // LLM-powered data analysis (user provides data, LLM analyzes)
+    const analysisType = String(params.analysis || 'summary');
+    const data = String(params.data || params.input || '');
     const visualize = Boolean(params.visualize);
 
-    return {
-      content: `Data analysis (${analysis}) completed${visualize ? ' with visualization' : ''}. Found 3 trends, 2 anomalies, and generated statistical summary.`,
-      data: {
-        analysis,
-        visualize,
-        results: {
-          trends: 3,
-          anomalies: 2,
-          recordsAnalyzed: Math.floor(Math.random() * 10000 + 100),
-          confidence: `${(Math.random() * 20 + 80).toFixed(1)}%`,
-        },
-      },
+    if (!data) {
+      return {
+        content: 'No data provided for analysis. Please provide data to analyze.',
+        data: { analysis: analysisType, result: null, error: 'No data provided' },
+      };
+    }
+
+    const analysisPrompts: Record<string, string> = {
+      summary: 'Provide a statistical summary of the following data. Identify key patterns, averages, and notable values.',
+      trends: 'Analyze the following data for trends. Identify upward/downward trends, cyclical patterns, and predict future direction.',
+      anomalies: 'Identify any anomalies or outliers in the following data. Explain why they stand out.',
+      compare: 'Compare the data points in the following dataset. Highlight significant differences and similarities.',
+      correlations: 'Look for correlations and relationships in the following data. Explain any found correlations.',
     };
+
+    const systemPrompt = analysisPrompts[analysisType] || analysisPrompts.summary;
+    const fullPrompt = visualize
+      ? `${systemPrompt} Also suggest what type of visualization would best represent this data.`
+      : systemPrompt;
+
+    try {
+      const zai = await getZAI();
+      const result = await zai.chat.completions.create({
+        messages: [
+          { role: 'system', content: fullPrompt },
+          { role: 'user', content: data },
+        ],
+        temperature: 0.3,
+      });
+
+      const content = result.choices?.[0]?.message?.content || result.content || '';
+      return {
+        content: content || `Data analysis (${analysisType}) completed.`,
+        data: { analysis: analysisType, result: content, visualize, source: 'llm' },
+      };
+    } catch (error) {
+      console.error('[SkillExecutor] Data analysis LLM error:', error);
+      return {
+        content: `Data analysis (${analysisType}) could not be completed. Error: ${error instanceof Error ? error.message : 'LLM error'}`,
+        data: { analysis: analysisType, result: null, error: error instanceof Error ? error.message : 'LLM error' },
+      };
+    }
   },
 
   'email-sender': async (params) => {
-    // No email API — realistic mock
+    // COMING SOON — email sending requires SMTP integration
     const to = String(params.to || '');
     const subject = String(params.subject || '');
 
     return {
-      content: `Email sent to: ${to} with subject: "${subject}". Message delivered successfully.`,
-      data: { to, subject, sent: true, messageId: `msg_${Date.now()}`, timestamp: new Date().toISOString() },
+      content: `[Coming Soon] Email sending is not yet available. This feature requires SMTP integration. Your email to "${to}" with subject "${subject}" was not sent.`,
+      data: { to, subject, sent: false, status: 'coming-soon', note: 'Email sending requires SMTP integration which is not yet configured.' },
     };
   },
 
@@ -386,22 +457,36 @@ const BUILTIN_HANDLERS: Record<string, (params: Record<string, unknown>) => Prom
   },
 
   'database-query': async (params) => {
-    // No arbitrary DB query — realistic mock
+    // COMING SOON — arbitrary DB queries require real DB connection setup
     const query = String(params.query || '');
     const database = String(params.database || 'default');
 
     return {
-      content: `Database query executed on "${database}": ${query.length > 80 ? query.substring(0, 80) + '...' : query}. Returned 5 rows in 12ms.`,
-      data: {
-        query,
-        database,
-        rows: 5,
-        executionTime: '12ms',
-        affectedRows: 0,
-        columns: ['id', 'name', 'created_at', 'status', 'value'],
-      },
+      content: `[Coming Soon] Database queries are not yet available. This feature requires database connection configuration. Your query on "${database}" was not executed.`,
+      data: { query, database, status: 'coming-soon', note: 'Database queries require a configured database connection which is not yet available.' },
     };
   },
+};
+
+// ==================== Skill Status Map ====================
+
+/**
+ * Maps skill names to their status: 'active', 'beta', or 'coming-soon'.
+ * Used by the UI to show badges and disable toggles for unavailable skills.
+ */
+export const SKILL_STATUS_MAP: Record<string, 'active' | 'beta' | 'coming-soon'> = {
+  'web-search': 'active',
+  'image-generation': 'active',
+  'translation': 'active',
+  'text-to-speech': 'active',
+  'http-request': 'active',
+  'code-execution': 'beta',
+  'weather-query': 'beta',        // LLM-powered estimate, not real weather data
+  'document-processing': 'active', // LLM-powered text processing
+  'data-analysis': 'active',      // LLM-powered data analysis
+  'email-sender': 'coming-soon',
+  'database-query': 'coming-soon',
+  'reminder': 'coming-soon',
 };
 
 // ==================== Skill Execution ====================
@@ -793,10 +878,16 @@ export async function executeToolChain(
   message: string,
   conversationId: string,
   llmCall: (messages: ChatMessage[], tools: ToolDefinition[]) => Promise<{ content: string; toolCalls?: ToolCall[] }>,
-  maxIterations: number = 5
+  maxIterations: number = 5,
+  approvedSkills?: string[] // Only execute skills in this list
 ): Promise<{ content: string; toolResults: SkillExecutionResult[] }> {
   // Load tool definitions for this agent
-  const tools = await buildToolDefinitions(agentId);
+  let tools = await buildToolDefinitions(agentId);
+
+  // If approvedSkills is provided, filter tools to only approved ones
+  if (approvedSkills && approvedSkills.length > 0) {
+    tools = tools.filter(t => approvedSkills.includes(t.function.name));
+  }
 
   if (tools.length === 0) {
     // No tools available, just call LLM once

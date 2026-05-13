@@ -19,6 +19,7 @@ interface AgentReplyParams {
   conversationId: string;
   userMessage: string;
   userId: string;
+  approvedSkills?: string[]; // Only execute these skills (requires user approval)
 }
 
 interface AgentReplyResult {
@@ -26,6 +27,17 @@ interface AgentReplyResult {
   content: string;
   error?: string;
   toolResults?: SkillExecutionResult[];
+}
+
+export interface SkillPreviewItem {
+  name: string;
+  description: string;
+  reason: string;
+}
+
+export interface SkillPreviewResult {
+  needsSkillApproval: boolean;
+  pendingSkills: SkillPreviewItem[];
 }
 
 /**
@@ -144,11 +156,67 @@ async function prepareAgentContext(params: AgentReplyParams) {
 }
 
 /**
+ * Preview which skills an agent WOULD use for a given message.
+ * Does a single LLM call with tool definitions to see which tools the agent selects,
+ * then returns the list without executing any of them.
+ */
+export async function previewSkillUsage(params: AgentReplyParams): Promise<SkillPreviewResult> {
+  try {
+    const { agent, messages, providerConfig, model } = await prepareAgentContext(params);
+
+    const hasSkills = agent.skills && agent.skills.length > 0;
+    if (!hasSkills) {
+      return { needsSkillApproval: false, pendingSkills: [] };
+    }
+
+    // Build tool definitions for this agent
+    const tools = await buildToolDefinitions(params.agentId);
+    if (tools.length === 0) {
+      return { needsSkillApproval: false, pendingSkills: [] };
+    }
+
+    // Make a single LLM call to see which tools the agent wants to use
+    const llmCaller = createLLMCaller(providerConfig, model, {
+      temperature: agent.temperature ?? 0.7,
+      maxTokens: agent.maxTokens ?? 2048,
+    });
+
+    const llmResult = await llmCaller(messages, tools);
+
+    if (!llmResult.toolCalls || llmResult.toolCalls.length === 0) {
+      // Agent doesn't want to use any tools for this message
+      return { needsSkillApproval: false, pendingSkills: [] };
+    }
+
+    // Build preview items from the tool calls
+    const skillMap = new Map(agent.skills.map((as: any) => [as.skill.name, as.skill]));
+    const pendingSkills: SkillPreviewItem[] = llmResult.toolCalls.map((tc) => {
+      const skill = skillMap.get(tc.name);
+      return {
+        name: tc.name,
+        description: skill?.description || `Execute the ${tc.name} skill`,
+        reason: skill
+          ? `The agent wants to use "${skill.displayName || tc.name}" to help answer your question.`
+          : `The agent wants to use the "${tc.name}" tool.`,
+      };
+    });
+
+    return { needsSkillApproval: true, pendingSkills };
+  } catch (error) {
+    console.error('[AgentReply] Preview skill usage error:', error);
+    // On error, don't block — return no approval needed
+    return { needsSkillApproval: false, pendingSkills: [] };
+  }
+}
+
+/**
  * Generate an agent reply to a user message (synchronous)
  *
  * For builtin agents with skills installed, uses the tool chain execution
  * which creates an agentic loop (plan → execute tools → iterate).
  * For agents without skills, uses the standard single LLM call.
+ *
+ * If approvedSkills is provided, only execute skills in that list.
  */
 export async function generateAgentReply(params: AgentReplyParams): Promise<AgentReplyResult> {
   try {
@@ -164,22 +232,48 @@ export async function generateAgentReply(params: AgentReplyParams): Promise<Agen
     const hasSkills = agent.skills && agent.skills.length > 0;
 
     if (hasSkills) {
-      // Use tool chain execution for agentic loop
-      const llmCaller = createLLMCaller(providerConfig, model, {
-        temperature: agent.temperature ?? 0.7,
-        maxTokens: agent.maxTokens ?? 2048,
-      });
+      // If approvedSkills is provided, filter to only those skills
+      if (params.approvedSkills && params.approvedSkills.length > 0) {
+        // Filter the agent's skills to only approved ones
+        const filteredAgent = {
+          ...agent,
+          skills: agent.skills.filter((as: any) => params.approvedSkills!.includes(as.skill.name)),
+        };
+        // Use filtered agent's skills for tool chain
+        const llmCaller = createLLMCaller(providerConfig, model, {
+          temperature: agent.temperature ?? 0.7,
+          maxTokens: agent.maxTokens ?? 2048,
+        });
 
-      const chainResult = await executeToolChain(
-        agentId,
-        params.userMessage,
-        conversationId,
-        llmCaller,
-        5 // max iterations
-      );
+        const chainResult = await executeToolChain(
+          agentId,
+          params.userMessage,
+          conversationId,
+          llmCaller,
+          5,
+          params.approvedSkills // pass approved skills filter
+        );
 
-      resultContent = chainResult.content;
-      toolResults = chainResult.toolResults;
+        resultContent = chainResult.content;
+        toolResults = chainResult.toolResults;
+      } else {
+        // No approval filter — execute all skills as before
+        const llmCaller = createLLMCaller(providerConfig, model, {
+          temperature: agent.temperature ?? 0.7,
+          maxTokens: agent.maxTokens ?? 2048,
+        });
+
+        const chainResult = await executeToolChain(
+          agentId,
+          params.userMessage,
+          conversationId,
+          llmCaller,
+          5 // max iterations
+        );
+
+        resultContent = chainResult.content;
+        toolResults = chainResult.toolResults;
+      }
     } else {
       // Standard single LLM call (no skills)
       const result = await chatCompletion(providerConfig, messages, model, {

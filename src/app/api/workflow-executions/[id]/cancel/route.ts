@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { WorkflowEngine } from '@/lib/workflow-engine';
 
 /**
  * POST /api/workflow-executions/[id]/cancel
- * Cancel a running execution. Sets status to 'cancelled'.
+ * Cancel a running execution. Sets status to 'cancelled' and signals the engine to stop.
  */
 export async function POST(
   request: NextRequest,
@@ -36,11 +37,20 @@ export async function POST(
       );
     }
 
+    // Signal the engine to cancel the in-process execution
+    try {
+      const engine = new WorkflowEngine();
+      await engine.cancel(id);
+    } catch (engineError) {
+      console.error('Engine cancel error (execution may have already completed):', engineError);
+    }
+
     const now = new Date();
     const duration = execution.startedAt
       ? now.getTime() - new Date(execution.startedAt).getTime()
       : null;
 
+    // Update DB status (the engine may have already done this, so use upsert-style update)
     const updated = await db.workflowExecution.update({
       where: { id },
       data: {

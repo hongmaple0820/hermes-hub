@@ -115,6 +115,18 @@ interface AppState {
   // Quick Start
   needsQuickStart: boolean;
   setNeedsQuickStart: (needs: boolean) => void;
+
+  // Agent Panel
+  agentPanelSections: string[];
+  setAgentPanelSections: (sections: string[]) => void;
+
+  // Skill Auto-Allow Preferences (per agent: { [agentId]: string[] })
+  skillAutoAllow: Record<string, string[]>;
+  setSkillAutoAllow: (prefs: Record<string, string[]>) => void;
+
+  // Advanced Features (hidden from sidebar by default, toggled in Settings)
+  advancedFeatures: Record<string, boolean>;
+  setAdvancedFeatures: (features: Record<string, boolean>) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -222,4 +234,16 @@ export const useAppStore = create<AppState>((set) => ({
   // Quick Start
   needsQuickStart: false,
   setNeedsQuickStart: (needsQuickStart) => set({ needsQuickStart }),
+
+  // Agent Panel
+  agentPanelSections: ['agents'],
+  setAgentPanelSections: (agentPanelSections) => set({ agentPanelSections }),
+
+  // Skill Auto-Allow
+  skillAutoAllow: {},
+  setSkillAutoAllow: (skillAutoAllow) => set({ skillAutoAllow }),
+
+  // Advanced Features (all OFF by default)
+  advancedFeatures: {},
+  setAdvancedFeatures: (advancedFeatures) => set({ advancedFeatures }),
 }));

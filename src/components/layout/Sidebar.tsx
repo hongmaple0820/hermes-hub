@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAppStore, type ViewMode } from '@/lib/store';
 import { useI18n } from '@/i18n';
 import {
   Bot, MessageSquare, Settings,
   LogOut, ChevronLeft, ChevronRight, Zap, Languages,
   BarChart3, ChevronDown, Pin, PinOff, Maximize2, Minimize2, GripVertical,
-  HelpCircle, Workflow,
+  HelpCircle, Workflow, Hexagon, Terminal, Folder, ScrollText,
+  Brain, Clock, Radio, Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -47,6 +48,28 @@ const navSections: { label: string; items: NavItem[] }[] = [
     ],
   },
 ];
+
+const ADVANCED_NAV_ITEMS: NavItem[] = [
+  { id: 'agent-control', labelKey: 'nav.acrp', icon: Hexagon },
+  { id: 'terminal', labelKey: 'nav.terminal', icon: Terminal },
+  { id: 'files', labelKey: 'nav.files', icon: Folder },
+  { id: 'logs', labelKey: 'nav.logs', icon: ScrollText },
+  { id: 'profiles', labelKey: 'nav.profiles', icon: Bot },
+  { id: 'channels', labelKey: 'nav.channels', icon: Radio },
+  { id: 'jobs', labelKey: 'nav.jobs', icon: Clock },
+  { id: 'memory', labelKey: 'nav.memory', icon: Brain },
+];
+
+// Get advanced features enabled from localStorage
+function getAdvancedFeatures(): Record<string, boolean> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const stored = localStorage.getItem('hermes-advanced-features');
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
 
 // All nav items flattened for favorites reference
 const allNavItems = navSections.flatMap(s => s.items);
@@ -109,7 +132,7 @@ function saveSidebarWidth(width: number) {
 }
 
 export function Sidebar({ onLogout, onOpenKeyboardHelp }: SidebarProps) {
-  const { currentView, setCurrentView, sidebarCollapsed, setSidebarCollapsed, user, agents, conversations } = useAppStore();
+  const { currentView, setCurrentView, sidebarCollapsed, setSidebarCollapsed, user, agents, conversations, advancedFeatures, setAdvancedFeatures } = useAppStore();
   const { locale, setLocale, t, locales } = useI18n();
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() => getCollapsedSections());
   const [favorites, setFavorites] = useState<ViewMode[]>(() => getFavorites());
@@ -133,6 +156,19 @@ export function Sidebar({ onLogout, onOpenKeyboardHelp }: SidebarProps) {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Sync store with localStorage on mount
+  useEffect(() => {
+    const features = getAdvancedFeatures();
+    if (Object.keys(features).length > 0 && Object.keys(advancedFeatures).length === 0) {
+      setAdvancedFeatures(features);
+    }
+  }, [advancedFeatures, setAdvancedFeatures]);
+
+  // Derive visible advanced items from store
+  const visibleAdvancedItems = useMemo(() => {
+    return ADVANCED_NAV_ITEMS.filter(item => advancedFeatures[item.id] === true);
+  }, [advancedFeatures]);
 
   // Scroll shadow detection
   const checkScrollShadows = useCallback(() => {
@@ -664,6 +700,108 @@ export function Sidebar({ onLogout, onOpenKeyboardHelp }: SidebarProps) {
                 );
               })}
             </div>
+
+            {/* ==================== ADVANCED FEATURES SECTION ==================== */}
+            {visibleAdvancedItems.length > 0 && (
+              <div>
+                <div className="px-3 py-2">
+                  <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+                </div>
+                {/* Section Header */}
+                {!effectivelyCollapsed && (
+                  <div className="flex items-center gap-1.5 px-3 pt-2 pb-1.5">
+                    <span className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.12em] flex-1">
+                      {t('sidebar.sectionAdvanced')}
+                    </span>
+                  </div>
+                )}
+                {effectivelyCollapsed && (
+                  <div className="px-2 py-1.5">
+                    <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+                  </div>
+                )}
+                {/* Advanced Items */}
+                <div className="space-y-0.5">
+                  {visibleAdvancedItems.map((item) => {
+                    const isActive = currentView === item.id;
+                    const Icon = item.icon;
+
+                    const button = (
+                      <button
+                        key={item.id}
+                        onClick={() => setCurrentView(item.id)}
+                        aria-label={t(item.labelKey)}
+                        title={t(item.labelKey)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          toggleFavorite(item.id);
+                        }}
+                        className={cn(
+                          'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm relative group/item',
+                          'transition-all duration-300 ease-out',
+                          'hover:scale-[1.02] hover:bg-accent/80 hover:text-accent-foreground',
+                          isActive
+                            ? 'text-primary font-medium'
+                            : 'text-muted-foreground',
+                          effectivelyCollapsed && 'justify-center px-0',
+                        )}
+                      >
+                        {isActive && (
+                          <motion.div
+                            layoutId="sidebar-active-bg"
+                            className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/[0.08] via-primary/[0.12] to-primary/[0.08] dark:from-primary/[0.12] dark:via-primary/[0.18] dark:to-primary/[0.12] animate-[gradient-pulse_3s_ease-in-out_infinite]"
+                            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                          />
+                        )}
+                        {isActive && !effectivelyCollapsed && (
+                          <motion.div
+                            layoutId="sidebar-active-border"
+                            className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full bg-gradient-to-b from-primary via-primary/80 to-primary/50"
+                            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                          />
+                        )}
+                        {isActive && effectivelyCollapsed && (
+                          <motion.div
+                            layoutId="sidebar-active-bg-collapsed"
+                            className="absolute inset-0 rounded-lg bg-primary/[0.08] dark:bg-primary/[0.12] border border-primary/20"
+                            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                          />
+                        )}
+                        <Icon className={cn(
+                          'w-[18px] h-[18px] shrink-0 relative z-10 transition-all duration-300',
+                          isActive
+                            ? 'text-primary drop-shadow-[0_0_4px] drop-shadow-primary/20'
+                            : 'group-hover/item:text-foreground'
+                        )} />
+                        {!effectivelyCollapsed && (
+                          <span className="truncate flex-1 text-left relative z-10">{t(item.labelKey)}</span>
+                        )}
+                      </button>
+                    );
+
+                    if (effectivelyCollapsed) {
+                      return (
+                        <Tooltip key={item.id}>
+                          <TooltipTrigger asChild>{button}</TooltipTrigger>
+                          <TooltipContent side="right" className="font-medium">
+                            {t(item.labelKey)}
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    }
+
+                    return (
+                      <Tooltip key={item.id}>
+                        <TooltipTrigger asChild>{button}</TooltipTrigger>
+                        <TooltipContent side="right" className="text-xs">
+                          <span>{t(item.labelKey)}</span>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </nav>
         </div>
 

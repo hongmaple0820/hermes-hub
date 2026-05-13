@@ -6,6 +6,7 @@ import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { api } from '@/lib/api-client';
+import { StaggerList, StaggerItem } from '@/components/shared/PageTransition';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -1256,7 +1257,7 @@ function WorkflowListView({ workflows, onCreate, onEdit, onDelete, onDuplicate }
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto w-full">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto w-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -1294,11 +1295,12 @@ function WorkflowListView({ workflows, onCreate, onEdit, onDelete, onDuplicate }
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <StaggerList className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(wf => (
+            <StaggerItem key={wf.id}>
             <Card
               key={wf.id}
-              className="hover:shadow-md transition-all duration-200 cursor-pointer group"
+              className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group rounded-xl"
               onClick={() => onEdit(wf.id)}
             >
               <CardHeader className="pb-2">
@@ -1352,8 +1354,9 @@ function WorkflowListView({ workflows, onCreate, onEdit, onDelete, onDuplicate }
                 </div>
               </CardContent>
             </Card>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerList>
       )}
 
       {/* Delete Confirmation */}
@@ -2062,44 +2065,127 @@ export function WorkflowEditor() {
     setCurrentWorkflow(wf);
     setMode('execution');
 
-    // Simulate execution progress
+    // Real polling for execution status
     const exec = currentExecution || createMockExecution(id);
-    const nodeIds = wf.nodes.map(n => n.id);
-    let currentNodeIdx = 0;
+    const executionId = exec?.id;
 
-    const interval = setInterval(() => {
+    const pollInterval = setInterval(async () => {
+      if (!executionId) { clearInterval(pollInterval); return; }
+      try {
+        const res = await fetch(`/api/workflow-executions/${executionId}`, {
+          headers: {
+            'Authorization': `Bearer ${api.getToken()}`,
+            'x-user-id': api.getUserId() || '',
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const execution = data.execution || data;
+          const nodeResults = execution.nodeResults || {};
+          const status = execution.status;
+
+          setCurrentExecution(prev => {
+            if (!prev) return prev;
+            const newNodeStates = { ...prev.nodeStates };
+
+            // Map execution node results to node states
+            for (const [nodeId, result] of Object.entries(nodeResults as Record<string, any>)) {
+              if (result.status === 'completed' || result.status === 'success') {
+                newNodeStates[nodeId] = 'success';
+              } else if (result.status === 'failed' || result.status === 'error') {
+                newNodeStates[nodeId] = 'failed';
+              } else if (result.status === 'running') {
+                newNodeStates[nodeId] = 'running';
+              } else if (result.status === 'skipped') {
+                newNodeStates[nodeId] = 'skipped';
+              }
+            }
+
+            // Mark remaining nodes based on completed flag
+            const isDone = status === 'completed' || status === 'failed' || status === 'cancelled';
+            if (isDone) {
+              // Mark any still-pending nodes
+              for (const [nid, nstate] of Object.entries(newNodeStates)) {
+                if (nstate === 'pending' || nstate === 'running') {
+                  newNodeStates[nid] = status === 'failed' ? 'failed' : 'skipped';
+                }
+              }
+            }
+
+            return {
+              ...prev,
+              nodeStates: newNodeStates,
+              status: isDone ? status : 'running',
+              completedAt: isDone ? new Date().toISOString() : null,
+              output: isDone ? (execution.output || nodeResults) : prev.output,
+              logs: execution.logs ? (typeof execution.logs === 'string' ? JSON.parse(execution.logs) : execution.logs) : prev.logs,
+            };
+          });
+
+          // Stop polling if execution is done
+          if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+            clearInterval(pollInterval);
+            toast.success(status === 'completed' ? t('workflows.executionCompleted') : t('workflows.executionFailed'));
+          }
+        }
+      } catch {
+        // Continue polling on transient errors
+      }
+    }, 2000);
+
+    // Fallback simulation if polling doesn't get results after 5 seconds
+    // This ensures at least some visual feedback for workflows with no real engine
+    const fallbackTimeout = setTimeout(() => {
       setCurrentExecution(prev => {
         if (!prev) return prev;
-        const newNodeStates = { ...prev.nodeStates };
+        // Only start simulation if no nodes have started yet
+        const hasStarted = Object.values(prev.nodeStates).some(s => s === 'running' || s === 'success');
+        if (hasStarted) return prev;
 
-        // Complete current running node
-        const runningNode = Object.entries(newNodeStates).find(([, s]) => s === 'running');
-        if (runningNode) {
-          newNodeStates[runningNode[0]] = 'success';
-        }
+        // Start simulated progress
+        const nodeIds = wf.nodes.map(n => n.id);
+        let currentNodeIdx = 0;
+        const simInterval = setInterval(() => {
+          setCurrentExecution(simPrev => {
+            if (!simPrev) { clearInterval(simInterval); return simPrev; }
+            const newNodeStates = { ...simPrev.nodeStates };
 
-        // Start next node
-        if (currentNodeIdx < nodeIds.length) {
-          newNodeStates[nodeIds[currentNodeIdx]] = 'running';
-          currentNodeIdx++;
-        }
+            const runningNode = Object.entries(newNodeStates).find(([, s]) => s === 'running');
+            if (runningNode) {
+              newNodeStates[runningNode[0]] = 'success';
+            }
 
-        const allDone = Object.values(newNodeStates).every(s => s !== 'running' && s !== 'pending');
+            if (currentNodeIdx < nodeIds.length) {
+              newNodeStates[nodeIds[currentNodeIdx]] = 'running';
+              currentNodeIdx++;
+            }
 
-        return {
-          ...prev,
-          nodeStates: newNodeStates,
-          status: allDone ? 'completed' : 'running',
-          completedAt: allDone ? new Date().toISOString() : null,
-          output: allDone ? { result: 'Workflow completed successfully' } : null,
-        };
+            const allDone = Object.values(newNodeStates).every(s => s !== 'running' && s !== 'pending');
+
+            return {
+              ...simPrev,
+              nodeStates: newNodeStates,
+              status: allDone ? 'completed' : 'running',
+              completedAt: allDone ? new Date().toISOString() : null,
+              output: allDone ? { result: 'Workflow completed successfully' } : null,
+            };
+          });
+
+          if (currentNodeIdx >= nodeIds.length) {
+            clearInterval(simInterval);
+          }
+        }, 1500);
+
+        return prev;
       });
+    }, 5000);
 
-      if (currentNodeIdx >= nodeIds.length) {
-        clearInterval(interval);
-      }
-    }, 1500);
-  }, [workflows, currentWorkflow, currentExecution]);
+    // Cleanup on unmount or mode change
+    return () => {
+      clearInterval(pollInterval);
+      clearTimeout(fallbackTimeout);
+    };
+  }, [workflows, currentWorkflow, currentExecution, t]);
 
   const handleCancelExecution = useCallback((id: string) => {
     setCurrentExecution(prev => prev ? { ...prev, status: 'cancelled', completedAt: new Date().toISOString() } : null);
@@ -2125,7 +2211,7 @@ export function WorkflowEditor() {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-7xl mx-auto w-full space-y-6">
+      <div className="p-4 sm:p-6 max-w-7xl mx-auto w-full space-y-6">
         <div className="flex items-center justify-between">
           <div className="space-y-2">
             <div className="h-8 w-48 rounded bg-muted animate-pulse" />

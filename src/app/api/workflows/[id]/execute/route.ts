@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { WorkflowEngine } from '@/lib/workflow-engine';
 
 /**
  * POST /api/workflows/[id]/execute
- * Execute a workflow. Creates a WorkflowExecution record and returns the execution ID immediately.
- * The actual execution happens asynchronously (engine to be connected later).
+ * Execute a workflow. Creates a WorkflowExecution record, starts the engine
+ * asynchronously, and returns the execution ID immediately.
  * Body: { variables?: Record<string, any>, triggerType?: string }
  */
 export async function POST(
@@ -25,7 +26,7 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Only active workflows can be executed
+    // Only active or draft workflows can be executed
     if (workflow.status === 'archived') {
       return NextResponse.json(
         { error: 'Cannot execute archived workflow', details: 'Workflow must be in draft or active status' },
@@ -58,11 +59,7 @@ export async function POST(
       },
     });
 
-    // TODO: Trigger async execution engine here
-    // The engine will update the execution record as nodes complete
-    // For now, we just create the record and return the ID
-
-    // Optionally auto-activate the workflow if it was in draft
+    // Auto-activate the workflow if it was in draft
     if (workflow.status === 'draft') {
       await db.workflow.update({
         where: { id },
@@ -70,10 +67,42 @@ export async function POST(
       });
     }
 
+    // Start the workflow engine asynchronously (fire-and-forget)
+    const engine = new WorkflowEngine();
+    engine.execute(id, {
+      userId: user.id,
+      variables: mergedVariables,
+      triggerType: effectiveTriggerType as 'manual' | 'webhook' | 'schedule' | 'event' | 'api',
+      triggerData: { triggeredAt: now.toISOString(), userId: user.id },
+      executionId: execution.id,
+      onProgress: (event) => {
+        // Progress events are logged; state is persisted by the engine
+        console.log(`[Workflow ${id}] ${event.type}${event.nodeId ? ` node=${event.nodeId}` : ''}`);
+      },
+    }).then((result) => {
+      // Execution completed — state is already persisted by the engine
+      console.log(`[Workflow ${id}] Execution ${result.executionId} finished with status: ${result.status}`);
+    }).catch((error) => {
+      // Execution failed unexpectedly — update the record if not already done
+      console.error(`[Workflow ${id}] Execution ${execution.id} failed:`, error);
+      // Attempt to mark as failed if still running
+      db.workflowExecution.update({
+        where: { id: execution.id },
+        data: {
+          status: 'failed',
+          error: error instanceof Error ? error.message : 'Unknown error during workflow execution',
+          completedAt: new Date(),
+        },
+      }).catch(() => {
+        // Ignore DB update errors — the engine may have already updated the record
+      });
+    });
+
+    // Return execution ID immediately
     return NextResponse.json(
       {
         executionId: execution.id,
-        status: execution.status,
+        status: 'running',
         startedAt: execution.startedAt,
       },
       { status: 201 }

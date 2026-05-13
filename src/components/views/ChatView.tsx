@@ -32,7 +32,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import {
   Bot, Send, Plus, Loader2, ArrowLeft, MessageSquare, Users, GitBranch, ArrowRight,
   Paperclip, Smile, Check, CheckCheck, Clock, Copy, Trash2, Search, ChevronDown,
-  Sparkles, Zap, BookOpen, Code, Globe, Radio, X, Download, Upload, Square
+  Sparkles, Zap, BookOpen, Code, Globe, Radio, X, Download, Upload, Square, RefreshCw, ThumbsUp,
+  Brain
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -40,12 +41,27 @@ import { motion } from 'framer-motion';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 import { ContextIndicator } from '@/components/shared/ContextIndicator';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { SkillConfirmDialog, type PendingSkill } from '@/components/chat/SkillConfirmDialog';
+import { CollaborationDialog } from '@/components/chat/CollaborationDialog';
+import { CollaborationResultCard } from '@/components/chat/CollaborationResultCard';
+import { MemoryPanel, MemoryBadge, MemoryUsedIndicator } from '@/components/chat/MemoryPanel';
+import { MessageSkeleton } from '@/components/shared/SkeletonLoaders';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 const MAX_INPUT_LENGTH = 4000;
 const CHAR_COUNT_THRESHOLD = 3500;
+
+// Agent color palette for distinct visual styling in chat rooms
+const AGENT_COLORS = [
+  { bg: 'bg-emerald-500/15', text: 'text-emerald-700', border: 'border-emerald-500/30', dot: 'bg-emerald-500' },
+  { bg: 'bg-amber-500/15', text: 'text-amber-700', border: 'border-amber-500/30', dot: 'bg-amber-500' },
+  { bg: 'bg-violet-500/15', text: 'text-violet-700', border: 'border-violet-500/30', dot: 'bg-violet-500' },
+  { bg: 'bg-sky-500/15', text: 'text-sky-700', border: 'border-sky-500/30', dot: 'bg-sky-500' },
+  { bg: 'bg-rose-500/15', text: 'text-rose-700', border: 'border-rose-500/30', dot: 'bg-rose-500' },
+  { bg: 'bg-orange-500/15', text: 'text-orange-700', border: 'border-orange-500/30', dot: 'bg-orange-500' },
+];
 
 // ---------------------------------------------------------------------------
 // Sub-component: Typing Indicator
@@ -549,10 +565,14 @@ function AgentSelectorHeader({
   agent,
   agents,
   onSwitchAgent,
+  memoryEntryCount,
+  onOpenMemory,
 }: {
   agent: any;
   agents: any[];
   onSwitchAgent: (agentId: string) => void;
+  memoryEntryCount?: number;
+  onOpenMemory?: () => void;
 }) {
   const { t } = useI18n();
   const isOnline = agent?.status === 'online';
@@ -586,6 +606,13 @@ function AgentSelectorHeader({
       </div>
 
       <div className="flex items-center gap-2">
+        {agent?.id && onOpenMemory && (
+          <MemoryBadge
+            agentId={agent.id}
+            count={memoryEntryCount ?? 0}
+            onClick={onOpenMemory}
+          />
+        )}
         {agents.length > 1 && (
           <Select value={agent?.id} onValueChange={onSwitchAgent}>
             <SelectTrigger size="sm" className="w-[160px] h-7 text-xs">
@@ -628,6 +655,15 @@ function ConversationsPanel() {
   const [lineage, setLineage] = useState<{ ancestors: any[]; totalMessages: number } | null>(null);
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [skillConfirmOpen, setSkillConfirmOpen] = useState(false);
+  const [pendingSkillApproval, setPendingSkillApproval] = useState<PendingSkill[]>([]);
+  const [pendingUserMsg, setPendingUserMsg] = useState('');
+  const [executingSkills, setExecutingSkills] = useState<string[]>([]);
+  const [usedSkills, setUsedSkills] = useState<Record<string, string[]>>({});
+  const [showSkillMention, setShowSkillMention] = useState(false);
+  const [mentionFilter, setMentionFilter] = useState('');
+  const [memoryPanelOpen, setMemoryPanelOpen] = useState(false);
+  const [memoryEntryCount, setMemoryEntryCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -711,13 +747,45 @@ function ConversationsPanel() {
     }
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || !selectedConversationId) return;
-    const userMsg = input.trim();
-    setInput('');
+  // Get agent skills for @mention
+  const currentAgent = agents.find((a: any) => a.id === selectedConv?.agent?.id);
+
+  // Load memory entry count for the current agent
+  useEffect(() => {
+    if (!selectedConv?.agent?.id) {
+      setMemoryEntryCount(0);
+      return;
+    }
+    const loadMemoryCount = async () => {
+      try {
+        const result = await api.getMemory(selectedConv.agent.id);
+        setMemoryEntryCount(result.totalEntries || 0);
+      } catch {
+        setMemoryEntryCount(0);
+      }
+    };
+    loadMemoryCount();
+  }, [selectedConv?.agent?.id]);
+
+  const agentSkillNames: string[] = (currentAgent as any)?._skills?.map((s: any) => s.skill?.name || s.name).filter(Boolean) || [];
+
+  // Parse @mentions from input
+  const parseMentions = (text: string): string[] => {
+    const mentionRegex = /@(\w[\w-]*)/g;
+    const mentions: string[] = [];
+    let match;
+    while ((match = mentionRegex.exec(text)) !== null) {
+      mentions.push(match[1]);
+    }
+    return mentions;
+  };
+
+  // Send message with skill preview flow
+  const executeSend = async (userMsg: string, approvedSkills?: string[]) => {
     setSending(true);
     setStreaming(false);
     setStreamingContent('');
+    setExecutingSkills([]);
 
     const tempUserMsg = {
       id: `temp-${Date.now()}`,
@@ -734,6 +802,11 @@ function ConversationsPanel() {
       const abortController = new AbortController();
       abortRef.current = abortController;
 
+      const body: Record<string, unknown> = { content: userMsg };
+      if (approvedSkills && approvedSkills.length > 0) {
+        body.approved_skills = approvedSkills;
+      }
+
       const response = await fetch(`/api/conversations/${selectedConversationId}/messages`, {
         method: 'POST',
         headers: {
@@ -741,7 +814,7 @@ function ConversationsPanel() {
           'Accept': 'text/event-stream',
           'x-user-id': api.getUserId() || '',
         },
-        body: JSON.stringify({ content: userMsg }),
+        body: JSON.stringify(body),
         signal: abortController.signal,
       });
 
@@ -750,6 +823,11 @@ function ConversationsPanel() {
         setSending(false);
         setStreaming(true);
         setStreamingContent('');
+
+        // Show executing skills indicator
+        if (approvedSkills && approvedSkills.length > 0) {
+          setExecutingSkills(approvedSkills);
+        }
 
         const reader = response.body?.getReader();
         if (!reader) throw new Error('No response body');
@@ -780,8 +858,10 @@ function ConversationsPanel() {
                 // Stream complete - replace streaming content with final message
                 setStreaming(false);
                 setStreamingContent('');
+                setExecutingSkills([]);
+                const msgId = data.messageId || `agent-${Date.now()}`;
                 const agentMsg = {
-                  id: data.messageId || `agent-${Date.now()}`,
+                  id: msgId,
                   content: accumulated,
                   type: 'text',
                   senderType: 'agent',
@@ -789,11 +869,16 @@ function ConversationsPanel() {
                   createdAt: new Date().toISOString(),
                 };
                 setMessages((prev) => [...prev, agentMsg]);
+                // Track which skills were used for this message
+                if (approvedSkills && approvedSkills.length > 0) {
+                  setUsedSkills((prev) => ({ ...prev, [msgId]: approvedSkills }));
+                }
                 // Refresh conversations list for sidebar preview
                 api.getConversations().then(result => setConversations(result.conversations || [])).catch(() => {});
               } else if (data.type === 'error') {
                 setStreaming(false);
                 setStreamingContent('');
+                setExecutingSkills([]);
                 toast.error(data.error || t('chat.streamingError'));
                 // Still show whatever was accumulated
                 if (accumulated) {
@@ -818,14 +903,16 @@ function ConversationsPanel() {
       } else {
         // Non-SSE response (fallback to JSON)
         const result = await response.json();
+        setExecutingSkills([]);
         setMessages((prev) => {
           const filtered = prev.filter((m) => m.id !== tempUserMsg.id);
           return [...filtered, result.message];
         });
 
         if (result.agentReply) {
+          const msgId = `agent-${Date.now()}`;
           const agentMsg = {
-            id: `agent-${Date.now()}`,
+            id: msgId,
             content: result.agentReply.content,
             type: 'text',
             senderType: 'agent',
@@ -833,11 +920,16 @@ function ConversationsPanel() {
             createdAt: new Date().toISOString(),
           };
           setMessages((prev) => [...prev, agentMsg]);
+          // Track which skills were used for this message
+          if (approvedSkills && approvedSkills.length > 0) {
+            setUsedSkills((prev) => ({ ...prev, [msgId]: approvedSkills }));
+          }
           // Refresh conversations list for sidebar preview
           api.getConversations().then(result => setConversations(result.conversations || [])).catch(() => {});
         }
       }
     } catch (error: any) {
+      setExecutingSkills([]);
       if (error.name === 'AbortError') {
         // User cancelled the stream
         setStreaming(false);
@@ -852,6 +944,110 @@ function ConversationsPanel() {
       setStreamingContent('');
       abortRef.current = null;
     }
+  };
+
+  const handleSend = async () => {
+    if (!input.trim() || !selectedConversationId) return;
+    const userMsg = input.trim();
+    setInput('');
+    setShowSkillMention(false);
+
+    // Check if message contains @mentions for explicit skill request
+    const mentionedSkills = parseMentions(userMsg);
+
+    // If user explicitly mentioned skills, use them directly
+    if (mentionedSkills.length > 0) {
+      // Strip @mentions from the message content for cleaner display
+      const cleanMsg = userMsg.replace(/@\w[\w-]*/g, '').trim();
+      await executeSend(cleanMsg || userMsg, mentionedSkills);
+      return;
+    }
+
+    // Check if the agent has skills — if so, do a preview first
+    if (currentAgent && selectedConv?.agentId) {
+      try {
+        // Send with mode=preview to check which skills the agent wants
+        const previewResponse = await fetch(`/api/conversations/${selectedConversationId}/messages?mode=preview`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': api.getUserId() || '',
+          },
+          body: JSON.stringify({ content: userMsg }),
+        });
+
+        if (previewResponse.ok) {
+          const previewData = await previewResponse.json();
+
+          if (previewData.needsSkillApproval && previewData.pendingSkills?.length > 0) {
+            // Check auto-allow preferences
+            const { skillAutoAllow } = useAppStore.getState();
+            const autoAllowed = previewData.pendingSkills.filter(
+              (s: PendingSkill) => skillAutoAllow?.[selectedConv.agentId!]?.includes(s.name)
+            );
+
+            if (autoAllowed.length === previewData.pendingSkills.length) {
+              // All skills are auto-allowed, execute directly
+              await executeSend(userMsg, autoAllowed.map((s: PendingSkill) => s.name));
+              return;
+            }
+
+            // Show confirmation dialog
+            setPendingUserMsg(userMsg);
+            setPendingSkillApproval(previewData.pendingSkills);
+            setSkillConfirmOpen(true);
+
+            // Add user message preview
+            const tempUserMsg = {
+              id: `temp-${Date.now()}`,
+              content: userMsg,
+              type: 'text',
+              senderType: 'user',
+              senderName: 'You',
+              createdAt: new Date().toISOString(),
+            };
+            setMessages((prev) => [...prev, tempUserMsg]);
+            return;
+          }
+        }
+      } catch {
+        // Preview failed, fall through to normal send
+      }
+    }
+
+    // No skills or preview not needed — send normally
+    await executeSend(userMsg);
+  };
+
+  const handleSkillAllow = (alwaysAllow: boolean) => {
+    setSkillConfirmOpen(false);
+    const approvedNames = pendingSkillApproval.map((s) => s.name);
+
+    // Save auto-allow preference
+    if (alwaysAllow && selectedConv?.agentId) {
+      const { skillAutoAllow, setSkillAutoAllow } = useAppStore.getState();
+      const current = skillAutoAllow?.[selectedConv.agentId] || [];
+      setSkillAutoAllow({
+        ...skillAutoAllow,
+        [selectedConv.agentId]: [...new Set([...current, ...approvedNames])],
+      });
+    }
+
+    // Remove the temp user message and resend with approval
+    setMessages((prev) => prev.filter((m) => !m.id.startsWith('temp-')));
+    executeSend(pendingUserMsg, approvedNames);
+    setPendingUserMsg('');
+    setPendingSkillApproval([]);
+  };
+
+  const handleSkillDeny = () => {
+    setSkillConfirmOpen(false);
+    // Remove the temp user message
+    setMessages((prev) => prev.filter((m) => !m.id.startsWith('temp-')));
+    // Send without skills
+    executeSend(pendingUserMsg);
+    setPendingUserMsg('');
+    setPendingSkillApproval([]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -897,27 +1093,38 @@ function ConversationsPanel() {
                 </DialogHeader>
                 <div className="space-y-2 mt-4">
                   {agents.length === 0 ? (
-                    <div className="text-center py-6 space-y-3">
-                      <Bot className="w-10 h-10 text-muted-foreground/40 mx-auto" />
-                      <p className="text-sm text-muted-foreground">{t('chat.noAgents')}</p>
+                    <div className="text-center py-6 space-y-4">
+                      <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary/20 via-emerald-500/10 to-cyan-500/10 flex items-center justify-center shadow-md">
+                        <Sparkles className="w-8 h-8 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold mb-1">{t('chat.noAgents')}</p>
+                        <p className="text-xs text-muted-foreground">{t('chat.noAgentsHint')}</p>
+                      </div>
                       <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5"
+                        className="gap-2 shadow-md hover:shadow-lg transition-shadow"
                         onClick={async () => {
                           try {
+                            toast.loading(t('quickstart.autoSetupLoading'), { id: 'quickstart-setup' });
                             await api.quickstartSetup();
-                            setShowNewChat(false);
                             // Reload data so agents appear
                             const agentsResult = await api.getAgents();
-                            const { setAgents } = useAppStore.getState();
+                            const { setAgents, setProviders } = useAppStore.getState();
                             setAgents(agentsResult.agents || []);
+                            const providersResult = await api.getProviders();
+                            setProviders(providersResult.providers || []);
+                            toast.success(t('quickstart.autoSetupDone'), { id: 'quickstart-setup' });
+                            // Auto-start chat with the first agent
+                            const firstAgent = agentsResult.agents?.[0];
+                            if (firstAgent) {
+                              handleStartChat(firstAgent.id);
+                            }
                           } catch (error: any) {
-                            toast.error(error.message);
+                            toast.error(error.message, { id: 'quickstart-setup' });
                           }
                         }}
                       >
-                        <Sparkles className="w-3.5 h-3.5" />
+                        <Sparkles className="w-4 h-4" />
                         {t('quickstart.autoSetup')}
                       </Button>
                     </div>
@@ -1061,6 +1268,26 @@ function ConversationsPanel() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Skill Confirmation Dialog */}
+        <SkillConfirmDialog
+          open={skillConfirmOpen}
+          onOpenChange={setSkillConfirmOpen}
+          agentName={selectedConv?.agent?.name || 'Agent'}
+          pendingSkills={pendingSkillApproval}
+          onAllow={handleSkillAllow}
+          onDeny={handleSkillDeny}
+        />
+
+        {/* Memory Panel */}
+        {selectedConv?.agent?.id && (
+          <MemoryPanel
+            agentId={selectedConv.agent.id}
+            agentName={selectedConv.agent?.name || 'Agent'}
+            open={memoryPanelOpen}
+            onClose={() => setMemoryPanelOpen(false)}
+          />
+        )}
       </div>
 
       {/* Chat Area */}
@@ -1072,6 +1299,8 @@ function ConversationsPanel() {
               agent={selectedConv.agent}
               agents={agents}
               onSwitchAgent={handleSwitchAgent}
+              memoryEntryCount={memoryEntryCount}
+              onOpenMemory={() => setMemoryPanelOpen(true)}
             />
 
             {/* Chat Header (context + continue) */}
@@ -1112,8 +1341,10 @@ function ConversationsPanel() {
             <ScrollArea className="flex-1 p-4 md:p-6" ref={scrollAreaRef}>
               <div className="max-w-3xl mx-auto space-y-3">
                 {loadingMessages ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  <div className="space-y-3 max-w-3xl mx-auto">
+                    <MessageSkeleton />
+                    <MessageSkeleton isUser />
+                    <MessageSkeleton />
                   </div>
                 ) : messages.length === 0 && !sending ? (
                   <div className="flex flex-col items-center justify-center py-12">
@@ -1122,13 +1353,50 @@ function ConversationsPanel() {
                   </div>
                 ) : (
                   messages.map((msg: any) => (
-                    <MessageBubble
-                      key={msg.id}
-                      msg={msg}
-                      onCopy={handleCopyMessage}
-                      onDelete={handleDeleteMessage}
-                    />
+                    <div key={msg.id}>
+                      <MessageBubble
+                        msg={msg}
+                        onCopy={handleCopyMessage}
+                        onDelete={handleDeleteMessage}
+                      />
+                      {/* Skill invocation indicator below agent messages */}
+                      {msg.senderType === 'agent' && usedSkills[msg.id] && (
+                        <div className="ml-11 mt-1 flex items-center gap-1.5">
+                          <span className="text-[10px] text-muted-foreground">{t('chat.usedSkill')}:</span>
+                          {usedSkills[msg.id].map((skillName: string) => (
+                            <Badge key={skillName} variant="secondary" className="text-[10px] h-4 px-1.5 gap-0.5">
+                              <Zap className="w-2.5 h-2.5" />
+                              {skillName}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      {/* Memory used indicator below agent messages */}
+                      {msg.senderType === 'agent' && memoryEntryCount > 0 && (
+                        <div className="ml-11">
+                          <MemoryUsedIndicator />
+                        </div>
+                      )}
+                    </div>
                   ))
+                )}
+
+                {/* Executing skills indicator */}
+                {executingSkills.length > 0 && (
+                  <div className="flex items-center gap-2 ml-11">
+                    <span className="text-[10px] text-muted-foreground">{t('chat.executingSkill')}:</span>
+                    {executingSkills.map((skillName) => (
+                      <Badge key={skillName} variant="secondary" className="text-[10px] h-4 px-1.5 gap-0.5 animate-pulse">
+                        <Zap className="w-2.5 h-2.5" />
+                        {skillName}
+                      </Badge>
+                    ))}
+                    <div className="flex gap-1 items-center h-4">
+                      <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                  </div>
                 )}
 
                 {/* Streaming content - show as agent message being built */}
@@ -1157,14 +1425,14 @@ function ConversationsPanel() {
             </ScrollArea>
 
             {/* Enhanced Input Area */}
-            <div className="p-3 md:p-4 border-t border-border">
+            <div className="p-2 sm:p-3 md:p-4 border-t border-border">
               <div className="max-w-3xl mx-auto">
-                <div className="flex items-end gap-2 bg-card border border-border rounded-xl px-3 py-2 focus-within:border-primary/50 transition-colors">
+                <div className="flex items-end gap-1 sm:gap-2 bg-card border border-border rounded-xl px-2 sm:px-3 py-2 focus-within:border-primary/50 transition-colors">
                   {/* Attachment button */}
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="w-8 h-8 shrink-0 text-muted-foreground hover:text-foreground">
+                        <Button variant="ghost" size="icon" className="w-8 h-8 sm:w-8 shrink-0 text-muted-foreground hover:text-foreground min-w-[44px] min-h-[44px]">
                           <Paperclip className="w-4 h-4" />
                         </Button>
                       </TooltipTrigger>
@@ -1172,14 +1440,58 @@ function ConversationsPanel() {
                     </Tooltip>
                   </TooltipProvider>
 
-                  {/* Auto-expanding textarea */}
-                  <AutoExpandingTextarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={t('chat.sendMessage')}
-                    disabled={sending}
-                  />
+                  {/* Auto-expanding textarea with @mention support */}
+                  <div className="flex-1 relative">
+                    <AutoExpandingTextarea
+                      value={input}
+                      onChange={(e) => {
+                        setInput(e.target.value);
+                        // Check for @mention trigger
+                        const value = e.target.value;
+                        const cursorPos = e.target.selectionStart;
+                        const textBeforeCursor = value.substring(0, cursorPos);
+                        const atMatch = textBeforeCursor.match(/@(\w[\w-]*)?$/);
+                        if (atMatch) {
+                          setShowSkillMention(true);
+                          setMentionFilter(atMatch[1] || '');
+                        } else {
+                          setShowSkillMention(false);
+                        }
+                      }}
+                      onKeyDown={handleKeyDown}
+                      placeholder={t('chat.sendMessage')}
+                      disabled={sending}
+                    />
+                    {/* @mention skill dropdown */}
+                    {showSkillMention && agentSkillNames.length > 0 && (() => {
+                      const filtered = agentSkillNames.filter((name: string) =>
+                        name.toLowerCase().includes(mentionFilter.toLowerCase())
+                      );
+                      if (filtered.length === 0) return null;
+                      return (
+                        <div className="absolute bottom-full left-0 mb-1 w-56 bg-popover border border-border rounded-lg shadow-lg p-1 z-50">
+                          <p className="text-[10px] text-muted-foreground px-2 py-1">{t('chat.mentionSkill')}</p>
+                          <div className="max-h-32 overflow-y-auto">
+                            {filtered.slice(0, 6).map((skillName: string) => (
+                              <button
+                                key={skillName}
+                                className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-md hover:bg-accent transition-colors text-left"
+                                onClick={() => {
+                                  // Replace @partial with @skill-name
+                                  const newInput = input.replace(/@(\w[\w-]*)?$/, `@${skillName} `);
+                                  setInput(newInput);
+                                  setShowSkillMention(false);
+                                }}
+                              >
+                                <Zap className="w-3 h-3 text-primary shrink-0" />
+                                <span className="truncate">{skillName}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
 
                   {/* Emoji button */}
                   <TooltipProvider>
@@ -1216,12 +1528,12 @@ function ConversationsPanel() {
                     onClick={handleSend}
                     disabled={sending || streaming || !input.trim()}
                     size="icon"
-                    className="w-8 h-8 shrink-0"
+                    className="w-8 h-8 shrink-0 min-w-[44px] min-h-[44px]"
                   >
                     <Send className="w-4 h-4" />
                   </Button>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
+                <p className="text-[10px] text-muted-foreground mt-1.5 text-center hidden sm:block">
                   Enter to send · Shift+Enter for new line
                 </p>
               </div>
@@ -1253,6 +1565,8 @@ function RoomsPanel() {
   const [showMentions, setShowMentions] = useState(false);
   const [roomSearch, setRoomSearch] = useState('');
   const [form, setForm] = useState({ name: '', description: '', isPublic: true, selectedAgentIds: [] as string[] });
+  const [showCollaboration, setShowCollaboration] = useState(false);
+  const [collaborationResults, setCollaborationResults] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -1594,36 +1908,68 @@ function RoomsPanel() {
       <div className="flex-1 flex flex-col min-w-0">
         {selectedRoom ? (
           <>
-            {/* Room Header */}
+            {/* Room Header with Agent Avatars */}
             <div className="px-4 py-2.5 border-b border-border flex items-center justify-between bg-card/50">
-              <div className="flex items-center gap-3">
-                <Avatar className="w-9 h-9">
-                  <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                    <Users className="w-4 h-4" />
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-medium">{selectedRoom.name}</p>
-                  <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative">
+                  <Avatar className="w-9 h-9">
+                    <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                      <Users className="w-4 h-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                  {/* Online count badge */}
+                  {roomAgents.filter((a: any) => a.status === 'online').length > 0 && (
+                    <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 text-[8px] text-white flex items-center justify-center font-medium border-2 border-background">
+                      {roomAgents.filter((a: any) => a.status === 'online').length}
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{selectedRoom.name}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
                     {selectedRoom.description && (
-                      <p className="text-xs text-muted-foreground truncate max-w-48">{selectedRoom.description}</p>
+                      <p className="text-xs text-muted-foreground truncate max-w-36">{selectedRoom.description}</p>
                     )}
+                    {/* Agent avatar circles with status */}
                     {roomAgents.length > 0 && (
-                      <div className="flex items-center gap-1">
-                        {roomAgents.slice(0, 3).map((a: any) => (
-                          <Badge key={a.id} variant="outline" className="text-[10px] gap-1">
-                            <Bot className="w-2.5 h-2.5" /> {a.name}
-                          </Badge>
-                        ))}
-                        {roomAgents.length > 3 && (
-                          <span className="text-[10px] text-muted-foreground">+{roomAgents.length - 3}</span>
+                      <div className="flex items-center -space-x-1.5">
+                        {roomAgents.slice(0, 5).map((a: any, i: number) => {
+                          const agentColor = AGENT_COLORS[i % AGENT_COLORS.length];
+                          return (
+                            <div key={a.id} className="relative" title={`${a.name} (${a.status === 'online' ? t('common.online') : t('common.offline')})`}>
+                              <div className={cn('w-6 h-6 rounded-full flex items-center justify-center border-2 border-background', agentColor.bg)}>
+                                <Bot className={cn('w-3 h-3', agentColor.text)} />
+                              </div>
+                              <span className={cn(
+                                'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-background',
+                                a.status === 'online' ? 'bg-emerald-500' : 'bg-muted-foreground/40'
+                              )} />
+                            </div>
+                          );
+                        })}
+                        {roomAgents.length > 5 && (
+                          <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center border-2 border-background">
+                            <span className="text-[8px] text-muted-foreground font-medium">+{roomAgents.length - 5}</span>
+                          </div>
                         )}
                       </div>
                     )}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Collaborate button */}
+                {roomAgents.length >= 1 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 h-7 text-xs"
+                    onClick={() => setShowCollaboration(true)}
+                  >
+                    <Zap className="w-3.5 h-3.5 text-amber-500" />
+                    <span className="hidden sm:inline">{t('collaboration.collaborate')}</span>
+                  </Button>
+                )}
                 <ContextIndicator type="room" id={selectedRoomId!} />
                 <Button variant="ghost" size="sm" onClick={() => setSelectedRoomId(null)} className="gap-1">
                   <ArrowLeft className="w-3 h-3" /> {t('chat.backToRooms')}
@@ -1634,38 +1980,60 @@ function RoomsPanel() {
             {/* Messages */}
             <ScrollArea className="flex-1 p-4 md:p-6">
               <div className="max-w-3xl mx-auto space-y-3">
-                {roomMessages.map((msg: any, idx: number) => (
-                  <div
-                    key={msg.id || idx}
-                    className={cn(
-                      'flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300',
-                    )}
-                  >
-                    <Avatar className="w-8 h-8 shrink-0">
-                      <AvatarFallback className={cn(
-                        'text-xs',
-                        msg.senderType === 'agent' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-primary text-primary-foreground'
-                      )}>
-                        {msg.senderType === 'agent' ? <Bot className="w-4 h-4" /> : (msg.senderName?.[0] || 'U')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="max-w-[70%]">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-medium">{msg.senderName || 'Unknown'}</span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                      <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-2.5">
-                        {msg.senderType === 'agent' ? (
-                          <MarkdownRenderer content={msg.content} />
+                {roomMessages.map((msg: any, idx: number) => {
+                  // Determine agent color based on agent index in room
+                  const agentIndex = roomAgents.findIndex((a: any) => a.id === msg.senderId || a.name === msg.senderName);
+                  const agentColor = AGENT_COLORS[agentIndex >= 0 ? agentIndex % AGENT_COLORS.length : idx % AGENT_COLORS.length];
+                  const isCollabResult = msg.type === 'collaboration-result';
+                  const isAgentMsg = msg.senderType === 'agent';
+
+                  return (
+                    <div
+                      key={msg.id || idx}
+                      className={cn(
+                        'flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300',
+                      )}
+                    >
+                      <Avatar className="w-8 h-8 shrink-0">
+                        <AvatarFallback className={cn(
+                          'text-xs',
+                          isAgentMsg ? cn(agentColor.bg, agentColor.text) : 'bg-primary text-primary-foreground'
+                        )}>
+                          {isAgentMsg ? <Bot className="w-4 h-4" /> : (msg.senderName?.[0] || 'U')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="max-w-[70%] min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={cn('text-xs font-medium', isAgentMsg && agentColor.text)}>{msg.senderName || 'Unknown'}</span>
+                          {isAgentMsg && (
+                            <Badge variant="outline" className={cn('text-[9px] h-4 px-1 gap-0.5', agentColor.text, agentColor.bg, agentColor.border)}>
+                              <Bot className="w-2.5 h-2.5" /> Agent
+                            </Badge>
+                          )}
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        {isCollabResult ? (
+                          <CollaborationResultCard result={msg.collaborationResult || msg} compact />
                         ) : (
-                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                          <div className={cn(
+                            'rounded-2xl px-4 py-2.5',
+                            isAgentMsg
+                              ? cn(agentColor.bg, 'border rounded-bl-md', agentColor.border)
+                              : 'bg-card border border-border rounded-bl-md'
+                          )}>
+                            {isAgentMsg ? (
+                              <MarkdownRenderer content={msg.content} />
+                            ) : (
+                              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {/* Typing indicator */}
                 {typingAgents.length > 0 && (
@@ -1688,11 +2056,31 @@ function RoomsPanel() {
                   </div>
                 )}
 
-                {roomMessages.length === 0 && typingAgents.length === 0 && (
+                {/* Collaboration results */}
+                {collaborationResults.length > 0 && (
+                  <div className="space-y-3">
+                    {collaborationResults.map((cr: any, i: number) => (
+                      <CollaborationResultCard key={cr.id || i} result={cr} />
+                    ))}
+                  </div>
+                )}
+
+                {roomMessages.length === 0 && typingAgents.length === 0 && collaborationResults.length === 0 && (
                   <div className="text-center py-12">
                     <Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
                     <p className="text-muted-foreground text-sm">{t('chat.noMessages')}</p>
                     <p className="text-muted-foreground text-xs mt-1">{t('chat.startRoomChat')}</p>
+                    {roomAgents.length >= 1 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-4 gap-1.5"
+                        onClick={() => setShowCollaboration(true)}
+                      >
+                        <Zap className="w-3.5 h-3.5 text-amber-500" />
+                        {t('collaboration.collaborate')}
+                      </Button>
+                    )}
                   </div>
                 )}
 
@@ -1700,27 +2088,55 @@ function RoomsPanel() {
               </div>
             </ScrollArea>
 
-            {/* Input with @mention */}
+            {/* Input with @mention + Collaborate button */}
             <div className="p-3 md:p-4 border-t border-border relative">
               {showMentions && filteredMentionAgents.length > 0 && (
                 <div className="absolute bottom-full left-4 right-4 mb-1 bg-popover border border-border rounded-lg shadow-lg max-h-40 overflow-y-auto z-10">
                   <div className="p-1">
                     <p className="text-[10px] text-muted-foreground px-2 py-1">{t('chat.mentionAgents')}</p>
-                    {filteredMentionAgents.map((a: any) => (
-                      <button
-                        key={a.id}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-accent text-left"
-                        onClick={() => handleMentionSelect(a.name)}
-                      >
-                        <Bot className="w-4 h-4 text-primary" />
-                        <span>{a.name}</span>
-                      </button>
-                    ))}
+                    {filteredMentionAgents.map((a: any, i: number) => {
+                      const color = AGENT_COLORS[roomAgents.indexOf(a) >= 0 ? roomAgents.indexOf(a) % AGENT_COLORS.length : i % AGENT_COLORS.length];
+                      return (
+                        <button
+                          key={a.id}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-accent text-left"
+                          onClick={() => handleMentionSelect(a.name)}
+                        >
+                          <div className={cn('w-5 h-5 rounded-full flex items-center justify-center', color?.bg)}>
+                            <Bot className={cn('w-3 h-3', color?.text)} />
+                          </div>
+                          <span>{a.name}</span>
+                          <span className={cn('ml-auto text-[10px]', a.status === 'online' ? 'text-emerald-500' : 'text-muted-foreground')}>
+                            {a.status === 'online' ? t('common.online') : t('common.offline')}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
               <div className="max-w-3xl mx-auto">
                 <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 focus-within:border-primary/50 transition-colors">
+                  {/* Collaborate button in input */}
+                  {roomAgents.length >= 1 && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="w-8 h-8 shrink-0 text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"
+                            onClick={() => setShowCollaboration(true)}
+                          >
+                            <Zap className="w-4 h-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">
+                          {t('collaboration.collaborate')}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                   <div className="flex-1 relative">
                     <Input
                       ref={inputRef}
@@ -1738,6 +2154,39 @@ function RoomsPanel() {
                 </div>
               </div>
             </div>
+
+            {/* Collaboration Dialog */}
+            <CollaborationDialog
+              open={showCollaboration}
+              onOpenChange={setShowCollaboration}
+              roomAgents={roomAgents}
+              roomId={selectedRoomId || ''}
+              onCollaborationComplete={(result) => {
+                const collabResult = result?.collaboration || result;
+                if (collabResult) {
+                  setCollaborationResults((prev) => [...prev, collabResult]);
+                  // Also add agent result messages to the room chat
+                  if (collabResult.results) {
+                    for (const ar of collabResult.results) {
+                      if (ar.success && ar.content) {
+                        setRoomMessages((prev) => [
+                          ...prev,
+                          {
+                            id: `collab-${Date.now()}-${ar.agentId}`,
+                            roomId: selectedRoomId,
+                            senderId: ar.agentId,
+                            senderName: ar.agentName,
+                            content: ar.content,
+                            senderType: 'agent',
+                            timestamp: new Date().toISOString(),
+                          },
+                        ]);
+                      }
+                    }
+                  }
+                }
+              }}
+            />
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center">
