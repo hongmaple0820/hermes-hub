@@ -327,3 +327,43 @@ Unresolved Issues / Next Steps:
 - Add agent collaboration UI (delegate/handoff buttons in chat)
 - Fix 16 pre-existing TypeScript errors in other files
 - Performance optimization for large DAG workflows
+
+---
+Task ID: 7
+Agent: Main Coordinator
+Task: Create comprehensive product documentation and technical architecture documentation
+
+Work Log:
+- Deep exploration of entire project codebase: Prisma schema, 96 API routes, 3 microservices, 14 library modules, 19 view components, i18n locales, store, auth, crypto, rate-limit, etc.
+- Read all key source files to ensure documentation accuracy
+- Created PRODUCT.md (630+ lines) covering:
+  - Product positioning and target users
+  - 19 feature modules with detailed capability tables and implementation status
+  - 12 built-in skills with real vs mock implementation status
+  - User flows for 5 key scenarios
+  - 19 UI views catalog
+  - i18n support (8 languages)
+  - Known limitations, short/mid/long-term roadmap
+  - Version history
+- Created ARCHITECTURE.md (640+ lines) covering:
+  - System architecture diagram (4 microservices + Caddy gateway)
+  - Complete tech stack (60+ production dependencies)
+  - ER diagram and 27 Prisma model details
+  - 96 API routes organized by module with method/description/auth status
+  - Authentication mechanism (JWT dual-mode)
+  - 5 core engine internals (Workflow, Collaboration, Skill Executor, Memory, Agent Reply)
+  - Security architecture (AES-256-GCM, bcrypt, rate limiting, skill protocol auth)
+  - Frontend SPA architecture with Zustand store
+  - 3 microservice details (ports, protocols, features)
+  - Deployment architecture
+  - Complete project directory structure
+  - Key design decisions with rationale
+  - Operations monitoring and health checks
+  - Technical debt inventory
+- Committed and pushed to remote (cff4408)
+
+Stage Summary:
+- Two comprehensive documentation files created: PRODUCT.md and ARCHITECTURE.md
+- Both files are factual, based on actual code review (not assumptions)
+- Documents cover current state accurately including known issues and mock implementations
+- Committed as cff4408 and pushed to github.com/hongmaple0820/hermes-hub main
