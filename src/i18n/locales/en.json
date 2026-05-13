@@ -102,7 +102,8 @@
     "terminal": "Terminal",
     "settings": "Settings",
     "agentControl": "Agent Control",
-    "workflows": "Workflows"
+    "workflows": "Workflows",
+    "analytics": "Analytics"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -299,7 +300,19 @@
     "noProvider": "No LLM provider selected. Agent won't be able to respond.",
     "temperatureRange": "Temperature must be between 0 and 2",
     "maxTokensRange": "Max tokens must be between 1 and 32000",
-    "creatingAgent": "Creating agent..."
+    "creatingAgent": "Creating agent...",
+    "stepName": "Name",
+    "stepModel": "AI Model",
+    "stepSkills": "Capabilities",
+    "nextStep": "Next",
+    "prevStep": "Back",
+    "builtIn": "Built-in",
+    "zaiDescription": "Free built-in AI model — no setup required",
+    "customProvider": "Custom Provider",
+    "customProviderDesc": "Use your own OpenAI-compatible API key",
+    "selectSkillsDesc": "Select capabilities for your agent. Recommended skills are pre-selected.",
+    "recommended": "Recommended",
+    "createAndChat": "Create & Chat"
   },
   "agentDetail": {
     "configuration": "Agent Configuration",
@@ -589,7 +602,12 @@
     "firstMessage3": "Try asking: \"Explain how WebSocket works\"",
     "emptyCapSkills": "Skill Invocation",
     "emptyCapACRP": "ACRP Protocol",
-    "emptyCapMulti": "Multi-Agent Chat"
+    "emptyCapMulti": "Multi-Agent Chat",
+    "suggestionWhatCanYouDo": "What can you do?",
+    "suggestionSearch": "Help me search...",
+    "suggestionTranslate": "Translate a passage",
+    "defaultAgentReady": "Your AI assistant is ready",
+    "agentCapabilities": "Chat · Web Search · Translation"
   },
   "chatRooms": {
     "title": "Chat Rooms",
@@ -1521,6 +1539,7 @@
     "noCapabilitiesHint": "The agent has not registered any capabilities yet"
   },
   "sidebar": {
+    "sectionCore": "Core",
     "sectionMain": "Main",
     "sectionCommunication": "Communication",
     "sectionManagement": "Management",
@@ -1622,6 +1641,18 @@
     "noAcrpAgents": "No ACRP Agents",
     "noAcrpAgentsDesc": "Connect an external agent via WebSocket to get started",
     "connectAgent": "Connect Agent"
+  },
+  "quickstart": {
+    "welcomeTitle": "Welcome to Hermes Hub! Your AI Assistant is Ready",
+    "welcomeSubtitle": "Your AI assistant is configured and ready to help. Start a conversation or customize your setup.",
+    "capChat": "Chat",
+    "capSearch": "Web Search",
+    "capTranslate": "Translation",
+    "startChat": "Start Chat",
+    "starting": "Starting...",
+    "customSetup": "Customize Setup",
+    "defaultAgentDesc": "Your default AI assistant powered by Z-AI",
+    "autoSetup": "Auto Setup"
   },
   "notifications": {
     "title": "Notifications",

@@ -1,14 +1,18 @@
 import { create } from 'zustand';
 
 export type ViewMode =
+  // Core
+  | 'chat'           // Conversations + Chat Rooms (DEFAULT HOME)
+  | 'agents'         // Agent management + LLM providers + Skills (unified)
+  | 'agent-detail'   // Agent detail/edit
+  | 'workflows'      // Workflows + scheduled jobs (automation)
+  | 'analytics'      // Dashboard + Usage stats
+  | 'settings'       // Everything else (channels, memory, logs, files, terminal, profiles)
+  // Legacy (still renderable for backward compat, but hidden from nav)
   | 'dashboard'
-  | 'agents'
-  | 'agent-detail'
   | 'providers'
   | 'skills'
-  | 'chat'
   | 'chat-rooms'
-  | 'settings'
   | 'channels'
   | 'jobs'
   | 'usage'
@@ -18,8 +22,7 @@ export type ViewMode =
   | 'files'
   | 'terminal'
   | 'agent-control'
-  | 'notifications'
-  | 'workflows';
+  | 'notifications';
 
 export interface Notification {
   id: string;
@@ -108,6 +111,10 @@ interface AppState {
   setShowCreateDialog: (dialog: string | null) => void;
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
+
+  // Quick Start
+  needsQuickStart: boolean;
+  setNeedsQuickStart: (needs: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -117,7 +124,7 @@ export const useAppStore = create<AppState>((set) => ({
   setUser: (user) => set({ user, isAuthenticated: !!user }),
 
   // Navigation
-  currentView: 'dashboard',
+  currentView: 'chat',
   setCurrentView: (currentView) => set({ currentView }),
 
   // Agent detail
@@ -211,4 +218,8 @@ export const useAppStore = create<AppState>((set) => ({
   setShowCreateDialog: (showCreateDialog) => set({ showCreateDialog }),
   isLoading: false,
   setIsLoading: (isLoading) => set({ isLoading }),
+
+  // Quick Start
+  needsQuickStart: false,
+  setNeedsQuickStart: (needsQuickStart) => set({ needsQuickStart }),
 }));

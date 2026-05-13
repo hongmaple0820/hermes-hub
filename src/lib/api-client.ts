@@ -818,6 +818,15 @@ class ApiClient {
   async continueConversation(conversationId: string, agentId?: string) {
     return this.post<{ conversationId: string; carriedContext: string }>(`/conversations/${conversationId}/continue`, { agentId });
   }
+
+  // Quickstart
+  async getQuickstartStatus() {
+    return this.get<{ hasProvider: boolean; hasAgent: boolean; hasConversation: boolean; isReady: boolean; defaultAgentId: string | null }>('/quickstart');
+  }
+
+  async quickstartSetup() {
+    return this.post<{ provider: any; agent: any; skills: any[]; message: string }>('/quickstart/setup', {});
+  }
 }
 
 export const api = new ApiClient();

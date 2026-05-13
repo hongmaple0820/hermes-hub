@@ -102,7 +102,8 @@
     "terminal": "终端",
     "settings": "设置",
     "agentControl": "Agent 控制",
-    "workflows": "工作流"
+    "workflows": "工作流",
+    "analytics": "分析"
   },
   "dashboard": {
     "title": "仪表盘",
@@ -299,7 +300,19 @@
     "noProvider": "未选择LLM提供商，智能体将无法响应。",
     "temperatureRange": "温度值必须在0到2之间",
     "maxTokensRange": "最大令牌数必须在1到32000之间",
-    "creatingAgent": "正在创建智能体..."
+    "creatingAgent": "正在创建智能体...",
+    "stepName": "名称",
+    "stepModel": "AI模型",
+    "stepSkills": "能力",
+    "nextStep": "下一步",
+    "prevStep": "上一步",
+    "builtIn": "内置",
+    "zaiDescription": "免费内置AI模型 — 无需配置",
+    "customProvider": "自定义提供商",
+    "customProviderDesc": "使用你自己的OpenAI兼容API密钥",
+    "selectSkillsDesc": "为智能体选择能力，推荐技能已预选。",
+    "recommended": "推荐",
+    "createAndChat": "创建并开始对话"
   },
   "agentDetail": {
     "configuration": "智能体配置",
@@ -588,7 +601,12 @@
     "firstMessage3": "试试问：解释WebSocket的工作原理",
     "emptyCapSkills": "技能调用",
     "emptyCapACRP": "ACRP协议",
-    "emptyCapMulti": "多代理聊天"
+    "emptyCapMulti": "多代理聊天",
+    "suggestionWhatCanYouDo": "你能做什么？",
+    "suggestionSearch": "帮我搜索...",
+    "suggestionTranslate": "翻译一段话",
+    "defaultAgentReady": "你的AI助手已就绪",
+    "agentCapabilities": "聊天 · 网页搜索 · 翻译"
   },
   "chatRooms": {
     "title": "聊天室",
@@ -1520,6 +1538,7 @@
     "noCapabilitiesHint": "该 Agent 尚未注册任何能力"
   },
   "sidebar": {
+    "sectionCore": "核心",
     "sectionMain": "主要",
     "sectionCommunication": "通讯",
     "sectionManagement": "管理",
@@ -1621,6 +1640,18 @@
     "noAcrpAgents": "暂无 ACRP 智能体",
     "noAcrpAgentsDesc": "通过 WebSocket 连接外部智能体开始使用",
     "connectAgent": "连接智能体"
+  },
+  "quickstart": {
+    "welcomeTitle": "欢迎来到 Hermes Hub！你的 AI 助手已就绪",
+    "welcomeSubtitle": "你的AI助手已配置完成，随时为你效劳。开始对话或自定义设置。",
+    "capChat": "聊天",
+    "capSearch": "网页搜索",
+    "capTranslate": "翻译",
+    "startChat": "开始对话",
+    "starting": "正在开始...",
+    "customSetup": "自定义设置",
+    "defaultAgentDesc": "基于 Z-AI 的默认AI助手",
+    "autoSetup": "自动配置"
   },
   "notifications": {
     "title": "通知",

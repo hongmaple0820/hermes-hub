@@ -4,10 +4,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppStore, type ViewMode } from '@/lib/store';
 import { useI18n } from '@/i18n';
 import {
-  LayoutDashboard, Bot, Server, Puzzle, MessageSquare, Users, Settings,
+  Bot, MessageSquare, Settings,
   LogOut, ChevronLeft, ChevronRight, Zap, Languages,
-  Radio, Clock, BarChart3, UserCircle, Brain, ScrollText, Folder, Terminal,
-  Monitor, ChevronDown, Pin, PinOff, Maximize2, Minimize2, GripVertical,
+  BarChart3, ChevronDown, Pin, PinOff, Maximize2, Minimize2, GripVertical,
   HelpCircle, Workflow,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,10 +24,7 @@ interface SidebarProps {
 }
 
 const sectionLabelKeys: Record<string, string> = {
-  main: 'sidebar.sectionMain',
-  communication: 'sidebar.sectionCommunication',
-  management: 'sidebar.sectionManagement',
-  system: 'sidebar.sectionSystem',
+  core: 'sidebar.sectionCore',
 };
 
 interface NavItem {
@@ -41,40 +37,13 @@ interface NavItem {
 
 const navSections: { label: string; items: NavItem[] }[] = [
   {
-    label: 'main',
+    label: 'core',
     items: [
-      { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard, shortcut: '⌘1' },
+      { id: 'chat', labelKey: 'nav.chat', icon: MessageSquare, shortcut: '⌘1' },
       { id: 'agents', labelKey: 'nav.agents', icon: Bot, shortcut: '⌘2' },
-      { id: 'providers', labelKey: 'nav.providers', icon: Server, shortcut: '⌘3' },
-      { id: 'skills', labelKey: 'nav.skills', icon: Puzzle, shortcut: '⌘4' },
-      { id: 'agent-control', labelKey: 'nav.agentControl', icon: Monitor, shortcut: '⌘5', isNew: true },
-      { id: 'channels', labelKey: 'nav.channels', icon: Radio, shortcut: '⌘6' },
-    ],
-  },
-  {
-    label: 'communication',
-    items: [
-      { id: 'chat', labelKey: 'nav.chat', icon: MessageSquare, shortcut: '⌘7' },
-      { id: 'chat-rooms', labelKey: 'nav.chatRooms', icon: Users, shortcut: '⌘8' },
-    ],
-  },
-  {
-    label: 'management',
-    items: [
-      { id: 'jobs', labelKey: 'nav.jobs', icon: Clock },
-      { id: 'usage', labelKey: 'nav.usage', icon: BarChart3 },
-      { id: 'profiles', labelKey: 'nav.profiles', icon: UserCircle },
-      { id: 'memory', labelKey: 'nav.memory', icon: Brain },
-      { id: 'workflows', labelKey: 'nav.workflows', icon: Workflow, isNew: true },
-    ],
-  },
-  {
-    label: 'system',
-    items: [
-      { id: 'logs', labelKey: 'nav.logs', icon: ScrollText },
-      { id: 'files', labelKey: 'nav.files', icon: Folder },
-      { id: 'terminal', labelKey: 'nav.terminal', icon: Terminal },
-      { id: 'settings', labelKey: 'nav.settings', icon: Settings, shortcut: '⌘,' },
+      { id: 'workflows', labelKey: 'nav.workflows', icon: Workflow, shortcut: '⌘3' },
+      { id: 'analytics', labelKey: 'nav.analytics', icon: BarChart3, shortcut: '⌘4' },
+      { id: 'settings', labelKey: 'nav.settings', icon: Settings, shortcut: '⌘5' },
     ],
   },
 ];

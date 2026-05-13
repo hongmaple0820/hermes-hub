@@ -1,41 +1,54 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { useAppStore, ViewMode } from '@/lib/store';
 
 import { api } from '@/lib/api-client';
 import { I18nProvider } from '@/i18n';
 import { Sidebar } from '@/components/layout/Sidebar';
-import { Dashboard } from '@/components/views/Dashboard';
-import { AgentManager } from '@/components/views/AgentManager';
-import { AgentDetail } from '@/components/views/AgentDetail';
-import { ProviderManager } from '@/components/views/ProviderManager';
-import { SkillMarketplace } from '@/components/views/SkillMarketplace';
-import { ChatView } from '@/components/views/ChatView';
-import { ChatRoomManager } from '@/components/views/ChatRoomManager';
-import { Settings } from '@/components/views/Settings';
-import { ChannelsView } from '@/components/views/ChannelsView';
-import { JobsView } from '@/components/views/JobsView';
-import { UsageView } from '@/components/views/UsageView';
-import { ProfilesView } from '@/components/views/ProfilesView';
-import { MemoryView } from '@/components/views/MemoryView';
-import { LogsView } from '@/components/views/LogsView';
-import { FilesView } from '@/components/views/FilesView';
-import { TerminalView } from '@/components/views/TerminalView';
-import { AgentControlCenter } from '@/components/views/AgentControlCenter';
-import { WorkflowEditor } from '@/components/views/WorkflowEditor';
-import { SessionSearch } from '@/components/views/SessionSearch';
-import { AuthPage } from '@/components/auth/AuthPage';
 import { Toaster, toast } from 'sonner';
-import { CommandPalette } from '@/components/shared/CommandPalette';
-import { KeyboardShortcutsHelp } from '@/components/shared/KeyboardShortcutsHelp';
-import { WelcomeOnboarding, isOnboardingCompleted } from '@/components/shared/WelcomeOnboarding';
-import { NotificationBell } from '@/components/shared/NotificationBell';
-import { NotificationPanel } from '@/components/shared/NotificationPanel';
+import { AuthPage } from '@/components/auth/AuthPage';
 
-// Error boundary - must be a class component to catch render errors
-// Using React.Component pattern to avoid naming conflicts with named imports
+// Lazy-load all view components to reduce initial bundle size and memory usage
+const Dashboard = lazy(() => import('@/components/views/Dashboard').then(m => ({ default: m.Dashboard })));
+const AgentManager = lazy(() => import('@/components/views/AgentManager').then(m => ({ default: m.AgentManager })));
+const AgentDetail = lazy(() => import('@/components/views/AgentDetail').then(m => ({ default: m.AgentDetail })));
+const ProviderManager = lazy(() => import('@/components/views/ProviderManager').then(m => ({ default: m.ProviderManager })));
+const SkillMarketplace = lazy(() => import('@/components/views/SkillMarketplace').then(m => ({ default: m.SkillMarketplace })));
+const ChatView = lazy(() => import('@/components/views/ChatView').then(m => ({ default: m.ChatView })));
+const ChatRoomManager = lazy(() => import('@/components/views/ChatRoomManager').then(m => ({ default: m.ChatRoomManager })));
+const Settings = lazy(() => import('@/components/views/Settings').then(m => ({ default: m.Settings })));
+const ChannelsView = lazy(() => import('@/components/views/ChannelsView').then(m => ({ default: m.ChannelsView })));
+const JobsView = lazy(() => import('@/components/views/JobsView').then(m => ({ default: m.JobsView })));
+const UsageView = lazy(() => import('@/components/views/UsageView').then(m => ({ default: m.UsageView })));
+const ProfilesView = lazy(() => import('@/components/views/ProfilesView').then(m => ({ default: m.ProfilesView })));
+const MemoryView = lazy(() => import('@/components/views/MemoryView').then(m => ({ default: m.MemoryView })));
+const LogsView = lazy(() => import('@/components/views/LogsView').then(m => ({ default: m.LogsView })));
+const FilesView = lazy(() => import('@/components/views/FilesView').then(m => ({ default: m.FilesView })));
+const TerminalView = lazy(() => import('@/components/views/TerminalView').then(m => ({ default: m.TerminalView })));
+const AgentControlCenter = lazy(() => import('@/components/views/AgentControlCenter').then(m => ({ default: m.AgentControlCenter })));
+const WorkflowEditor = lazy(() => import('@/components/views/WorkflowEditor').then(m => ({ default: m.WorkflowEditor })));
+const SessionSearch = lazy(() => import('@/components/views/SessionSearch').then(m => ({ default: m.SessionSearch })));
+const CommandPalette = lazy(() => import('@/components/shared/CommandPalette').then(m => ({ default: m.CommandPalette })));
+const KeyboardShortcutsHelp = lazy(() => import('@/components/shared/KeyboardShortcutsHelp').then(m => ({ default: m.KeyboardShortcutsHelp })));
+const WelcomeOnboarding = lazy(() => import('@/components/shared/WelcomeOnboarding').then(m => ({ default: m.WelcomeOnboarding })));
+const NotificationBell = lazy(() => import('@/components/shared/NotificationBell').then(m => ({ default: m.NotificationBell })));
+const NotificationPanel = lazy(() => import('@/components/shared/NotificationPanel').then(m => ({ default: m.NotificationPanel })));
+const QuickStart = lazy(() => import('@/components/shared/QuickStart').then(m => ({ default: m.QuickStart })));
+
 import React from 'react';
+
+// Loading spinner for lazy-loaded components
+function ViewLoader() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <span className="text-sm text-muted-foreground">Loading...</span>
+      </div>
+    </div>
+  );
+}
 
 class ViewErrorBoundary extends React.Component<{
   children: React.ReactNode;
@@ -93,6 +106,7 @@ function AppContent() {
     currentView, setCurrentView,
     setProviders, setAgents, setSkills, setConversations, setChatRooms,
     isLoading, setIsLoading,
+    needsQuickStart, setNeedsQuickStart,
   } = useAppStore();
 
   const [initialized, setInitialized] = useState(false);
@@ -100,22 +114,17 @@ function AppContent() {
   const [keyboardHelpOpen, setKeyboardHelpOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // Check for existing session on mount — try to restore from localStorage, then validate via API
   useEffect(() => {
     const restoreSession = async () => {
       if (api.tryRestoreAuth()) {
         try {
-          // Validate the stored JWT token against the server
           const { user: restoredUser } = await api.getAuthMe();
           setUser(restoredUser);
-          // Also store user data for faster future loads
           localStorage.setItem('hermes_user', JSON.stringify(restoredUser));
-          // Check if onboarding is needed for existing users
           if (!isOnboardingCompleted()) {
             setShowOnboarding(true);
           }
         } catch {
-          // Access token might be expired — try refreshing
           try {
             const refreshed = await api.refreshToken();
             if (refreshed) {
@@ -129,20 +138,17 @@ function AppContent() {
               throw new Error('Refresh failed');
             }
           } catch {
-            // Server validation failed — clear invalid auth
             api.logout();
             localStorage.removeItem('hermes_user');
             localStorage.removeItem('hermes_token');
           }
         }
       } else {
-        // No persisted auth — try legacy keys for backward compatibility
         const legacyToken = localStorage.getItem('hermes_token');
         const legacyUser = localStorage.getItem('hermes_user');
         if (legacyToken && legacyUser) {
           try {
-            api.setUserId(legacyToken); // This will persist to new key
-            // Validate via server
+            api.setUserId(legacyToken);
             const { user: restoredUser } = await api.getAuthMe();
             setUser(restoredUser);
             localStorage.setItem('hermes_user', JSON.stringify(restoredUser));
@@ -161,7 +167,6 @@ function AppContent() {
     restoreSession();
   }, [setUser]);
 
-  // Load data when authenticated
   const loadData = useCallback(async () => {
     if (!isAuthenticated) return;
     setIsLoading(true);
@@ -177,7 +182,6 @@ function AppContent() {
       setProviders(providers.providers || []);
       setAgents(agents.agents || []);
 
-      // If no skills, seed them
       if (!skills.skills || skills.skills.length === 0) {
         await api.seedSkills().catch(() => {});
         const seeded = await api.getSkills().catch(() => ({ skills: [] }));
@@ -188,12 +192,26 @@ function AppContent() {
 
       setConversations(conversations.conversations || []);
       setChatRooms(chatRooms.rooms || []);
+
+      // Check quickstart status
+      try {
+        const qsStatus = await api.getQuickstartStatus();
+        if (!qsStatus.isReady) {
+          setNeedsQuickStart(true);
+        } else {
+          setNeedsQuickStart(false);
+        }
+      } catch {
+        const hasProvider = (providers.providers || []).length > 0;
+        const hasAgent = (agents.agents || []).length > 0;
+        setNeedsQuickStart(!hasProvider || !hasAgent);
+      }
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, setProviders, setAgents, setSkills, setConversations, setChatRooms, setIsLoading]);
+  }, [isAuthenticated, setProviders, setAgents, setSkills, setConversations, setChatRooms, setIsLoading, setNeedsQuickStart]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -201,7 +219,6 @@ function AppContent() {
     }
   }, [isAuthenticated, loadData]);
 
-  // Global keyboard shortcuts
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -209,30 +226,24 @@ function AppContent() {
       const mod = e.metaKey || e.ctrlKey;
       if (!mod) return;
 
-      // Cmd+K → Command Palette
       if (e.key === 'k') {
         e.preventDefault();
         setCommandPaletteOpen((prev) => !prev);
         return;
       }
 
-      // Cmd+/ → Keyboard Shortcuts Help
       if (e.key === '/') {
         e.preventDefault();
         setKeyboardHelpOpen((prev) => !prev);
         return;
       }
 
-      // Number shortcuts for navigation
       const viewMap: Record<string, ViewMode> = {
-        '1': 'dashboard',
+        '1': 'chat',
         '2': 'agents',
-        '3': 'providers',
-        '4': 'skills',
-        '5': 'agent-control',
-        '6': 'channels',
-        '7': 'chat',
-        '8': 'chat-rooms',
+        '3': 'workflows',
+        '4': 'analytics',
+        '5': 'settings',
       };
 
       if (e.key === ',') {
@@ -258,11 +269,10 @@ function AppContent() {
         : await api.login(email, password);
 
       const { user: userData, token } = result;
-      api.setAuth(token, userData.id); // Store JWT token + userId, persists to localStorage
+      api.setAuth(token, userData.id);
       setUser(userData);
       localStorage.setItem('hermes_user', JSON.stringify(userData));
       toast.success(isRegister ? 'Account created!' : 'Welcome back!');
-      // Show onboarding for new users after registration
       if (isRegister && !isOnboardingCompleted()) {
         setShowOnboarding(true);
       }
@@ -273,7 +283,7 @@ function AppContent() {
   };
 
   const handleLogout = () => {
-    api.logout(); // Clears JWT token, userId, persisted auth, and calls /api/auth/logout to clear cookies
+    api.logout();
     setUser(null);
     localStorage.removeItem('hermes_token');
     localStorage.removeItem('hermes_user');
@@ -283,7 +293,6 @@ function AppContent() {
   if (!initialized) {
     return (
       <div className="min-h-screen flex bg-background">
-        {/* Sidebar skeleton */}
         <aside className="w-64 h-screen flex flex-col border-r border-border bg-card shrink-0">
           <div className="flex items-center gap-3 p-4 border-b border-border">
             <div className="w-9 h-9 rounded-lg bg-muted animate-pulse" />
@@ -293,40 +302,20 @@ function AppContent() {
             </div>
           </div>
           <nav className="flex-1 p-2 space-y-1">
-            {Array.from({ length: 8 }).map((_, i) => (
+            {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg">
                 <div className="w-[18px] h-[18px] rounded bg-muted animate-pulse" />
                 <div className="w-20 h-3 rounded bg-muted animate-pulse" />
               </div>
             ))}
           </nav>
-          <div className="p-3 border-t border-border">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-muted animate-pulse" />
-              <div className="flex flex-col gap-1.5 flex-1">
-                <div className="w-16 h-3 rounded bg-muted animate-pulse" />
-                <div className="w-24 h-2.5 rounded bg-muted animate-pulse" />
-              </div>
-            </div>
-          </div>
         </aside>
-        {/* Main content skeleton */}
         <main className="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
           <div className="h-24 rounded-xl bg-muted animate-pulse" />
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
             ))}
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-36 rounded-xl bg-muted animate-pulse" />
-            ))}
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="h-64 rounded-xl bg-muted animate-pulse" />
-            <div className="h-64 rounded-xl bg-muted animate-pulse" />
-            <div className="h-64 rounded-xl bg-muted animate-pulse" />
           </div>
         </main>
       </div>
@@ -354,7 +343,6 @@ function AppContent() {
         return <ProviderManager />;
       case 'skills':
         return <SkillMarketplace />;
-
       case 'chat':
         return <ChatView />;
       case 'chat-rooms':
@@ -377,6 +365,8 @@ function AppContent() {
         return <TerminalView />;
       case 'agent-control':
         return <AgentControlCenter />;
+      case 'analytics':
+        return <Dashboard />;
       case 'workflows':
         return <WorkflowEditor />;
       case 'notifications':
@@ -392,9 +382,10 @@ function AppContent() {
     <div className="min-h-screen flex bg-background">
       <Sidebar onLogout={handleLogout} onOpenKeyboardHelp={() => setKeyboardHelpOpen(true)} />
       <main className="flex-1 overflow-auto relative">
-        {/* Notification Bell - Fixed top right */}
         <div className="fixed top-4 right-4 z-40">
-          <NotificationBell />
+          <Suspense fallback={null}>
+            <NotificationBell />
+          </Suspense>
         </div>
         {isLoading ? (
           <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -404,30 +395,44 @@ function AppContent() {
                 <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
               ))}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-36 rounded-xl bg-muted animate-pulse" />
-              ))}
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="h-64 rounded-xl bg-muted animate-pulse" />
-              <div className="h-64 rounded-xl bg-muted animate-pulse" />
-              <div className="h-64 rounded-xl bg-muted animate-pulse" />
-            </div>
           </div>
         ) : (
           <ViewErrorBoundary viewName={currentView}>
-            <div key={currentView} className="animate-in fade-in">{renderView()}</div>
+            <Suspense fallback={<ViewLoader />}>
+              <div key={currentView} className="animate-in fade-in">{renderView()}</div>
+            </Suspense>
           </ViewErrorBoundary>
         )}
       </main>
-      <SessionSearch />
-      <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
-      <KeyboardShortcutsHelp open={keyboardHelpOpen} onOpenChange={setKeyboardHelpOpen} />
-      <WelcomeOnboarding open={showOnboarding} onComplete={() => setShowOnboarding(false)} />
+      <Suspense fallback={null}>
+        <SessionSearch />
+        <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
+        <KeyboardShortcutsHelp open={keyboardHelpOpen} onOpenChange={setKeyboardHelpOpen} />
+        <WelcomeOnboarding open={showOnboarding} onComplete={() => setShowOnboarding(false)} />
+      </Suspense>
+      {needsQuickStart && (
+        <Suspense fallback={null}>
+          <QuickStart
+            onStarted={() => {
+              setNeedsQuickStart(false);
+              loadData();
+            }}
+          />
+        </Suspense>
+      )}
       <Toaster />
     </div>
   );
+}
+
+// Helper for onboarding check (outside component)
+function isOnboardingCompleted(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem('hermes_onboarding_completed') === 'true';
+  } catch {
+    return false;
+  }
 }
 
 export default function Home() {

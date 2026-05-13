@@ -313,8 +313,17 @@ function AutoExpandingTextarea({
 // Sub-component: Empty State
 // ---------------------------------------------------------------------------
 function EmptyChatState({ onStartChat }: { onStartChat: () => void }) {
-  const { agents } = useAppStore();
+  const { agents, conversations } = useAppStore();
   const { t } = useI18n();
+
+  const defaultAgent = agents.find((a: any) => a.name === 'Hermes Assistant') || agents[0];
+  const hasNoConversations = conversations.length === 0;
+
+  const quickSuggestions = [
+    { icon: <Sparkles className="w-4 h-4" />, text: t('chat.suggestionWhatCanYouDo') },
+    { icon: <Globe className="w-4 h-4" />, text: t('chat.suggestionSearch') },
+    { icon: <Code className="w-4 h-4" />, text: t('chat.suggestionTranslate') },
+  ];
 
   const suggestions = [
     { icon: <Sparkles className="w-4 h-4" />, text: t('chat.firstMessage1'), gradient: 'from-emerald-500/10 to-emerald-500/5' },
@@ -364,36 +373,111 @@ function EmptyChatState({ onStartChat }: { onStartChat: () => void }) {
         <p className="text-sm text-muted-foreground max-w-md">{t('chat.emptyDescription')}</p>
       </motion.div>
 
-      {/* Capabilities showcase */}
-      <motion.div
-        className="flex items-center gap-4 mb-6"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        {capabilities.map((cap, i) => (
-          <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/30">
-            <span className="text-primary">{cap.icon}</span>
-            <span className="text-xs text-muted-foreground">{cap.label}</span>
-          </div>
-        ))}
-      </motion.div>
+      {/* Default Agent Prominent Card - shown when no conversations exist */}
+      {hasNoConversations && defaultAgent && (
+        <motion.div
+          className="w-full max-w-sm mb-6"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.18 }}
+        >
+          <Card
+            className="cursor-pointer border-2 border-primary/20 hover:border-primary/40 hover:shadow-lg transition-all duration-200 active:scale-[0.98] overflow-hidden"
+            onClick={onStartChat}
+          >
+            <div className="h-1 bg-gradient-to-r from-emerald-500 via-primary to-cyan-500" />
+            <CardContent className="p-5 flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Bot className="w-7 h-7 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-base truncate">{defaultAgent.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                  {defaultAgent.description || t('chat.defaultAgentReady')}
+                </p>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span className="text-[10px] text-emerald-600">{t('common.online')}</span>
+                  <span className="text-[10px] text-muted-foreground">·</span>
+                  <span className="text-[10px] text-muted-foreground">{t('chat.agentCapabilities')}</span>
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
-      {/* Create New Chat Button */}
-      <motion.div
-        className="mb-8"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.25 }}
-      >
-        <Button onClick={onStartChat} className="gap-2 shadow-md hover:shadow-lg transition-shadow">
-          <Plus className="w-4 h-4" />
-          {t('chat.startNewChat')}
-        </Button>
-      </motion.div>
+      {/* Big Start Chat Button - shown when no conversations exist */}
+      {hasNoConversations && (
+        <motion.div
+          className="mb-6"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.22 }}
+        >
+          <Button onClick={onStartChat} size="lg" className="gap-2 shadow-md hover:shadow-lg transition-shadow h-12 px-6 text-base">
+            <MessageSquare className="w-5 h-5" />
+            {t('chat.startNewChat')}
+          </Button>
+        </motion.div>
+      )}
+
+      {/* Quick suggestion chips */}
+      {hasNoConversations && (
+        <motion.div
+          className="flex flex-wrap items-center justify-center gap-2 mb-6"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.25 }}
+        >
+          {quickSuggestions.map((s, i) => (
+            <button
+              key={i}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-background hover:bg-accent hover:border-primary/30 transition-all duration-200 text-sm text-muted-foreground hover:text-foreground"
+              onClick={onStartChat}
+            >
+              <span className="text-primary">{s.icon}</span>
+              {s.text}
+            </button>
+          ))}
+        </motion.div>
+      )}
+
+      {/* Capabilities showcase */}
+      {!hasNoConversations && (
+        <motion.div
+          className="flex items-center gap-4 mb-6"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          {capabilities.map((cap, i) => (
+            <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/30">
+              <span className="text-primary">{cap.icon}</span>
+              <span className="text-xs text-muted-foreground">{cap.label}</span>
+            </div>
+          ))}
+        </motion.div>
+      )}
+
+      {/* Regular Start Chat Button (when has conversations) */}
+      {!hasNoConversations && (
+        <motion.div
+          className="mb-8"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.25 }}
+        >
+          <Button onClick={onStartChat} className="gap-2 shadow-md hover:shadow-lg transition-shadow">
+            <Plus className="w-4 h-4" />
+            {t('chat.startNewChat')}
+          </Button>
+        </motion.div>
+      )}
 
       {/* Agent Cards */}
-      {agents.length > 0 && (
+      {agents.length > 0 && !hasNoConversations && (
         <motion.div
           className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg mb-6"
           initial={{ opacity: 0, y: 10 }}
@@ -813,9 +897,30 @@ function ConversationsPanel() {
                 </DialogHeader>
                 <div className="space-y-2 mt-4">
                   {agents.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      {t('chat.noAgents')}
-                    </p>
+                    <div className="text-center py-6 space-y-3">
+                      <Bot className="w-10 h-10 text-muted-foreground/40 mx-auto" />
+                      <p className="text-sm text-muted-foreground">{t('chat.noAgents')}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={async () => {
+                          try {
+                            await api.quickstartSetup();
+                            setShowNewChat(false);
+                            // Reload data so agents appear
+                            const agentsResult = await api.getAgents();
+                            const { setAgents } = useAppStore.getState();
+                            setAgents(agentsResult.agents || []);
+                          } catch (error: any) {
+                            toast.error(error.message);
+                          }
+                        }}
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        {t('quickstart.autoSetup')}
+                      </Button>
+                    </div>
                   ) : (
                     agents.map((agent: any) => (
                       <div

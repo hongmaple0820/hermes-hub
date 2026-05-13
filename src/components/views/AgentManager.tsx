@@ -13,7 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Bot, Plus, Trash2, Eye, MoreHorizontal, Pencil, Search, Wifi, WifiOff, Clock, Sparkles, AlertTriangle, Loader2, AlertCircle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Bot, Plus, Trash2, Eye, MoreHorizontal, Pencil, Search, Wifi, WifiOff, Clock, Sparkles, AlertTriangle, Loader2, AlertCircle, ArrowRight, ArrowLeft, Check as CheckIcon } from 'lucide-react';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
@@ -86,6 +87,11 @@ export function AgentManager() {
 
   // Validation errors
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+  // Simplified create wizard steps
+  const [createStep, setCreateStep] = useState(1); // 1: Name, 2: Model, 3: Skills
+  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
+  const [useZAI, setUseZAI] = useState(true);
 
   // Agent status auto-refresh
   const [agentStatuses, setAgentStatuses] = useState<Record<string, { status: string; wsConnected: boolean; lastHeartbeatAt: string | null }>>({});
@@ -163,19 +169,42 @@ export function AgentManager() {
   const handleCreate = async () => {
     if (!validateForm()) return;
 
-    // Show warning for no provider in builtin mode
-    if (form.mode === 'builtin' && !form.providerId) {
-      toast.warning(t('agents.noProvider'));
-    }
-
     setCreating(true);
     try {
+      let providerId = form.providerId;
+
+      // If using Z-AI, find or create the built-in provider
+      if (useZAI) {
+        const existingZAI = providers.find((p: any) => p.provider === 'z-ai');
+        if (existingZAI) {
+          providerId = existingZAI.id;
+        } else {
+          // Run quickstart setup to get Z-AI provider
+          try {
+            await api.quickstartSetup();
+            const providersResult = await api.getProviders();
+            const zaiProvider = (providersResult.providers || []).find((p: any) => p.provider === 'z-ai');
+            if (zaiProvider) {
+              providerId = zaiProvider.id;
+              const { setProviders } = useAppStore.getState();
+              setProviders(providersResult.providers || []);
+            }
+          } catch {
+            toast.warning(t('agents.noProvider'));
+          }
+        }
+      }
+
       const createData: any = {
-        ...form,
-        providerId: form.providerId || undefined,
+        name: form.name,
+        description: form.description,
+        systemPrompt: form.systemPrompt || undefined,
+        mode: form.mode,
+        providerId: providerId || undefined,
         model: form.model || undefined,
         temperature: Math.round(form.temperature * 10) / 10,
         maxTokens: form.maxTokens,
+        isPublic: form.isPublic,
       };
       if (form.mode === 'acrp') {
         createData.agentType = form.agentType;
@@ -185,6 +214,18 @@ export function AgentManager() {
       setAgents([result.agent, ...agents]);
       setShowCreate(false);
       setValidationErrors({});
+      setCreateStep(1);
+
+      // Auto-install selected skills
+      if (selectedSkillIds.length > 0 && result.agent?.id) {
+        for (const skillId of selectedSkillIds) {
+          try {
+            await api.installSkill(skillId, { agentId: result.agent.id });
+          } catch {
+            // Skip individual skill installation failures
+          }
+        }
+      }
 
       if (form.mode === 'acrp') {
         setCreatedAcrpAgent(result.agent);
@@ -192,8 +233,20 @@ export function AgentManager() {
       }
 
       setForm({ ...defaultForm });
+      setSelectedSkillIds([]);
       if (form.mode !== 'acrp') {
         toast.success(t('agents.created'));
+        // Navigate to chat with the new agent
+        try {
+          const convResult = await api.createConversation({ agentId: result.agent.id });
+          const convs = await api.getConversations();
+          const { setConversations, setSelectedConversationId, setCurrentView } = useAppStore.getState();
+          setConversations(convs.conversations || []);
+          setSelectedConversationId(convResult.conversation.id);
+          setCurrentView('chat');
+        } catch {
+          // Navigation to chat is optional - still show success
+        }
       }
     } catch (error: any) {
       const errMsg = error?.message || 'Unknown error';
@@ -521,8 +574,8 @@ export function AgentManager() {
           <h1 className="text-2xl font-bold">{t('agents.title')}</h1>
           <p className="text-muted-foreground text-sm">{t('agents.subtitle')}</p>
         </div>
-        <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) { setForm({ ...defaultForm }); setValidationErrors({}); } }}>
-          <Button className="gap-2" onClick={() => setShowCreate(true)}>
+        <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) { setForm({ ...defaultForm }); setValidationErrors({}); setCreateStep(1); setSelectedSkillIds([]); } }}>
+          <Button className="gap-2" onClick={() => { setShowCreate(true); setCreateStep(1); }}>
             <Plus className="w-4 h-4" /> {t('agents.create')}
           </Button>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -530,7 +583,196 @@ export function AgentManager() {
               <DialogTitle>{t('agents.createTitle')}</DialogTitle>
               <DialogDescription className="sr-only">{t('agents.createTitle')}</DialogDescription>
             </DialogHeader>
-            {renderFormFields(false)}
+
+            {/* Step indicator */}
+            <div className="flex items-center gap-2 mt-2 mb-4">
+              {[1, 2, 3].map((step) => (
+                <div key={step} className="flex items-center gap-2 flex-1">
+                  <div className={cn(
+                    'w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium shrink-0 transition-colors',
+                    createStep === step ? 'bg-primary text-primary-foreground' :
+                    createStep > step ? 'bg-emerald-500 text-white' : 'bg-muted text-muted-foreground'
+                  )}>
+                    {createStep > step ? <CheckIcon className="w-3.5 h-3.5" /> : step}
+                  </div>
+                  <span className={cn(
+                    'text-xs hidden sm:inline',
+                    createStep === step ? 'text-foreground font-medium' : 'text-muted-foreground'
+                  )}>
+                    {step === 1 ? t('agents.stepName') : step === 2 ? t('agents.stepModel') : t('agents.stepSkills')}
+                  </span>
+                  {step < 3 && <div className={cn('flex-1 h-0.5', createStep > step ? 'bg-emerald-500' : 'bg-muted')} />}
+                </div>
+              ))}
+            </div>
+
+            {/* Step 1: Name + Description */}
+            {createStep === 1 && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>{t('agents.nameLabel')} *</Label>
+                  <Input
+                    placeholder={t('agents.namePlaceholder')}
+                    value={form.name}
+                    onChange={(e) => { setForm({ ...form, name: e.target.value }); if (validationErrors.name) setValidationErrors({ ...validationErrors, name: '' }); }}
+                    className={cn(validationErrors.name && 'border-red-500 focus-visible:ring-red-500')}
+                  />
+                  {validationErrors.name && (
+                    <p className="text-xs text-red-500 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" /> {validationErrors.name}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('agents.descriptionLabel')}</Label>
+                  <Textarea
+                    placeholder={t('agents.descriptionPlaceholder')}
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t('agents.modeLabel')}</Label>
+                  <Select value={form.mode} onValueChange={(v) => setForm({ ...form, mode: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="builtin">{t('agents.modeBuiltin')}</SelectItem>
+                      <SelectItem value="acrp">{t('agents.modeAcrp')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button className="w-full" onClick={() => { if (!form.name.trim()) { setValidationErrors({ name: t('agents.nameRequired') }); return; } setCreateStep(2); }}>
+                  {t('agents.nextStep')} <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            )}
+
+            {/* Step 2: AI Model */}
+            {createStep === 2 && (
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div
+                    className={cn(
+                      'p-4 rounded-lg border-2 cursor-pointer transition-all',
+                      useZAI ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'
+                    )}
+                    onClick={() => setUseZAI(true)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Sparkles className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">Z-AI {t('agents.builtIn')}</p>
+                        <p className="text-xs text-muted-foreground">{t('agents.zaiDescription')}</p>
+                      </div>
+                      {useZAI && <CheckIcon className="w-5 h-5 text-primary shrink-0" />}
+                    </div>
+                  </div>
+                  <div
+                    className={cn(
+                      'p-4 rounded-lg border-2 cursor-pointer transition-all',
+                      !useZAI ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'
+                    )}
+                    onClick={() => setUseZAI(false)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                        <Bot className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{t('agents.customProvider')}</p>
+                        <p className="text-xs text-muted-foreground">{t('agents.customProviderDesc')}</p>
+                      </div>
+                      {!useZAI && <CheckIcon className="w-5 h-5 text-primary shrink-0" />}
+                    </div>
+                  </div>
+                </div>
+
+                {!useZAI && (
+                  <div className="space-y-2">
+                    <Label>{t('agents.providerLabel')}</Label>
+                    <Select value={form.providerId} onValueChange={(v) => setForm({ ...form, providerId: v })}>
+                      <SelectTrigger><SelectValue placeholder={t('agents.providerPlaceholder')} /></SelectTrigger>
+                      <SelectContent>
+                        {providers.length === 0 ? (
+                          <SelectItem value="none" disabled>{t('agents.noProviders')}</SelectItem>
+                        ) : (
+                          providers.map((p: any) => (
+                            <SelectItem key={p.id} value={p.id}>{p.name} ({p.provider})</SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <div className="space-y-2">
+                      <Label>{t('agents.modelOverride')}</Label>
+                      <Input placeholder={t('agents.modelOverridePlaceholder')} value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setCreateStep(1)}>
+                    <ArrowLeft className="w-4 h-4 mr-1" /> {t('agents.prevStep')}
+                  </Button>
+                  <Button className="flex-1" onClick={() => setCreateStep(3)}>
+                    {t('agents.nextStep')} <ArrowRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Capabilities / Skills */}
+            {createStep === 3 && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">{t('agents.selectSkillsDesc')}</p>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {skills
+                    .filter((s: any) => s.category === 'builtin' || s.category === 'communication' || s.category === 'search' || s.category === 'productivity')
+                    .slice(0, 12)
+                    .map((skill: any) => {
+                    const isSelected = selectedSkillIds.includes(skill.id);
+                    const isDefault = skill.name === 'web-search' || skill.name === 'translation';
+                    return (
+                      <div
+                        key={skill.id}
+                        className={cn(
+                          'flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer',
+                          isSelected ? 'border-primary/50 bg-primary/5' : 'border-border hover:border-primary/30'
+                        )}
+                        onClick={() => {
+                          setSelectedSkillIds(prev =>
+                            isSelected ? prev.filter(id => id !== skill.id) : [...prev, skill.id]
+                          );
+                        }}
+                      >
+                        <Checkbox checked={isSelected} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{skill.displayName || skill.name}</span>
+                            {isDefault && (
+                              <Badge variant="outline" className="text-[9px] h-4 px-1 text-emerald-600 border-emerald-200">
+                                {t('agents.recommended')}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground line-clamp-1">{skill.description || ''}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setCreateStep(2)}>
+                    <ArrowLeft className="w-4 h-4 mr-1" /> {t('agents.prevStep')}
+                  </Button>
+                  <Button className="flex-1" onClick={handleCreate} disabled={creating}>
+                    {creating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t('agents.creatingAgent')}</> : t('agents.createAndChat')}
+                  </Button>
+                </div>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>

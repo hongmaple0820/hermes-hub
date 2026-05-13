@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
 import { signAccessToken, signRefreshToken, ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE, COOKIE_OPTIONS, REFRESH_COOKIE_OPTIONS } from '@/lib/jwt';
+import { performQuickstartSetup } from '@/app/api/quickstart/setup/route';
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,6 +39,15 @@ export async function POST(request: NextRequest) {
         id: true, email: true, name: true, avatar: true, bio: true, role: true, status: true, createdAt: true,
       },
     });
+
+    // Auto-configure quickstart setup for new users:
+    // Create Z-AI built-in provider, default agent, and install basic skills
+    try {
+      await performQuickstartSetup(user.id);
+    } catch (setupError) {
+      // Log but don't fail registration if quickstart setup fails
+      console.error('Quickstart auto-setup failed for user', user.id, ':', setupError);
+    }
 
     // Issue JWT tokens
     const accessToken = await signAccessToken({ userId: user.id, email: user.email, role: user.role });
