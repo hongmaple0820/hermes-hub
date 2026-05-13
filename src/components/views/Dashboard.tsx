@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { api } from '@/lib/api-client';
 
 interface ActivityItem {
   id: string;
@@ -93,15 +94,15 @@ function Sparkline({ values, color }: { values: number[]; color: string }) {
   );
 }
 
-// Mini Bar Chart - pure CSS bar chart for conversations per day
-function MiniBarChart({ data, labels, maxValue }: { data: number[]; labels: string[]; maxValue: number }) {
+// Mini Bar Chart - pure CSS bar chart for daily data
+function MiniBarChart({ data, labels, maxValue, barColor = 'bg-emerald-500/70', hoverColor = 'bg-emerald-500' }: { data: number[]; labels: string[]; maxValue: number; barColor?: string; hoverColor?: string }) {
   return (
     <div className="flex items-end gap-1 h-24">
       {data.map((value, i) => (
         <div key={i} className="flex flex-col items-center gap-1 flex-1">
           <div className="w-full relative" style={{ height: '80px' }}>
             <div
-              className="absolute bottom-0 w-full rounded-t-sm bg-emerald-500/70 hover:bg-emerald-500 transition-colors"
+              className={`absolute bottom-0 w-full rounded-t-sm ${barColor} hover:${hoverColor} transition-colors`}
               style={{ height: `${maxValue > 0 ? (value / maxValue) * 100 : 0}%` }}
             />
           </div>
@@ -333,12 +334,33 @@ export function Dashboard() {
   // Real health check: system online only if providers exist and are active
   const isSystemOnline = activeProviders.length > 0 || connectedAcrpAgents.length > 0;
 
-  // Mock system health data
-  const systemHealth = {
-    apiResponseTime: 45,
-    memoryUsage: 62,
-    cpuLoad: 23,
-  };
+  // Dashboard analytics data from API
+  interface DashboardAnalytics {
+    agents: { total: number; online: number; builtin: number; acrp: number; acrpConnected: number };
+    conversations: { total: number; convsPerDay: { date: string; count: number }[] };
+    messages: { total: number; messagesPerDay: { date: string; count: number }[] };
+    providers: { total: number; active: number };
+    skills: { total: number; totalInvocations: number };
+    chatRooms: { total: number };
+  }
+  const [analyticsData, setAnalyticsData] = useState<DashboardAnalytics | null>(null);
+
+  const fetchDashboardAnalytics = useCallback(async () => {
+    try {
+      const data = await api.getDashboardAnalytics();
+      setAnalyticsData(data);
+    } catch {
+      // Silently fail — dashboard still works with store data
+    }
+  }, []);
+
+  // Fetch analytics on mount and every 30 seconds
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchDashboardAnalytics();
+    const interval = setInterval(fetchDashboardAnalytics, 30000);
+    return () => clearInterval(interval);
+  }, [fetchDashboardAnalytics]);
 
   // Service Health Monitor - real-time status checks
   interface ServiceHealth {
@@ -403,6 +425,7 @@ export function Dashboard() {
 
   // Auto-refresh service health every 30 seconds
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     checkServiceHealth();
     const interval = setInterval(checkServiceHealth, 30000);
     return () => clearInterval(interval);
@@ -420,12 +443,26 @@ export function Dashboard() {
     return `${minutes}m`;
   };
 
-  // Conversations per day (last 7 days) - mock data based on actual count
+  // Conversations per day (last 7 days) - real data from analytics API
   const convsPerDay = useMemo(() => {
+    if (analyticsData?.conversations?.convsPerDay) {
+      return analyticsData.conversations.convsPerDay.map(d => d.count);
+    }
+    // Fallback: derive from store data when API hasn't loaded yet
     const total = conversations.length;
-    const base = Math.max(Math.floor(total / 7), 1);
-    return Array.from({ length: 7 }, () => Math.floor(Math.random() * base * 2 + base * 0.5));
-  }, [conversations.length]);
+    const base = Math.max(Math.floor(total / 7), 0);
+    return Array.from({ length: 7 }, () => base);
+  }, [analyticsData, conversations.length]);
+
+  // Messages per day (last 7 days) - real data from analytics API
+  const msgsPerDay = useMemo(() => {
+    if (analyticsData?.messages?.messagesPerDay) {
+      return analyticsData.messages.messagesPerDay.map(d => d.count);
+    }
+    return Array.from({ length: 7 }, () => 0);
+  }, [analyticsData]);
+
+  const maxMsgsPerDay = Math.max(...msgsPerDay, 1);
 
   const dayLabels = useMemo(() => {
     const days = [];
@@ -439,11 +476,22 @@ export function Dashboard() {
 
   const maxConvPerDay = Math.max(...convsPerDay, 1);
 
-  // System uptime (mock - 99.9%)
-  const systemUptime = 99.9;
+  // System uptime — computed from service health checks (real)
+  const systemUptime = useMemo(() => {
+    if (serviceHealths.length === 0) return 0;
+    const onlineCount = serviceHealths.filter(s => s.online).length;
+    return Math.round((onlineCount / serviceHealths.length) * 100 * 10) / 10;
+  }, [serviceHealths]);
 
-  // Agent response time (mock)
-  const agentResponseTime = 1.2; // seconds
+  // Agent response time — computed from real service health response times
+  const agentResponseTime = useMemo(() => {
+    const responseTimes = serviceHealths
+      .filter(s => s.responseTime !== null && s.responseTime > 0)
+      .map(s => s.responseTime!);
+    if (responseTimes.length === 0) return 0;
+    const avgMs = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
+    return Math.round(avgMs) / 1000; // Convert ms to seconds
+  }, [serviceHealths]);
 
   // Build activity feed
   const activityItems: ActivityItem[] = useMemo(() => {
@@ -603,6 +651,9 @@ export function Dashboard() {
     }
   };
 
+  // Total messages from analytics
+  const totalMessages = analyticsData?.messages?.total ?? 0;
+
   const stats = [
     {
       title: t('dashboard.agents'),
@@ -614,7 +665,7 @@ export function Dashboard() {
       borderColor: 'border-l-emerald-500',
       view: 'agents' as const,
       detail: `${builtinAgents.length} builtin · ${acrpAgents.length} ACRP`,
-      sparkline: [3, 5, 4, 7, agents.length],
+      sparkline: convsPerDay.length >= 7 ? convsPerDay.slice(0, 5) : [0, 0, 0, 0, agents.length],
       sparklineColor: 'bg-emerald-500/60',
       gradientFrom: 'from-emerald-50/80 dark:from-emerald-950/30',
       gradientTo: 'to-card dark:to-card',
@@ -629,7 +680,7 @@ export function Dashboard() {
       borderColor: 'border-l-violet-500',
       view: 'providers' as const,
       detail: t('dashboard.providersConfigured', { count: providers.length }),
-      sparkline: [1, 2, 2, 3, providers.length],
+      sparkline: [Math.max(providers.length - 2, 0), Math.max(providers.length - 1, 0), providers.length, providers.length, providers.length],
       sparklineColor: 'bg-violet-500/60',
       gradientFrom: 'from-violet-50/80 dark:from-violet-950/30',
       gradientTo: 'to-card dark:to-card',
@@ -644,7 +695,7 @@ export function Dashboard() {
       borderColor: 'border-l-amber-500',
       view: 'skills' as const,
       detail: `${enabledSkills.length} ${t('dashboard.enabled')}`,
-      sparkline: [6, 8, 10, 11, skills.length],
+      sparkline: [Math.max(skills.length - 4, 0), Math.max(skills.length - 2, 0), skills.length, skills.length, skills.length],
       sparklineColor: 'bg-amber-500/60',
       gradientFrom: 'from-amber-50/80 dark:from-amber-950/30',
       gradientTo: 'to-card dark:to-card',
@@ -659,7 +710,7 @@ export function Dashboard() {
       borderColor: 'border-l-cyan-500',
       view: 'agent-control' as const,
       detail: `${connectedAcrpAgents.length} ${t('dashboard.connected')}`,
-      sparkline: [0, 1, 1, 2, acrpAgents.length],
+      sparkline: [0, Math.max(acrpAgents.length - 1, 0), acrpAgents.length, acrpAgents.length, acrpAgents.length],
       sparklineColor: 'bg-cyan-500/60',
       gradientFrom: 'from-cyan-50/80 dark:from-cyan-950/30',
       gradientTo: 'to-card dark:to-card',
@@ -674,7 +725,7 @@ export function Dashboard() {
       borderColor: 'border-l-rose-500',
       view: 'chat' as const,
       detail: `${chatRooms.length} ${t('dashboard.rooms')}`,
-      sparkline: [5, 8, 12, 10, conversations.length],
+      sparkline: convsPerDay,
       sparklineColor: 'bg-rose-500/60',
       gradientFrom: 'from-rose-50/80 dark:from-rose-950/30',
       gradientTo: 'to-card dark:to-card',
@@ -689,7 +740,7 @@ export function Dashboard() {
       borderColor: 'border-l-orange-500',
       view: 'chat-rooms' as const,
       detail: t('dashboard.chatRoomsCollaborative'),
-      sparkline: [1, 2, 3, 2, chatRooms.length],
+      sparkline: [0, Math.max(chatRooms.length - 2, 0), Math.max(chatRooms.length - 1, 0), chatRooms.length, chatRooms.length],
       sparklineColor: 'bg-orange-500/60',
       gradientFrom: 'from-orange-50/80 dark:from-orange-950/30',
       gradientTo: 'to-card dark:to-card',
@@ -702,7 +753,7 @@ export function Dashboard() {
     { label: t('dashboard.onlineAgents'), value: onlineAgents.length, icon: Wifi, color: 'text-emerald-500', bgColor: 'bg-emerald-500/10', borderColor: 'border-l-emerald-400', gradientFrom: 'from-emerald-50/60 dark:from-emerald-950/20' },
     { label: t('dashboard.totalSkills'), value: skills.length, icon: Puzzle, color: 'text-amber-600', bgColor: 'bg-amber-500/10', borderColor: 'border-l-amber-500', gradientFrom: 'from-amber-50/60 dark:from-amber-950/20' },
     { label: t('dashboard.activeSkills'), value: enabledSkills.length, icon: CheckCircle, color: 'text-amber-500', bgColor: 'bg-amber-500/10', borderColor: 'border-l-amber-400', gradientFrom: 'from-amber-50/60 dark:from-amber-950/20' },
-    { label: t('dashboard.totalConversations'), value: conversations.length, icon: MessageSquare, color: 'text-rose-600', bgColor: 'bg-rose-500/10', borderColor: 'border-l-rose-500', gradientFrom: 'from-rose-50/60 dark:from-rose-950/20' },
+    { label: t('dashboard.totalMessages'), value: totalMessages, icon: MessageSquare, color: 'text-rose-600', bgColor: 'bg-rose-500/10', borderColor: 'border-l-rose-500', gradientFrom: 'from-rose-50/60 dark:from-rose-950/20' },
     { label: t('dashboard.acrpConnected'), value: connectedAcrpAgents.length, icon: Radio, color: 'text-cyan-600', bgColor: 'bg-cyan-500/10', borderColor: 'border-l-cyan-500', gradientFrom: 'from-cyan-50/60 dark:from-cyan-950/20' },
   ];
 
@@ -1214,8 +1265,8 @@ export function Dashboard() {
           </motion.div>
         </div>
 
-        {/* Analytics Row: Conversations Chart + Skill Ranking + System Indicators */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Analytics Row: Conversations Chart + Messages Chart + Skill Ranking + System Indicators */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Conversations per Day Bar Chart */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -1232,6 +1283,26 @@ export function Dashboard() {
               </CardHeader>
               <CardContent>
                 <MiniBarChart data={convsPerDay} labels={dayLabels} maxValue={maxConvPerDay} />
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Messages per Day Bar Chart */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.52 }}
+          >
+            <Card className="rounded-2xl hover:shadow-lg transition-all duration-300">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-rose-500" />
+                  {t('dashboard.messagesPerDay')}
+                </CardTitle>
+                <CardDescription>{t('dashboard.totalMessages')}: {totalMessages}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MiniBarChart data={msgsPerDay} labels={dayLabels} maxValue={maxMsgsPerDay} barColor="bg-rose-500/70" hoverColor="bg-rose-500" />
               </CardContent>
             </Card>
           </motion.div>

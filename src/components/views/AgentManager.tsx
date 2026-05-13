@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Bot, Plus, Trash2, Eye, MoreHorizontal, Pencil, Search, Wifi, WifiOff, Clock, Sparkles, AlertTriangle } from 'lucide-react';
+import { Bot, Plus, Trash2, Eye, MoreHorizontal, Pencil, Search, Wifi, WifiOff, Clock, Sparkles, AlertTriangle, Loader2, AlertCircle } from 'lucide-react';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
@@ -84,6 +84,9 @@ export function AgentManager() {
   const [showAcrpSuccess, setShowAcrpSuccess] = useState(false);
   const [createdAcrpAgent, setCreatedAcrpAgent] = useState<any>(null);
 
+  // Validation errors
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
   // Agent status auto-refresh
   const [agentStatuses, setAgentStatuses] = useState<Record<string, { status: string; wsConnected: boolean; lastHeartbeatAt: string | null }>>({});
 
@@ -117,15 +120,54 @@ export function AgentManager() {
     refreshAgentStatuses();
   }, [refreshAgentStatuses]);
 
-  const handleCreate = async () => {
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    // Name validation
     if (!form.name.trim()) {
-      toast.error(t('common.required'));
-      return;
+      errors.name = t('agents.nameRequired');
+    } else if (form.name.trim().length < 2) {
+      errors.name = t('agents.nameMinLength');
+    } else if (form.name.trim().length > 50) {
+      errors.name = t('agents.nameMaxLength');
     }
-    if (form.mode === 'acrp' && !form.description.trim()) {
-      toast.error(t('common.required'));
-      return;
+
+    // Description validation
+    if (form.mode === 'acrp') {
+      if (!form.description.trim()) {
+        errors.description = t('agents.descRequired');
+      } else if (form.description.trim().length < 10) {
+        errors.description = t('agents.descMinLength');
+      }
     }
+
+    // System prompt validation
+    if (form.systemPrompt.length > 4000) {
+      errors.systemPrompt = t('agents.systemPromptMaxLength');
+    }
+
+    // Temperature validation (only for builtin)
+    if (form.mode === 'builtin') {
+      if (form.temperature < 0 || form.temperature > 2) {
+        errors.temperature = t('agents.temperatureRange');
+      }
+      if (form.maxTokens < 1 || form.maxTokens > 32000) {
+        errors.maxTokens = t('agents.maxTokensRange');
+      }
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleCreate = async () => {
+    if (!validateForm()) return;
+
+    // Show warning for no provider in builtin mode
+    if (form.mode === 'builtin' && !form.providerId) {
+      toast.warning(t('agents.noProvider'));
+    }
+
     setCreating(true);
     try {
       const createData: any = {
@@ -142,6 +184,7 @@ export function AgentManager() {
       const result = await api.createAgent(createData);
       setAgents([result.agent, ...agents]);
       setShowCreate(false);
+      setValidationErrors({});
 
       if (form.mode === 'acrp') {
         setCreatedAcrpAgent(result.agent);
@@ -153,7 +196,8 @@ export function AgentManager() {
         toast.success(t('agents.created'));
       }
     } catch (error: any) {
-      toast.error(error.message);
+      const errMsg = error?.message || 'Unknown error';
+      toast.error(`${t('agents.createTitle')}: ${errMsg}`);
     } finally {
       setCreating(false);
     }
@@ -179,10 +223,9 @@ export function AgentManager() {
   };
 
   const handleUpdate = async () => {
-    if (!editingAgent || !form.name.trim()) {
-      toast.error(t('common.required'));
-      return;
-    }
+    if (!editingAgent) return;
+    if (!validateForm()) return;
+
     setSaving(true);
     try {
       const updateData: any = {
@@ -199,9 +242,11 @@ export function AgentManager() {
       setShowEdit(false);
       setEditingAgent(null);
       setForm({ ...defaultForm });
+      setValidationErrors({});
       toast.success(t('agents.updated'));
     } catch (error: any) {
-      toast.error(error.message);
+      const errMsg = error?.message || 'Unknown error';
+      toast.error(`Failed to update agent: ${errMsg}`);
     } finally {
       setSaving(false);
     }
@@ -303,15 +348,36 @@ export function AgentManager() {
     <div className="space-y-4 mt-4">
       <div className="space-y-2">
         <Label>{t('agents.nameLabel')} *</Label>
-        <Input placeholder={t('agents.namePlaceholder')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <Input
+          placeholder={t('agents.namePlaceholder')}
+          value={form.name}
+          onChange={(e) => { setForm({ ...form, name: e.target.value }); if (validationErrors.name) setValidationErrors({ ...validationErrors, name: '' }); }}
+          className={cn(validationErrors.name && 'border-red-500 focus-visible:ring-red-500')}
+        />
+        {validationErrors.name && (
+          <p className="text-xs text-red-500 flex items-center gap-1">
+            <AlertCircle className="w-3 h-3" /> {validationErrors.name}
+          </p>
+        )}
       </div>
       <div className="space-y-2">
         <Label>{t('agents.descriptionLabel')} {form.mode === 'acrp' && '*'}</Label>
-        <Textarea placeholder={t('agents.descriptionPlaceholder')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} />
+        <Textarea
+          placeholder={t('agents.descriptionPlaceholder')}
+          value={form.description}
+          onChange={(e) => { setForm({ ...form, description: e.target.value }); if (validationErrors.description) setValidationErrors({ ...validationErrors, description: '' }); }}
+          rows={2}
+          className={cn(validationErrors.description && 'border-red-500 focus-visible:ring-red-500')}
+        />
+        {validationErrors.description && (
+          <p className="text-xs text-red-500 flex items-center gap-1">
+            <AlertCircle className="w-3 h-3" /> {validationErrors.description}
+          </p>
+        )}
       </div>
       <div className="space-y-2">
         <Label>{t('agents.modeLabel')}</Label>
-        <Select value={form.mode} onValueChange={(v) => setForm({ ...form, mode: v })} disabled={isEdit}>
+        <Select value={form.mode} onValueChange={(v) => { setForm({ ...form, mode: v }); setValidationErrors({}); }} disabled={isEdit}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="builtin">{t('agents.modeBuiltin')}</SelectItem>
@@ -352,7 +418,7 @@ export function AgentManager() {
           <div className="space-y-2">
             <Label>{t('agents.providerLabel')}</Label>
             <Select value={form.providerId} onValueChange={(v) => setForm({ ...form, providerId: v })}>
-              <SelectTrigger><SelectValue placeholder={t('agents.providerPlaceholder')} /></SelectTrigger>
+              <SelectTrigger className={cn(form.mode === 'builtin' && !form.providerId && 'border-amber-400')}><SelectValue placeholder={t('agents.providerPlaceholder')} /></SelectTrigger>
               <SelectContent>
                 {providers.length === 0 ? (
                   <SelectItem value="none" disabled>{t('agents.noProviders')}</SelectItem>
@@ -363,9 +429,13 @@ export function AgentManager() {
                 )}
               </SelectContent>
             </Select>
-            {providers.length === 0 && (
+            {providers.length === 0 ? (
               <p className="text-xs text-amber-600">{t('agents.addProviderFirst')}</p>
-            )}
+            ) : form.mode === 'builtin' && !form.providerId ? (
+              <p className="text-xs text-amber-600 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" /> {t('agents.noProvider')}
+              </p>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label>{t('agents.modelOverride')}</Label>
@@ -374,11 +444,30 @@ export function AgentManager() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t('agents.temperature')}: {Math.round(form.temperature * 10) / 10}</Label>
-              <input type="range" min="0" max="2" step="0.1" value={form.temperature} onChange={(e) => setForm({ ...form, temperature: parseFloat(e.target.value) })} className="w-full" />
+              <input
+                type="range" min="0" max="2" step="0.1" value={form.temperature}
+                onChange={(e) => { setForm({ ...form, temperature: parseFloat(e.target.value) }); if (validationErrors.temperature) setValidationErrors({ ...validationErrors, temperature: '' }); }}
+                className="w-full"
+              />
+              {validationErrors.temperature && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> {validationErrors.temperature}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>{t('agents.maxTokens')}</Label>
-              <Input type="number" value={form.maxTokens} onChange={(e) => setForm({ ...form, maxTokens: parseInt(e.target.value) || 2048 })} />
+              <Input
+                type="number"
+                value={form.maxTokens}
+                onChange={(e) => { setForm({ ...form, maxTokens: parseInt(e.target.value) || 2048 }); if (validationErrors.maxTokens) setValidationErrors({ ...validationErrors, maxTokens: '' }); }}
+                className={cn(validationErrors.maxTokens && 'border-red-500 focus-visible:ring-red-500')}
+              />
+              {validationErrors.maxTokens && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> {validationErrors.maxTokens}
+                </p>
+              )}
             </div>
           </div>
         </>
@@ -386,7 +475,19 @@ export function AgentManager() {
 
       <div className="space-y-2">
         <Label>{t('agents.systemPrompt')}</Label>
-        <Textarea placeholder={t('agents.systemPromptPlaceholder')} value={form.systemPrompt} onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })} rows={4} />
+        <Textarea
+          placeholder={t('agents.systemPromptPlaceholder')}
+          value={form.systemPrompt}
+          onChange={(e) => { setForm({ ...form, systemPrompt: e.target.value }); if (validationErrors.systemPrompt) setValidationErrors({ ...validationErrors, systemPrompt: '' }); }}
+          rows={4}
+          className={cn(validationErrors.systemPrompt && 'border-red-500 focus-visible:ring-red-500')}
+        />
+        {validationErrors.systemPrompt && (
+          <p className="text-xs text-red-500 flex items-center gap-1">
+            <AlertCircle className="w-3 h-3" /> {validationErrors.systemPrompt}
+          </p>
+        )}
+        <p className="text-xs text-muted-foreground">{form.systemPrompt.length}/4000</p>
       </div>
 
       {form.mode === 'builtin' && (
@@ -403,11 +504,11 @@ export function AgentManager() {
 
       {isEdit ? (
         <Button onClick={handleUpdate} className="w-full" disabled={saving}>
-          {saving ? t('agents.saving') : t('agents.save')}
+          {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t('agents.saving')}</> : t('agents.save')}
         </Button>
       ) : (
         <Button onClick={handleCreate} className="w-full" disabled={creating}>
-          {creating ? t('agents.creating') : t('agents.create')}
+          {creating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t('agents.creatingAgent')}</> : t('agents.create')}
         </Button>
       )}
     </div>
@@ -420,7 +521,7 @@ export function AgentManager() {
           <h1 className="text-2xl font-bold">{t('agents.title')}</h1>
           <p className="text-muted-foreground text-sm">{t('agents.subtitle')}</p>
         </div>
-        <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) setForm({ ...defaultForm }); }}>
+        <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) { setForm({ ...defaultForm }); setValidationErrors({}); } }}>
           <Button className="gap-2" onClick={() => setShowCreate(true)}>
             <Plus className="w-4 h-4" /> {t('agents.create')}
           </Button>

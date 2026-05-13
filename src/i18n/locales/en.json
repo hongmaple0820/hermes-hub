@@ -221,7 +221,9 @@
     "serviceDatabase": "Database (SQLite)",
     "checking": "Checking...",
     "healthy": "Healthy",
-    "unhealthy": "Down"
+    "unhealthy": "Down",
+    "messagesPerDay": "Messages per day",
+    "totalMessages": "Total messages"
   },
   "agents": {
     "title": "Agents",
@@ -286,7 +288,17 @@
     "agentVersion": "Agent Version",
     "lastActive": "Last active",
     "connected": "Connected",
-    "disconnected": "Disconnected"
+    "disconnected": "Disconnected",
+    "nameRequired": "Agent name is required",
+    "nameMinLength": "Name must be at least 2 characters",
+    "nameMaxLength": "Name must be at most 50 characters",
+    "descRequired": "Description is required for ACRP agents",
+    "descMinLength": "Description must be at least 10 characters",
+    "systemPromptMaxLength": "System prompt must be at most 4000 characters",
+    "noProvider": "No LLM provider selected. Agent won't be able to respond.",
+    "temperatureRange": "Temperature must be between 0 and 2",
+    "maxTokensRange": "Max tokens must be between 1 and 32000",
+    "creatingAgent": "Creating agent..."
   },
   "agentDetail": {
     "configuration": "Agent Configuration",
@@ -617,7 +629,15 @@
     "searchPlaceholder": "Search rooms...",
     "noSearchResults": "No matching rooms",
     "tryDifferentSearch": "Try a different search term",
-    "createRoomDesc": "Create a new multi-agent collaboration room"
+    "createRoomDesc": "Create a new multi-agent collaboration room",
+    "realtime": "Real-time",
+    "typing": "{name} is typing...",
+    "typingMultiple": "people are typing...",
+    "onlineMembers": "online",
+    "noMessages": "No messages yet. Start the conversation!",
+    "messagePlaceholder": "Type a message...",
+    "noOnlineMembers": "No one online",
+    "agentsInRoom": "Agents in Room"
   },
   "settingsPage": {
     "title": "Settings",
@@ -808,7 +828,23 @@
     "serviceHealth": "Service Health",
     "serviceHealthDesc": "Real-time health status of all platform services",
     "checkAllServices": "Refresh",
-    "responseTime": "Response"
+    "responseTime": "Response",
+    "profile": "Profile",
+    "profileDesc": "Manage your account settings",
+    "displayName": "Display Name",
+    "emailAddress": "Email Address",
+    "avatar": "Avatar",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "passwordMismatch": "Passwords do not match",
+    "passwordTooShort": "Password must be at least 6 characters",
+    "passwordChanged": "Password changed successfully",
+    "profileSaved": "Profile saved successfully",
+    "wrongPassword": "Current password is incorrect",
+    "emailVerificationNote": "Changing email requires verification",
+    "avatarUrl": "Avatar URL",
+    "avatarInitials": "Initials"
   },
   "language": {
     "switch": "Language",
@@ -1586,22 +1622,28 @@
     "noNotificationsDesc": "You are all caught up!",
     "viewAll": "View All",
     "unread": "unread",
-    "filters": {
-      "all": "All",
-      "info": "Info",
-      "success": "Success",
-      "warning": "Warning",
-      "error": "Error",
-      "agentEvents": "Agent Events"
-    },
+    "live": "Live",
     "today": "Today",
     "yesterday": "Yesterday",
+    "thisWeek": "This Week",
     "earlier": "Earlier",
     "delete": "Delete",
     "justNow": "Just now",
     "minutesAgo": "{count}m ago",
     "hoursAgo": "{count}h ago",
     "daysAgo": "{count}d ago",
+    "newAgent": "New agent created",
+    "agentReply": "Agent replied",
+    "capabilityDone": "Capability completed",
+    "filters": {
+      "all": "All",
+      "info": "Info",
+      "success": "Success",
+      "warning": "Warning",
+      "error": "Error",
+      "agentEvents": "Agent Events",
+      "newMessage": "Messages"
+    },
     "types": {
       "info": "Info",
       "success": "Success",
@@ -1610,7 +1652,8 @@
       "agentConnected": "Agent Connected",
       "agentDisconnected": "Agent Disconnected",
       "skillInvoked": "Skill Invoked",
-      "capabilityResult": "Capability Result"
+      "capabilityResult": "Capability Result",
+      "newMessage": "New Message"
     }
   },
   "agentControl": {

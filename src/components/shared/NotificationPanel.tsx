@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useAppStore, Notification } from '@/lib/store';
 import { useI18n } from '@/i18n';
+import { api } from '@/lib/api-client';
 import {
   Bell, Check, CheckCheck, Trash2, Info, CheckCircle, AlertTriangle,
-  XCircle, Radio, LogOut, Zap, Sparkles, Filter, ArrowLeft
+  XCircle, Radio, LogOut, Zap, Sparkles, Filter, ArrowLeft, MessageSquare,
+  Wifi, WifiOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +18,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type FilterType = 'all' | 'info' | 'success' | 'warning' | 'error' | 'agent_events';
+type FilterType = 'all' | 'info' | 'success' | 'warning' | 'error' | 'agent_events' | 'new_message';
 
 function getNotificationIcon(type: Notification['type']) {
   switch (type) {
@@ -36,6 +38,8 @@ function getNotificationIcon(type: Notification['type']) {
       return <Zap className="w-4 h-4 text-amber-500" />;
     case 'capability_result':
       return <Sparkles className="w-4 h-4 text-violet-500" />;
+    case 'new_message':
+      return <MessageSquare className="w-4 h-4 text-teal-500" />;
     default:
       return <Info className="w-4 h-4 text-blue-500" />;
   }
@@ -59,6 +63,8 @@ function getNotificationBgColor(type: Notification['type']) {
       return 'bg-amber-500/10';
     case 'capability_result':
       return 'bg-violet-500/10';
+    case 'new_message':
+      return 'bg-teal-500/10';
     default:
       return 'bg-blue-500/10';
   }
@@ -82,6 +88,8 @@ function getNotificationBorderColor(type: Notification['type']) {
       return 'border-l-amber-500';
     case 'capability_result':
       return 'border-l-violet-500';
+    case 'new_message':
+      return 'border-l-teal-500';
     default:
       return 'border-l-blue-500';
   }
@@ -108,22 +116,45 @@ function getDateGroup(timestamp: string, t: (key: string, params?: Record<string
   const then = new Date(timestamp);
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today.getTime() - 86400000);
+  const weekAgo = new Date(today.getTime() - 7 * 86400000);
   const notifDate = new Date(then.getFullYear(), then.getMonth(), then.getDate());
 
   if (notifDate.getTime() === today.getTime()) return t('notifications.today');
   if (notifDate.getTime() === yesterday.getTime()) return t('notifications.yesterday');
+  if (notifDate.getTime() >= weekAgo.getTime()) return t('notifications.thisWeek');
   return t('notifications.earlier');
 }
 
 export function NotificationPanel() {
   const {
     notifications, markAsRead, markAllAsRead, clearNotifications, removeNotification,
-    setCurrentView,
+    addPersistedNotifications, setCurrentView, user,
   } = useAppStore();
   const { t } = useI18n();
   const [filter, setFilter] = useState<FilterType>('all');
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  // Load persisted notifications on mount
+  useEffect(() => {
+    if (!user) return;
+    api.getNotifications(100).then((res) => {
+      const persisted: Notification[] = (res.notifications || []).map((n: any) => ({
+        id: n.id,
+        type: n.type as Notification['type'],
+        title: n.title,
+        message: n.message,
+        timestamp: n.createdAt || n.timestamp,
+        read: n.read,
+        actionUrl: n.actionUrl || undefined,
+        metadata: n.metadata || undefined,
+        persisted: true,
+      }));
+      if (persisted.length > 0) {
+        addPersistedNotifications(persisted);
+      }
+    }).catch(() => {});
+  }, [user, addPersistedNotifications]);
 
   // Filter notifications
   const filteredNotifications = useMemo(() => {
@@ -140,6 +171,8 @@ export function NotificationPanel() {
         return notifications.filter((n) =>
           ['agent_connected', 'agent_disconnected', 'skill_invoked', 'capability_result'].includes(n.type)
         );
+      case 'new_message':
+        return notifications.filter((n) => n.type === 'new_message');
       default:
         return notifications;
     }
@@ -159,6 +192,9 @@ export function NotificationPanel() {
   const handleNotificationClick = useCallback((notification: Notification) => {
     if (!notification.read) {
       markAsRead(notification.id);
+      if (notification.persisted) {
+        api.markNotificationRead(notification.id).catch(() => {});
+      }
     }
     if (notification.actionUrl) {
       if (notification.actionUrl.startsWith('/agents/')) {
@@ -171,6 +207,29 @@ export function NotificationPanel() {
     }
   }, [markAsRead, setCurrentView]);
 
+  const handleMarkAllRead = useCallback(() => {
+    markAllAsRead();
+    api.markAllNotificationsRead().catch(() => {});
+  }, [markAllAsRead]);
+
+  const handleClearAll = useCallback(async () => {
+    clearNotifications();
+    try {
+      await api.clearAllNotifications();
+    } catch {
+      // Silently fail
+    }
+  }, [clearNotifications]);
+
+  const handleRemoveNotification = useCallback(async (id: string) => {
+    removeNotification(id);
+    try {
+      await api.deleteNotification(id);
+    } catch {
+      // Silently fail
+    }
+  }, [removeNotification]);
+
   const filterTabs = [
     { value: 'all' as FilterType, label: t('notifications.filters.all') },
     { value: 'info' as FilterType, label: t('notifications.filters.info') },
@@ -178,7 +237,11 @@ export function NotificationPanel() {
     { value: 'warning' as FilterType, label: t('notifications.filters.warning') },
     { value: 'error' as FilterType, label: t('notifications.filters.error') },
     { value: 'agent_events' as FilterType, label: t('notifications.filters.agentEvents') },
+    { value: 'new_message' as FilterType, label: t('notifications.filters.newMessage') },
   ];
+
+  // Count live notifications
+  const liveCount = notifications.filter((n) => n.live && !n.persisted).length;
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -197,10 +260,16 @@ export function NotificationPanel() {
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
               <Bell className="w-6 h-6" />
               {t('notifications.title')}
+              {liveCount > 0 && (
+                <Badge className="text-[10px] h-5 px-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 gap-1">
+                  <Wifi className="w-3 h-3" />
+                  {liveCount} {t('notifications.live')}
+                </Badge>
+              )}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {unreadCount > 0
-                ? t('notifications.minutesAgo', { count: unreadCount }) + ' unread'
+                ? `${unreadCount} ${t('notifications.unread')}`
                 : t('notifications.noNotifications')
               }
             </p>
@@ -212,7 +281,7 @@ export function NotificationPanel() {
               variant="outline"
               size="sm"
               className="gap-1.5"
-              onClick={markAllAsRead}
+              onClick={handleMarkAllRead}
             >
               <CheckCheck className="w-4 h-4" />
               {t('notifications.markAllRead')}
@@ -223,7 +292,7 @@ export function NotificationPanel() {
               variant="outline"
               size="sm"
               className="gap-1.5 text-destructive hover:text-destructive"
-              onClick={clearNotifications}
+              onClick={handleClearAll}
             >
               <Trash2 className="w-4 h-4" />
               {t('notifications.clearAll')}
@@ -242,14 +311,14 @@ export function NotificationPanel() {
             </CardTitle>
             {unreadCount > 0 && (
               <Badge variant="secondary" className="text-xs">
-                {unreadCount} unread
+                {unreadCount} {t('notifications.unread')}
               </Badge>
             )}
           </div>
         </CardHeader>
         <CardContent className="pt-0">
           <Tabs value={filter} onValueChange={(v) => setFilter(v as FilterType)}>
-            <TabsList className="w-full justify-start h-9 p-0.5 bg-muted/50">
+            <TabsList className="w-full justify-start h-9 p-0.5 bg-muted/50 flex-wrap">
               {filterTabs.map((tab) => (
                 <TabsTrigger
                   key={tab.value}
@@ -325,6 +394,19 @@ export function NotificationPanel() {
                                   <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
                                 )}
                                 <span className="font-medium text-sm">{notification.title}</span>
+                                {/* Live badge for real-time notifications */}
+                                {notification.live && !notification.persisted && (
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5 shrink-0">
+                                    <Wifi className="w-2.5 h-2.5" />
+                                    {t('notifications.live')}
+                                  </span>
+                                )}
+                                {/* Persisted badge for DB notifications */}
+                                {notification.persisted && !notification.live && (
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium shrink-0">
+                                    DB
+                                  </span>
+                                )}
                               </div>
                               <p className="text-sm text-muted-foreground">{notification.message}</p>
                               <div className="flex items-center gap-3 mt-2">
@@ -349,6 +431,9 @@ export function NotificationPanel() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     markAsRead(notification.id);
+                                    if (notification.persisted) {
+                                      api.markNotificationRead(notification.id).catch(() => {});
+                                    }
                                   }}
                                   title={t('notifications.markAllRead')}
                                 >
@@ -361,7 +446,7 @@ export function NotificationPanel() {
                                 className="w-7 h-7 text-muted-foreground hover:text-destructive"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  removeNotification(notification.id);
+                                  handleRemoveNotification(notification.id);
                                 }}
                                 title={t('notifications.delete')}
                               >

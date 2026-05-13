@@ -221,7 +221,9 @@
     "serviceDatabase": "Banco de dados (SQLite)",
     "checking": "Verificando...",
     "healthy": "Saudável",
-    "unhealthy": "Inativo"
+    "unhealthy": "Inativo",
+    "messagesPerDay": "Mensagens por dia",
+    "totalMessages": "Total de mensagens"
   },
   "agents": {
     "title": "Agentes",
@@ -286,7 +288,17 @@
     "agentVersion": "Versão do Agente",
     "lastActive": "Última atividade",
     "connected": "Conectado",
-    "disconnected": "Desconectado"
+    "disconnected": "Desconectado",
+    "nameRequired": "O nome do agente e obrigatorio",
+    "nameMinLength": "O nome deve ter pelo menos 2 caracteres",
+    "nameMaxLength": "O nome deve ter no maximo 50 caracteres",
+    "descRequired": "A descricao e obrigatoria para agentes ACRP",
+    "descMinLength": "A descricao deve ter pelo menos 10 caracteres",
+    "systemPromptMaxLength": "O prompt do sistema deve ter no maximo 4000 caracteres",
+    "noProvider": "Nenhum provedor LLM selecionado. O agente nao podera responder.",
+    "temperatureRange": "A temperatura deve estar entre 0 e 2",
+    "maxTokensRange": "Max tokens deve estar entre 1 e 32000",
+    "creatingAgent": "Criando agente..."
   },
   "agentDetail": {
     "configuration": "Configuração do Agente",
@@ -616,7 +628,15 @@
     "searchPlaceholder": "Pesquisar salas...",
     "noSearchResults": "Nenhuma sala correspondente",
     "tryDifferentSearch": "Tente um termo de pesquisa diferente",
-    "createRoomDesc": "Criar uma nova sala de colaboracao multi-agente"
+    "createRoomDesc": "Criar uma nova sala de colaboracao multi-agente",
+    "realtime": "Tempo real",
+    "typing": "{name} esta digitando...",
+    "typingMultiple": "pessoas estao digitando...",
+    "onlineMembers": "online",
+    "noMessages": "Sem mensagens ainda. Comece a conversa!",
+    "messagePlaceholder": "Digite uma mensagem...",
+    "noOnlineMembers": "Ninguem online",
+    "agentsInRoom": "Agentes na sala"
   },
   "settingsPage": {
     "title": "Configurações",
@@ -807,7 +827,23 @@
     "serviceHealth": "Saude do Servico",
     "serviceHealthDesc": "Status de saude em tempo real de todos os servicos",
     "checkAllServices": "Atualizar",
-    "responseTime": "Resposta"
+    "responseTime": "Resposta",
+    "profile": "Perfil",
+    "profileDesc": "Gerencie as configuracoes da sua conta",
+    "displayName": "Nome de exibicao",
+    "emailAddress": "Endereco de e-mail",
+    "avatar": "Avatar",
+    "currentPassword": "Senha atual",
+    "newPassword": "Nova senha",
+    "confirmPassword": "Confirmar nova senha",
+    "passwordMismatch": "As senhas nao coincidem",
+    "passwordTooShort": "A senha deve ter pelo menos 6 caracteres",
+    "passwordChanged": "Senha alterada com sucesso",
+    "profileSaved": "Perfil salvo com sucesso",
+    "wrongPassword": "A senha atual esta incorreta",
+    "emailVerificationNote": "Alterar e-mail requer verificacao",
+    "avatarUrl": "URL do avatar",
+    "avatarInitials": "Iniciais"
   },
   "language": {
     "switch": "Idioma",
@@ -1552,16 +1588,23 @@
       "success": "Sucesso",
       "warning": "Aviso",
       "error": "Erro",
-      "agentEvents": "Eventos do agente"
+      "agentEvents": "Eventos do agente",
+      "newMessage": "Mensagens"
     },
     "today": "Hoje",
     "yesterday": "Ontem",
+    "thisWeek": "Esta semana",
     "earlier": "Anterior",
     "delete": "Excluir",
     "justNow": "Agora mesmo",
     "minutesAgo": "{count} min atrás",
     "hoursAgo": "{count} h atrás",
     "daysAgo": "{count} dia(s) atrás",
+    "live": "Ao vivo",
+    "unread": "não lido",
+    "newAgent": "Novo agente criado",
+    "agentReply": "O agente respondeu",
+    "capabilityDone": "Capacidade concluída",
     "types": {
       "info": "Info",
       "success": "Sucesso",
@@ -1570,9 +1613,9 @@
       "agentConnected": "Agente conectado",
       "agentDisconnected": "Agente desconectado",
       "skillInvoked": "Skill invocada",
-      "capabilityResult": "Resultado de capacidade"
-    },
-    "unread": "não lido"
+      "capabilityResult": "Resultado de capacidade",
+      "newMessage": "Nova mensagem"
+    }
   },
   "agentControl": {
     "step1Title": "Criar Agente",

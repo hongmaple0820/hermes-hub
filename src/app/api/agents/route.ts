@@ -8,6 +8,41 @@ function safeJsonParse(str: string | null): any {
   try { return JSON.parse(str); } catch { return str; }
 }
 
+// Helper: push notification via chat-service internal API
+async function pushNotification(userId: string, notification: { type: string; title: string; message: string; actionUrl?: string }) {
+  try {
+    // Persist to DB
+    const dbNotif = await db.notification.create({
+      data: {
+        userId,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        actionUrl: notification.actionUrl || null,
+      },
+    });
+    // Push via Socket.IO
+    await fetch('http://localhost:3003/internal/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        notification: {
+          id: dbNotif.id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          actionUrl: notification.actionUrl,
+          timestamp: dbNotif.createdAt.toISOString(),
+        },
+      }),
+      signal: AbortSignal.timeout(3000),
+    });
+  } catch {
+    // Silently fail — notifications are non-critical
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth(request);
@@ -129,8 +164,26 @@ export async function POST(request: NextRequest) {
           plugins: true,
         },
       });
+
+      // Push notification for new agent
+      pushNotification(user.id, {
+        type: 'success',
+        title: 'New agent created',
+        message: `Agent "${name}" has been created successfully.`,
+        actionUrl: `/agents/${agent.id}`,
+      });
+
       return NextResponse.json({ agent: refreshedAgent }, { status: 201 });
     }
+
+    // Push notification for new agent
+    pushNotification(user.id, {
+      type: 'success',
+      title: 'New agent created',
+      message: `Agent "${name}" has been created successfully.`,
+      actionUrl: `/agents/${agent.id}`,
+    });
+
     return NextResponse.json({ agent }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {

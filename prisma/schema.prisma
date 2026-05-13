@@ -39,6 +39,7 @@ model User {
   fileEntries     FileEntry[]
   appSettings     AppSettings[]
   oAuthTokens     OAuthToken[]
+  notifications   Notification[]
 }
 
 model Friendship {
@@ -642,4 +643,23 @@ model CapabilityInvocation {
   @@index([agentId, createdAt])
   @@index([capabilityId])
   @@index([status])
+}
+
+// ==================== Notification System ====================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // info, success, warning, error, agent_connected, agent_disconnected, skill_invoked, capability_result, new_message
+  title     String
+  message   String
+  actionUrl String?
+  metadata  String?  // JSON
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
 }

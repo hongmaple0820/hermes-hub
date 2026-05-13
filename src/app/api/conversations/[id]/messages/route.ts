@@ -8,6 +8,39 @@ function safeJsonParse(str: string | null): any {
   try { return JSON.parse(str); } catch { return str; }
 }
 
+// Helper: push notification for agent reply
+async function pushAgentReplyNotification(userId: string, agentName: string, conversationId: string) {
+  try {
+    const dbNotif = await db.notification.create({
+      data: {
+        userId,
+        type: 'new_message',
+        title: 'Agent replied',
+        message: `${agentName} sent a reply in your conversation.`,
+        actionUrl: `/chat`,
+      },
+    });
+    await fetch('http://localhost:3003/internal/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        notification: {
+          id: dbNotif.id,
+          type: 'new_message',
+          title: 'Agent replied',
+          message: `${agentName} sent a reply in your conversation.`,
+          actionUrl: `/chat`,
+          timestamp: dbNotif.createdAt.toISOString(),
+        },
+      }),
+      signal: AbortSignal.timeout(3000),
+    });
+  } catch {
+    // Silently fail — notifications are non-critical
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -135,6 +168,10 @@ export async function POST(
     // Default: synchronous response (backward compatibility)
     let agentReply = null;
     if (conversation.agentId) {
+      const agent = await db.agent.findUnique({
+        where: { id: conversation.agentId },
+        select: { name: true },
+      });
       const result = await generateAgentReply({
         agentId: conversation.agentId,
         conversationId: id,
@@ -144,6 +181,10 @@ export async function POST(
 
       if (result.success) {
         agentReply = result.content;
+        // Push notification for agent reply
+        if (agent) {
+          pushAgentReplyNotification(user.id, agent.name, id);
+        }
       }
     }
 

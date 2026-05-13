@@ -105,8 +105,14 @@ export function Settings({ onLogout }: SettingsProps) {
   const [username, setUsername] = useState(user?.name || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [profileEmail, setProfileEmail] = useState(user?.email || '');
+  const [profileAvatar, setProfileAvatar] = useState(user?.avatar || '');
 
   // Notification preferences (localStorage)
   const [emailNotifications, setEmailNotifications] = useState(() => {
@@ -298,32 +304,49 @@ export function Settings({ onLogout }: SettingsProps) {
       toast.error(t('common.required'));
       return;
     }
+    setProfileSaving(true);
     try {
-      await api.updateSettings({ username });
-      toast.success(t('settingsPage.usernameSaved'));
+      const result = await api.updateProfile({ name: username.trim(), email: profileEmail.trim() || undefined, avatar: profileAvatar || undefined });
+      // Update the store user
+      useAppStore.setState({ user: result.user });
+      toast.success(t('settings.profileSaved'));
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Failed to save';
       toast.error(msg);
+    } finally {
+      setProfileSaving(false);
     }
   };
 
   const handlePasswordChange = async () => {
-    if (!currentPassword || !newPassword) {
+    if (!currentPassword || !newPassword || !confirmPassword) {
       toast.error(t('common.required'));
       return;
     }
     if (newPassword.length < 6) {
-      toast.error(t('auth.passwordMinLength'));
+      toast.error(t('settings.passwordTooShort'));
       return;
     }
+    if (newPassword !== confirmPassword) {
+      toast.error(t('settings.passwordMismatch'));
+      return;
+    }
+    setPasswordSaving(true);
     try {
-      await api.updateSettings({ currentPassword, newPassword });
+      await api.changePassword({ currentPassword, newPassword });
       setCurrentPassword('');
       setNewPassword('');
-      toast.success(t('settingsPage.passwordChanged'));
+      setConfirmPassword('');
+      toast.success(t('settings.passwordChanged'));
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Failed to change password';
-      toast.error(msg);
+      if (msg.toLowerCase().includes('wrong') || msg.toLowerCase().includes('incorrect')) {
+        toast.error(t('settings.wrongPassword'));
+      } else {
+        toast.error(msg);
+      }
+    } finally {
+      setPasswordSaving(false);
     }
   };
 
@@ -985,22 +1008,37 @@ export function Settings({ onLogout }: SettingsProps) {
               </CardContent>
             </Card>
 
-            {/* Account Information */}
+            {/* Profile Management */}
             <Card>
               <CardHeader className="pb-3">
                 <SectionHeader
                   icon={User}
-                  title={t('settings.accountInfo')}
+                  title={t('settings.profile')}
+                  description={t('settings.profileDesc')}
                 />
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Profile */}
+                {/* Avatar Section */}
                 <div className="flex items-center gap-5">
-                  <Avatar className="w-20 h-20">
-                    <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                      {user?.name?.[0]?.toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative group">
+                    <Avatar className="w-20 h-20">
+                      {profileAvatar ? (
+                        <img src={profileAvatar} alt={username} className="w-full h-full object-cover rounded-full" />
+                      ) : (
+                        <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                          {username?.[0]?.toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                      onClick={() => {
+                        const url = prompt(t('settings.avatarUrl'), profileAvatar);
+                        if (url !== null) setProfileAvatar(url);
+                      }}
+                    >
+                      <User className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
                   <div className="flex-1">
                     <p className="text-lg font-semibold">{user?.name || 'User'}</p>
                     <p className="text-sm text-muted-foreground">{user?.email}</p>
@@ -1008,54 +1046,68 @@ export function Settings({ onLogout }: SettingsProps) {
                       <Badge variant="secondary" className="text-xs">{user?.role || 'user'}</Badge>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.info(t('auth.comingSoon'))}>
-                      <User className="w-3.5 h-3.5" /> {t('settings.editProfile')}
-                    </Button>
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.info(t('auth.comingSoon'))}>
-                      <Lock className="w-3.5 h-3.5" /> {t('settings.changePassword')}
-                    </Button>
-                  </div>
                 </div>
 
                 <Separator />
 
-                <div className="space-y-3">
+                {/* Profile Fields */}
+                <div className="space-y-4">
+                  {/* Display Name */}
                   <div className="space-y-2">
-                    <Label>{t('settingsPage.username')}</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        placeholder={t('auth.namePlaceholder')}
-                      />
-                      <Button onClick={handleUsernameSave} size="sm" className="shrink-0">
-                        {t('common.save')}
-                      </Button>
-                    </div>
+                    <Label>{t('settings.displayName')}</Label>
+                    <Input
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder={t('auth.namePlaceholder')}
+                    />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Email</Label>
-                      <Input defaultValue={user?.email} disabled />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>{t('settingsPage.role')}</Label>
-                      <Input defaultValue={user?.role || 'user'} disabled />
-                    </div>
+
+                  {/* Email */}
+                  <div className="space-y-2">
+                    <Label>{t('settings.emailAddress')}</Label>
+                    <Input
+                      value={profileEmail}
+                      onChange={(e) => setProfileEmail(e.target.value)}
+                      placeholder="user@example.com"
+                    />
+                    <p className="text-xs text-muted-foreground">{t('settings.emailVerificationNote')}</p>
                   </div>
+
+                  {/* Avatar URL */}
+                  <div className="space-y-2">
+                    <Label>{t('settings.avatarUrl')}</Label>
+                    <Input
+                      value={profileAvatar}
+                      onChange={(e) => setProfileAvatar(e.target.value)}
+                      placeholder="https://example.com/avatar.jpg"
+                    />
+                  </div>
+
+                  {/* Role (read-only) */}
+                  <div className="space-y-2">
+                    <Label>{t('settingsPage.role')}</Label>
+                    <Input defaultValue={user?.role || 'user'} disabled />
+                  </div>
+
+                  {/* Save Profile Button */}
+                  <Button onClick={handleUsernameSave} className="w-full" disabled={profileSaving}>
+                    {profileSaving ? (
+                      <><span className="w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin" /> {t('common.saving') || 'Saving...'}</>
+                    ) : t('common.save')}
+                  </Button>
                 </div>
 
                 <Separator />
 
-                {/* Password Change */}
+                {/* Change Password Section */}
                 <div>
                   <Label className="text-sm font-semibold mb-3 block flex items-center gap-2">
-                    <Lock className="w-4 h-4" /> {t('settingsPage.changePassword')}
+                    <Lock className="w-4 h-4" /> {t('settings.changePassword')}
                   </Label>
                   <div className="space-y-3 mt-2">
+                    {/* Current Password */}
                     <div className="space-y-2">
-                      <Label className="text-xs">{t('settingsPage.currentPassword')}</Label>
+                      <Label className="text-xs">{t('settings.currentPassword')}</Label>
                       <div className="relative">
                         <Input
                           type={showCurrentPassword ? 'text' : 'password'}
@@ -1073,8 +1125,9 @@ export function Settings({ onLogout }: SettingsProps) {
                         </Button>
                       </div>
                     </div>
+                    {/* New Password */}
                     <div className="space-y-2">
-                      <Label className="text-xs">{t('settingsPage.newPassword')}</Label>
+                      <Label className="text-xs">{t('settings.newPassword')}</Label>
                       <div className="relative">
                         <Input
                           type={showNewPassword ? 'text' : 'password'}
@@ -1092,8 +1145,33 @@ export function Settings({ onLogout }: SettingsProps) {
                         </Button>
                       </div>
                     </div>
-                    <Button onClick={handlePasswordChange} className="w-full">
-                      {t('settingsPage.changePassword')}
+                    {/* Confirm New Password */}
+                    <div className="space-y-2">
+                      <Label className="text-xs">{t('settings.confirmPassword')}</Label>
+                      <div className="relative">
+                        <Input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="••••••••"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 w-7 h-7"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </Button>
+                      </div>
+                      {confirmPassword && newPassword && confirmPassword !== newPassword && (
+                        <p className="text-xs text-red-500">{t('settings.passwordMismatch')}</p>
+                      )}
+                    </div>
+                    <Button onClick={handlePasswordChange} className="w-full" disabled={passwordSaving}>
+                      {passwordSaving ? (
+                        <><span className="w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin" /> {t('settings.changePassword')}</>
+                      ) : t('settings.changePassword')}
                     </Button>
                   </div>
                 </div>

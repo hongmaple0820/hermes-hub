@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { io, Socket } from 'socket.io-client';
 import { useAppStore, Notification } from '@/lib/store';
 import { useI18n } from '@/i18n';
-import { Bell, Check, CheckCheck, Trash2, Info, CheckCircle, AlertTriangle, XCircle, Radio, LogOut, Zap, Sparkles } from 'lucide-react';
+import { api } from '@/lib/api-client';
+import { Bell, Check, CheckCheck, Trash2, Info, CheckCircle, AlertTriangle, XCircle, Radio, LogOut, Zap, Sparkles, MessageSquare, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -11,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 
 function getNotificationIcon(type: Notification['type']) {
   switch (type) {
@@ -30,6 +33,8 @@ function getNotificationIcon(type: Notification['type']) {
       return <Zap className="w-4 h-4 text-amber-500" />;
     case 'capability_result':
       return <Sparkles className="w-4 h-4 text-violet-500" />;
+    case 'new_message':
+      return <MessageSquare className="w-4 h-4 text-teal-500" />;
     default:
       return <Info className="w-4 h-4 text-blue-500" />;
   }
@@ -53,6 +58,8 @@ function getNotificationBgColor(type: Notification['type']) {
       return 'bg-amber-500/10';
     case 'capability_result':
       return 'bg-violet-500/10';
+    case 'new_message':
+      return 'bg-teal-500/10';
     default:
       return 'bg-blue-500/10';
   }
@@ -75,16 +82,119 @@ function formatTimeAgo(timestamp: string, t: (key: string, params?: Record<strin
 }
 
 export function NotificationBell() {
-  const { notifications, markAsRead, markAllAsRead, clearNotifications, setCurrentView } = useAppStore();
+  const {
+    notifications, markAsRead, markAllAsRead, clearNotifications,
+    addNotification, addPersistedNotifications, setCurrentView,
+    user,
+  } = useAppStore();
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
+  const socketRef = useRef<Socket | null>(null);
+  const hasLoadedPersisted = useRef(false);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
   const totalCount = notifications.length;
 
-  const handleNotificationClick = (notification: Notification) => {
+  // Load persisted notifications from DB on mount
+  useEffect(() => {
+    if (!user || hasLoadedPersisted.current) return;
+    hasLoadedPersisted.current = true;
+
+    api.getNotifications(50).then((res) => {
+      const persisted: Notification[] = (res.notifications || []).map((n: any) => ({
+        id: n.id,
+        type: n.type as Notification['type'],
+        title: n.title,
+        message: n.message,
+        timestamp: n.createdAt || n.timestamp,
+        read: n.read,
+        actionUrl: n.actionUrl || undefined,
+        metadata: n.metadata || undefined,
+        persisted: true,
+      }));
+      if (persisted.length > 0) {
+        addPersistedNotifications(persisted);
+      }
+    }).catch(() => {
+      // Silently fail
+    });
+  }, [user, addPersistedNotifications]);
+
+  // Connect to chat-service Socket.IO for real-time notifications
+  useEffect(() => {
+    if (!user) return;
+
+    const userId = user.id;
+    const username = user.name || `User-${userId.substring(0, 6)}`;
+
+    const socket = io('/?XTransformPort=3003', {
+      auth: { userId, username },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
+    });
+
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('[NotificationBell] Socket.IO connected');
+      setWsConnected(true);
+      // Subscribe to notification channel
+      socket.emit('notifications:subscribe', userId);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('[NotificationBell] Socket.IO disconnected');
+      setWsConnected(false);
+    });
+
+    socket.on('notifications:subscribed', (data: { userId: string }) => {
+      console.log('[NotificationBell] Subscribed for notifications:', data.userId);
+    });
+
+    // Listen for real-time notification events
+    socket.on('notification', (data: any) => {
+      console.log('[NotificationBell] Received notification:', data.title);
+      const notif: Notification = {
+        id: data.id,
+        type: data.type as Notification['type'],
+        title: data.title,
+        message: data.message,
+        timestamp: data.timestamp || new Date().toISOString(),
+        read: false,
+        actionUrl: data.actionUrl || undefined,
+        metadata: data.metadata || undefined,
+        live: true,
+        persisted: false,
+      };
+      addNotification(notif);
+
+      // Show toast for important notification types
+      const importantTypes = ['error', 'agent_connected', 'agent_disconnected', 'new_message'];
+      if (importantTypes.includes(data.type)) {
+        toast(data.title, {
+          description: data.message,
+          duration: 5000,
+        });
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+      setWsConnected(false);
+    };
+  }, [user, addNotification]);
+
+  const handleNotificationClick = useCallback((notification: Notification) => {
     if (!notification.read) {
       markAsRead(notification.id);
+      // Also mark as read in DB if persisted
+      if (notification.persisted) {
+        api.markNotificationRead(notification.id).catch(() => {});
+      }
     }
     if (notification.actionUrl) {
       if (notification.actionUrl.startsWith('/agents/')) {
@@ -96,7 +206,21 @@ export function NotificationBell() {
       }
       setOpen(false);
     }
-  };
+  }, [markAsRead, setCurrentView]);
+
+  const handleMarkAllRead = useCallback(() => {
+    markAllAsRead();
+    api.markAllNotificationsRead().catch(() => {});
+  }, [markAllAsRead]);
+
+  const handleClearAll = useCallback(async () => {
+    clearNotifications();
+    try {
+      await api.clearAllNotifications();
+    } catch {
+      // Silently fail
+    }
+  }, [clearNotifications]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -130,6 +254,11 @@ export function NotificationBell() {
               </motion.div>
             </>
           )}
+          {/* WebSocket connection indicator */}
+          <span className={cn(
+            "absolute bottom-0 right-0 w-2 h-2 rounded-full border border-background",
+            wsConnected ? "bg-emerald-500" : "bg-gray-300"
+          )} />
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -151,6 +280,16 @@ export function NotificationBell() {
                 {totalCount}
               </Badge>
             )}
+            {/* Live indicator */}
+            <div className={cn(
+              "flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full",
+              wsConnected
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : "bg-gray-500/10 text-gray-500"
+            )}>
+              {wsConnected ? <Wifi className="w-2.5 h-2.5" /> : <WifiOff className="w-2.5 h-2.5" />}
+              {t('notifications.live')}
+            </div>
           </div>
           <div className="flex items-center gap-1">
             {unreadCount > 0 && (
@@ -158,7 +297,7 @@ export function NotificationBell() {
                 variant="ghost"
                 size="sm"
                 className="h-7 text-xs gap-1 px-2 hover:bg-accent"
-                onClick={markAllAsRead}
+                onClick={handleMarkAllRead}
               >
                 <CheckCheck className="w-3.5 h-3.5" />
                 {t('notifications.markAllRead')}
@@ -169,7 +308,7 @@ export function NotificationBell() {
                 variant="ghost"
                 size="sm"
                 className="h-7 text-xs gap-1 px-2 hover:bg-accent text-muted-foreground hover:text-destructive"
-                onClick={clearNotifications}
+                onClick={handleClearAll}
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 {t('notifications.clearAll')}
@@ -191,7 +330,7 @@ export function NotificationBell() {
           <ScrollArea className="max-h-96">
             <div className="divide-y divide-border/50">
               <AnimatePresence initial={false}>
-                {notifications.map((notification) => (
+                {notifications.slice(0, 20).map((notification) => (
                   <motion.div
                     key={notification.id}
                     initial={{ opacity: 0, height: 0 }}
@@ -228,6 +367,12 @@ export function NotificationBell() {
                           )}>
                             {notification.title}
                           </span>
+                          {/* Live badge for real-time notifications */}
+                          {notification.live && !notification.persisted && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
+                              {t('notifications.live')}
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                           {notification.message}
@@ -246,6 +391,9 @@ export function NotificationBell() {
                           onClick={(e) => {
                             e.stopPropagation();
                             markAsRead(notification.id);
+                            if (notification.persisted) {
+                              api.markNotificationRead(notification.id).catch(() => {});
+                            }
                           }}
                         >
                           <Check className="w-3 h-3" />

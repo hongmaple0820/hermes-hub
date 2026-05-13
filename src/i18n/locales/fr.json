@@ -221,7 +221,9 @@
     "serviceDatabase": "Base de données (SQLite)",
     "checking": "Vérification...",
     "healthy": "Fonctionnel",
-    "unhealthy": "Hors ligne"
+    "unhealthy": "Hors ligne",
+    "messagesPerDay": "Messages par jour",
+    "totalMessages": "Total des messages"
   },
   "agents": {
     "title": "Agents",
@@ -286,7 +288,17 @@
     "agentVersion": "Version de l'Agent",
     "lastActive": "Dernière activité",
     "connected": "Connecté",
-    "disconnected": "Déconnecté"
+    "disconnected": "Déconnecté",
+    "nameRequired": "Le nom de l'agent est obligatoire",
+    "nameMinLength": "Le nom doit comporter au moins 2 caracteres",
+    "nameMaxLength": "Le nom doit comporter au plus 50 caracteres",
+    "descRequired": "La description est obligatoire pour les agents ACRP",
+    "descMinLength": "La description doit comporter au moins 10 caracteres",
+    "systemPromptMaxLength": "Le prompt systeme doit comporter au plus 4000 caracteres",
+    "noProvider": "Aucun fournisseur LLM selectionne. L'agent ne pourra pas repondre.",
+    "temperatureRange": "La temperature doit etre entre 0 et 2",
+    "maxTokensRange": "Max tokens doit etre entre 1 et 32000",
+    "creatingAgent": "Creation de l'agent en cours..."
   },
   "agentDetail": {
     "configuration": "Configuration de l'Agent",
@@ -616,7 +628,15 @@
     "searchPlaceholder": "Rechercher des salons...",
     "noSearchResults": "Aucun salon correspondant",
     "tryDifferentSearch": "Essayez un autre terme de recherche",
-    "createRoomDesc": "Creer un nouveau salon de collaboration multi-agent"
+    "createRoomDesc": "Creer un nouveau salon de collaboration multi-agent",
+    "realtime": "Temps reel",
+    "typing": "{name} ecrit...",
+    "typingMultiple": "personnes ecrivent...",
+    "onlineMembers": "en ligne",
+    "noMessages": "Pas encore de messages. Lancez la conversation !",
+    "messagePlaceholder": "Ecrire un message...",
+    "noOnlineMembers": "Personne en ligne",
+    "agentsInRoom": "Agents dans le salon"
   },
   "settingsPage": {
     "title": "Paramètres",
@@ -807,7 +827,23 @@
     "serviceHealth": "Sante du Service",
     "serviceHealthDesc": "Etat de sante en temps reel de tous les services",
     "checkAllServices": "Actualiser",
-    "responseTime": "Reponse"
+    "responseTime": "Reponse",
+    "profile": "Profil",
+    "profileDesc": "Gerez les parametres de votre compte",
+    "displayName": "Nom d'affichage",
+    "emailAddress": "Adresse e-mail",
+    "avatar": "Avatar",
+    "currentPassword": "Mot de passe actuel",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le nouveau mot de passe",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "passwordTooShort": "Le mot de passe doit comporter au moins 6 caracteres",
+    "passwordChanged": "Mot de passe modifie avec succes",
+    "profileSaved": "Profil enregistre avec succes",
+    "wrongPassword": "Le mot de passe actuel est incorrect",
+    "emailVerificationNote": "Le changement d'e-mail necessite une verification",
+    "avatarUrl": "URL de l'avatar",
+    "avatarInitials": "Initiales"
   },
   "language": {
     "switch": "Langue",
@@ -1552,16 +1588,23 @@
       "success": "Succès",
       "warning": "Avertissement",
       "error": "Erreur",
-      "agentEvents": "Événements agent"
+      "agentEvents": "Événements agent",
+      "newMessage": "Messages"
     },
     "today": "Aujourd'hui",
     "yesterday": "Hier",
+    "thisWeek": "Cette semaine",
     "earlier": "Plus tôt",
     "delete": "Supprimer",
     "justNow": "À l'instant",
     "minutesAgo": "il y a {count} min",
     "hoursAgo": "il y a {count} h",
     "daysAgo": "il y a {count} jour(s)",
+    "live": "En direct",
+    "unread": "non lu",
+    "newAgent": "Nouvel agent créé",
+    "agentReply": "L'agent a répondu",
+    "capabilityDone": "Capacité terminée",
     "types": {
       "info": "Info",
       "success": "Succès",
@@ -1570,9 +1613,9 @@
       "agentConnected": "Agent connecté",
       "agentDisconnected": "Agent déconnecté",
       "skillInvoked": "Compétence invoquée",
-      "capabilityResult": "Résultat de capacité"
-    },
-    "unread": "non lu"
+      "capabilityResult": "Résultat de capacité",
+      "newMessage": "Nouveau message"
+    }
   },
   "agentControl": {
     "step1Title": "Creer un Agent",

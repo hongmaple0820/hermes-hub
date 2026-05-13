@@ -22,13 +22,15 @@ export type ViewMode =
 
 export interface Notification {
   id: string;
-  type: 'info' | 'success' | 'warning' | 'error' | 'agent_connected' | 'agent_disconnected' | 'skill_invoked' | 'capability_result';
+  type: 'info' | 'success' | 'warning' | 'error' | 'agent_connected' | 'agent_disconnected' | 'skill_invoked' | 'capability_result' | 'new_message';
   title: string;
   message: string;
   timestamp: string;
   read: boolean;
   actionUrl?: string;
   metadata?: Record<string, any>;
+  live?: boolean; // true if received via Socket.IO (real-time)
+  persisted?: boolean; // true if loaded from DB
 }
 
 interface AppState {
@@ -86,6 +88,7 @@ interface AppState {
   // Notifications
   notifications: Notification[];
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
+  addPersistedNotifications: (notifications: Notification[]) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   clearNotifications: () => void;
@@ -157,11 +160,25 @@ export const useAppStore = create<AppState>((set) => ({
   addNotification: (notification) => set((state) => {
     const newNotification: Notification = {
       ...notification,
-      id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      timestamp: new Date().toISOString(),
+      id: notification.id || `notif-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      timestamp: notification.timestamp || new Date().toISOString(),
       read: false,
     };
+    // Avoid duplicates by ID
+    const exists = state.notifications.some((n) => n.id === newNotification.id);
+    if (exists) return state;
     return { notifications: [newNotification, ...state.notifications] };
+  }),
+  addPersistedNotifications: (persistedNotifications) => set((state) => {
+    // Merge persisted notifications with existing live ones, avoiding duplicates
+    const existingIds = new Set(state.notifications.map((n) => n.id));
+    const newPersisted = persistedNotifications
+      .filter((n) => !existingIds.has(n.id))
+      .map((n) => ({ ...n, persisted: true as const }));
+    // Merge: persisted ones + live ones, sorted by timestamp desc
+    const merged = [...newPersisted, ...state.notifications]
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return { notifications: merged };
   }),
   markAsRead: (id) => set((state) => ({
     notifications: state.notifications.map((n) => n.id === id ? { ...n, read: true } : n),

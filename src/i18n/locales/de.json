@@ -221,7 +221,9 @@
     "serviceDatabase": "Datenbank (SQLite)",
     "checking": "Prüfe...",
     "healthy": "Gesund",
-    "unhealthy": "Down"
+    "unhealthy": "Down",
+    "messagesPerDay": "Nachrichten pro Tag",
+    "totalMessages": "Gesamtnachrichten"
   },
   "agents": {
     "title": "Agenten",
@@ -286,7 +288,17 @@
     "agentVersion": "Agentenversion",
     "lastActive": "Zuletzt aktiv",
     "connected": "Verbunden",
-    "disconnected": "Getrennt"
+    "disconnected": "Getrennt",
+    "nameRequired": "Agent-Name ist erforderlich",
+    "nameMinLength": "Name muss mindestens 2 Zeichen haben",
+    "nameMaxLength": "Name darf maximal 50 Zeichen haben",
+    "descRequired": "Beschreibung ist fuer ACRP-Agenten erforderlich",
+    "descMinLength": "Beschreibung muss mindestens 10 Zeichen haben",
+    "systemPromptMaxLength": "System-Prompt darf maximal 4000 Zeichen haben",
+    "noProvider": "Kein LLM-Anbieter ausgewaehlt. Agent kann nicht antworten.",
+    "temperatureRange": "Temperatur muss zwischen 0 und 2 liegen",
+    "maxTokensRange": "Max Tokens muss zwischen 1 und 32000 liegen",
+    "creatingAgent": "Agent wird erstellt..."
   },
   "agentDetail": {
     "configuration": "Agentenkonfiguration",
@@ -616,7 +628,15 @@
     "searchPlaceholder": "Raume suchen...",
     "noSearchResults": "Keine passenden Raume",
     "tryDifferentSearch": "Versuchen Sie einen anderen Suchbegriff",
-    "createRoomDesc": "Einen neuen Multi-Agenten-Kollaborationsraum erstellen"
+    "createRoomDesc": "Einen neuen Multi-Agenten-Kollaborationsraum erstellen",
+    "realtime": "Echtzeit",
+    "typing": "{name} tippt...",
+    "typingMultiple": "Personen tippen...",
+    "onlineMembers": "online",
+    "noMessages": "Noch keine Nachrichten. Starten Sie die Konversation!",
+    "messagePlaceholder": "Nachricht eingeben...",
+    "noOnlineMembers": "Niemand online",
+    "agentsInRoom": "Agenten im Raum"
   },
   "settingsPage": {
     "title": "Einstellungen",
@@ -807,7 +827,23 @@
     "serviceHealth": "Dienststatus",
     "serviceHealthDesc": "Echtzeit-Status aller Plattformdienste",
     "checkAllServices": "Aktualisieren",
-    "responseTime": "Antwort"
+    "responseTime": "Antwort",
+    "profile": "Profil",
+    "profileDesc": "Verwalten Sie Ihre Kontoeinstellungen",
+    "displayName": "Anzeigename",
+    "emailAddress": "E-Mail-Adresse",
+    "avatar": "Avatar",
+    "currentPassword": "Aktuelles Passwort",
+    "newPassword": "Neues Passwort",
+    "confirmPassword": "Neues Passwort bestaetigen",
+    "passwordMismatch": "Passwoerter stimmen nicht ueberein",
+    "passwordTooShort": "Passwort muss mindestens 6 Zeichen haben",
+    "passwordChanged": "Passwort erfolgreich geaendert",
+    "profileSaved": "Profil erfolgreich gespeichert",
+    "wrongPassword": "Aktuelles Passwort ist falsch",
+    "emailVerificationNote": "E-Mail-Aenderung erfordert Verifizierung",
+    "avatarUrl": "Avatar-URL",
+    "avatarInitials": "Initialen"
   },
   "language": {
     "switch": "Sprache",
@@ -1552,16 +1588,23 @@
       "success": "Erfolg",
       "warning": "Warnung",
       "error": "Fehler",
-      "agentEvents": "Agent-Ereignisse"
+      "agentEvents": "Agent-Ereignisse",
+      "newMessage": "Nachrichten"
     },
     "today": "Heute",
     "yesterday": "Gestern",
+    "thisWeek": "Diese Woche",
     "earlier": "Früher",
     "delete": "Löschen",
     "justNow": "Gerade eben",
     "minutesAgo": "vor {count} Min.",
     "hoursAgo": "vor {count} Std.",
     "daysAgo": "vor {count} Tag(en)",
+    "live": "Live",
+    "unread": "ungelesen",
+    "newAgent": "Neuer Agent erstellt",
+    "agentReply": "Agent hat geantwortet",
+    "capabilityDone": "Fähigkeit abgeschlossen",
     "types": {
       "info": "Info",
       "success": "Erfolg",
@@ -1570,9 +1613,9 @@
       "agentConnected": "Agent verbunden",
       "agentDisconnected": "Agent getrennt",
       "skillInvoked": "Skill aufgerufen",
-      "capabilityResult": "Fähigkeitsergebnis"
-    },
-    "unread": "ungelesen"
+      "capabilityResult": "Fähigkeitsergebnis",
+      "newMessage": "Neue Nachricht"
+    }
   },
   "agentControl": {
     "step1Title": "Agent erstellen",

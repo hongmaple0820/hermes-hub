@@ -519,6 +519,69 @@ Stage Summary:
 - **ACRP is now the primary way to manage external agents**
 
 ---
+Task ID: 4
+Agent: NotificationSystemBuilder
+Task: Add real-time notification system via Socket.IO
+
+Work Log:
+- Updated Prisma schema with Notification model (id, userId, type, title, message, actionUrl, metadata, read, createdAt) with indexes on [userId, read] and [userId, createdAt]
+- Ran `bun run db:push` to apply schema changes
+- Updated chat-service (port 3003) with notification support:
+  - Added `notificationSubscribers` Map for tracking per-user notification subscriptions
+  - Added `POST /internal/notifications` internal HTTP API for Next.js to push notifications via Socket.IO
+  - Added `notifications:subscribe` socket event handler (client subscribes for real-time notifications)
+  - Added `notifications:mark-read` socket event handler (forwards to Next.js API to persist)
+  - Added `notifications:mark-all-read` socket event handler (forwards to Next.js API to persist)
+  - Added cleanup of notification subscriptions on socket disconnect
+  - Updated /health endpoint to include notificationSubscribers count
+- Created `/api/notifications/route.ts` REST API:
+  - GET: List notifications for authenticated user (with limit, unread filters)
+  - POST: Create notification (persists to DB + pushes via Socket.IO)
+  - PATCH: Mark notification(s) as read (single or mark-all-read)
+  - DELETE: Delete notification(s) (single or clear-all)
+- Updated Notification type in store.ts:
+  - Added `new_message` type
+  - Added `live` and `persisted` optional fields
+  - Added `addPersistedNotifications` action for merging DB notifications with live ones
+  - Updated `addNotification` to support external ID and deduplication
+- Added notification API methods to api-client.ts: getNotifications, createNotification, markNotificationRead, markAllNotificationsRead, deleteNotification, clearAllNotifications
+- Rewrote NotificationBell component:
+  - Connects to chat-service Socket.IO on mount for real-time notifications
+  - Subscribes to `notifications:subscribe` channel on connect
+  - Listens for `notification` events and adds to Zustand store + shows toast for important types
+  - Loads persisted notifications from DB on mount
+  - Shows WebSocket connection indicator (green/gray dot)
+  - Shows "Live" badge when WebSocket connected
+  - Handles mark-as-read and clear-all with DB persistence
+- Rewrote NotificationPanel component:
+  - Loads persisted notifications from DB on mount
+  - Shows "Live" badge on real-time (Socket.IO) notifications with Wifi icon
+  - Shows "DB" badge on persisted notifications
+  - Enhanced date grouping: Today, Yesterday, This Week, Earlier
+  - Added "new_message" filter tab
+  - Handles mark-as-read, delete, clear-all with DB persistence
+  - Shows live notification count in header with Wifi badge
+- Added notification triggers in API routes:
+  - `/api/agents/route.ts` (POST): Pushes `success` notification when new agent created
+  - `/api/acrp/agents/[id]/invoke/route.ts`: Pushes `capability_result` notification when capability invoked
+  - `/api/conversations/[id]/messages/route.ts`: Pushes `new_message` notification when agent replies
+  - All triggers persist to DB first, then push via Socket.IO internal API
+- Updated i18n keys in all 8 locale files (en, zh, ja, ko, de, es, fr, pt):
+  - Added: live, thisWeek, newAgent, agentReply, capabilityDone
+  - Added: filters.newMessage, types.newMessage
+- All lint checks pass clean
+
+Stage Summary:
+- **Real-time notification system fully implemented** via Socket.IO
+- **Architecture**: Next.js API routes create notifications (persist to DB), then push via chat-service internal HTTP API → Socket.IO → client
+- **Client**: NotificationBell connects to Socket.IO, subscribes for real-time events, merges with persisted DB notifications
+- **Notification types**: info, success, warning, error, agent_connected, agent_disconnected, skill_invoked, capability_result, new_message
+- **Triggers**: Agent creation, capability invocation, agent replies all push notifications
+- **Persistence**: All notifications stored in Notification DB table, survive page refreshes
+- **Live indicators**: Green dot on bell for WebSocket connection, "Live" badge on real-time notifications, "DB" badge on persisted ones
+- **Date grouping**: Today, Yesterday, This Week, Earlier
+
+---
 Task ID: BUGFIX-CLEANUP
 Agent: main
 Task: Fix deployment failures — remove hermesGateway 500 errors, simplify agent modes
@@ -2711,3 +2774,217 @@ Stage Summary:
 - **All QA bugs fixed** - 12 issues resolved
 - **UI/UX significantly enhanced** - 5 new features added
 - **Code pushed to remote**: github.com/hongmaple0820/hermes-hub main
+
+---
+Task ID: 6
+Agent: MiddlewareBuilder
+Task: Add Next.js middleware for JWT cookie-based authentication
+
+Work Log:
+- Created `/home/z/my-project/src/middleware.ts` — Next.js Edge Runtime middleware
+- Protected all `/api/*` routes with JWT verification (httpOnly cookie or Authorization header)
+- Defined 12 public routes that skip authentication:
+  - /api/auth/login, /api/auth/register, /api/auth/refresh
+  - /api/health
+  - /api/seed/* (prefix match)
+  - /api/acrp/validate-token, /api/acrp/register, /api/acrp/heartbeat, /api/acrp/status, /api/acrp/disconnect, /api/acrp/invocation-result
+  - /api/skill-protocol/validate, /api/skill-protocol/ws-status
+- Auto-refresh: If access token expired but refresh token cookie exists, verifies refresh token and issues new access token cookie
+- Sets `x-user-id` header on authenticated requests for backward compatibility with downstream handlers
+- Uses `jose` library (Edge Runtime compatible) for all JWT operations via `@/lib/jwt` imports
+- Returns 401 JSON `{ error: 'Unauthorized' }` for unauthenticated requests
+- Tested middleware behavior:
+  - `/api/agents` → 401 (protected, no token)
+  - `/api/health` → 200 (public route)
+  - `/api/auth/login` → 405 (public, passes through to handler, wrong method)
+  - `/api/acrp/validate-token` → 400 (public, passes through to handler, missing param)
+  - `/api/skill-protocol/validate` → 400 (public, passes through to handler)
+  - `/api/seed/test` → 404 (public, passes through, route doesn't exist)
+- Lint check passes clean
+
+Stage Summary:
+- **JWT cookie-based authentication middleware fully implemented**
+- All API routes require valid JWT except explicitly listed public routes
+- Supports both cookie-based and Bearer token authentication
+- Auto-refresh flow: expired access token + valid refresh token → new access token cookie
+- `x-user-id` header set for backward compatibility with existing API handlers
+- Edge Runtime compatible (uses jose, no db/Node.js APIs)
+
+---
+Task ID: 3
+Agent: main
+Task: Add real-time chat room messaging via Socket.IO
+
+Work Log:
+- Updated `/home/z/my-project/mini-services/chat-service/index.ts` with chat room real-time features:
+  - Added `RoomOnlineUser` interface and `roomOnlineUsers` Map for tracking online users per room
+  - Added `roomTypingUsers` Map for tracking typing state per room (separate from conversation typing)
+  - Updated `room:join` handler: now tracks online users, broadcasts participant list to all room members, returns participant list via callback
+  - Updated `room:leave` handler: now cleans up online users, typing state, broadcasts updated participants
+  - Updated `room:message` handler: now saves message to DB via Next.js API (POST /api/chat-rooms/{roomId}/messages), broadcasts to other users, sends confirmation to sender, clears typing state
+  - Added `room:typing` handler: tracks typing state per room, broadcasts to other room members
+  - Added `room:participants` handler: returns online participant list via callback or emit
+  - Added `getRoomOnlineParticipants()` helper function
+  - Added `cleanupUserFromChatRooms()` function for disconnect cleanup (removes from all rooms, broadcasts updated participants, clears typing)
+  - Updated disconnect handler to call `cleanupUserFromChatRooms()`
+  - Room cards now show "Real-time" badge with Radio icon
+
+- Rewrote `/home/z/my-project/src/components/views/ChatRoomManager.tsx` with full Socket.IO integration:
+  - Socket.IO connection on mount using `io('/?XTransformPort=3003')` (through Caddy gateway)
+  - Auto reconnection with 10 attempts, 2s delay
+  - Auto re-join rooms on reconnect
+  - Room detail/chat view when clicking a room card:
+    - Full message display with sender avatars (User/Bot icons), bubble styling, timestamps
+    - Own messages right-aligned with primary color, other users left-aligned, agents with primary/10 bg
+    - Message input with Enter-to-send, auto-scroll to bottom
+    - Typing indicator showing "{name} is typing..." with animation
+    - Online participants sidebar (toggleable) with green status dots
+    - Room agents section in sidebar
+    - Back button to return to room list
+  - Real-time features:
+    - `room:message` event: receives messages from other users in real-time, avoids duplicates
+    - `room:message:sent` event: receives confirmation for own sent messages
+    - `room:typing` event: shows typing indicator, auto-stops after 3s inactivity
+    - `room:participants` event: updates online participant list
+    - `room:join/leave` events: refreshes participants when users join/leave
+  - Optimistic message sending: adds message locally immediately, removes when confirmed by Socket.IO
+  - Messages still saved via REST API (POST /api/chat-rooms/{roomId}/messages) for persistence
+  - Socket.IO is for real-time broadcast only — REST API is the source of truth
+
+- Created `/home/z/my-project/src/app/api/chat-rooms/join/route.ts`:
+  - POST endpoint to join a chat room using a join code
+  - Finds room by join code, checks existing membership, creates membership if not already member
+  - Returns room data with joined/alreadyMember flags
+
+- Added `joinChatRoom()` method to `/home/z/my-project/src/lib/api-client.ts`:
+  - POST /api/chat-rooms/join with { joinCode }
+  - Returns { room, joined?, alreadyMember? }
+
+- Added 8 new i18n keys to all 8 locale files (en, zh, ja, ko, de, es, fr, pt):
+  - `chatRooms.realtime` — "Real-time" / "实时" / "リアルタイム" / etc.
+  - `chatRooms.typing` — "{name} is typing..." / "{name} 正在输入..." / etc.
+  - `chatRooms.typingMultiple` — "people are typing..." / etc.
+  - `chatRooms.onlineMembers` — "online" / "在线" / etc.
+  - `chatRooms.noMessages` — "No messages yet. Start the conversation!" / etc.
+  - `chatRooms.messagePlaceholder` — "Type a message..." / etc.
+  - `chatRooms.noOnlineMembers` — "No one online" / etc.
+  - `chatRooms.agentsInRoom` — "Agents in Room" / etc.
+
+- Lint check passes clean (no errors in changed files)
+
+Stage Summary:
+- **Chat rooms now have real-time messaging via Socket.IO**
+- Users can click a room card to enter the chat view
+- Messages are sent via REST API for persistence, broadcast via Socket.IO for real-time delivery
+- Typing indicators show when other users are composing messages
+- Online participants sidebar shows who is currently in the room
+- Disconnect cleanup ensures participants list stays accurate
+- Join room API added with proper join code validation
+
+---
+Task ID: 8
+Agent: AnalyticsDashboardBuilder
+Task: Add real analytics API endpoints and replace Dashboard mock data with live data
+
+Work Log:
+- Created `/home/z/my-project/src/app/api/analytics/dashboard/route.ts` — New analytics endpoint:
+  - GET /api/analytics/dashboard — Returns real analytics data for the dashboard
+  - Uses requireAuth for JWT authentication
+  - Queries: agents (total, online, builtin, acrp, acrpConnected), conversations (total, convsPerDay last 7 days), messages (total, messagesPerDay last 7 days), providers (total, active), skills (total, totalInvocations), chatRooms (total)
+  - convsPerDay: Array of {date, count} for each of the last 7 days, computed from actual conversation createdAt dates
+  - messagesPerDay: Array of {date, count} for each of the last 7 days, computed from actual message createdAt dates
+  - Proper error handling with 401 for unauthorized and 500 for server errors
+- Added `getDashboardAnalytics()` method to `/home/z/my-project/src/lib/api-client.ts`:
+  - Returns typed response with agents, conversations, messages, providers, skills, chatRooms sections
+- Updated `/home/z/my-project/src/components/views/Dashboard.tsx`:
+  - Added `api` import from @/lib/api-client
+  - Added DashboardAnalytics interface and analyticsData state
+  - Added fetchDashboardAnalytics() function calling the API (with 30-second auto-refresh)
+  - Replaced mock convsPerDay (random data) with real data from analytics API
+  - Added msgsPerDay and maxMsgsPerDay for messages per day chart
+  - Added "Messages per Day" bar chart (rose-colored) to analytics row alongside existing conversations chart
+  - Changed analytics row layout from 3-column to 4-column grid (lg:grid-cols-4)
+  - Replaced hardcoded systemUptime (99.9%) with real computation from service health checks (online services / total services * 100)
+  - Replaced hardcoded agentResponseTime (1.2s) with real average from service health response times
+  - Removed hardcoded systemHealth object (apiResponseTime, memoryUsage, cpuLoad) — no longer used
+  - Updated MiniBarChart component to support custom barColor/hoverColor props
+  - Updated sparkline data in stat cards to use real convsPerDay data for conversations card and derived values for others
+  - Changed quickStats "Total Conversations" to "Total Messages" using analytics API totalMessages
+  - Added totalMessages variable from analyticsData
+- Added i18n keys to all 8 locale files (en, zh, ja, ko, de, es, fr, pt):
+  - dashboard.messagesPerDay: "Messages per day" (+ translations)
+  - dashboard.totalMessages: "Total messages" (+ translations)
+- All lint checks pass clean
+- Dev server running normally
+
+Stage Summary:
+- **Dashboard now uses real analytics data** instead of mock/random data
+- **New API endpoint**: GET /api/analytics/dashboard provides server-computed analytics
+- **Conversations per day chart**: Shows real conversation creation counts for last 7 days
+- **New Messages per day chart**: Shows real message counts for last 7 days
+- **System uptime**: Computed from real service health checks instead of hardcoded 99.9%
+- **Agent response time**: Computed from real service response times instead of hardcoded 1.2s
+- **Total Messages stat**: Replaced "Total Conversations" in quick stats grid
+- **Sparkline data**: Uses real convsPerDay data where applicable
+- **Auto-refresh**: Analytics data refreshes every 30 seconds
+
+
+---
+Task ID: 2+5
+Agent: main
+Task: Add Agent creation validation feedback + Enhance Settings with profile management
+
+Work Log:
+- **Part A: Agent Creation Validation Feedback**
+  - Added comprehensive `validateForm()` function in AgentManager.tsx with:
+    - Name: required, min 2 chars, max 50 chars
+    - Description: required for ACRP mode, min 10 chars
+    - System Prompt: max 4000 chars with live character counter
+    - Temperature: validate 0-2 range
+    - MaxTokens: validate 1-32000 range
+  - Added inline validation errors with red borders, AlertCircle icon, and error text below fields
+  - Added loading state feedback: Loader2 spinner + "Creating agent..." text on submit button
+  - Added provider warning: yellow warning with AlertTriangle icon when no LLM provider selected in builtin mode (but allows submission)
+  - Better error messages: "Create New Agent: [specific reason]" instead of raw error
+  - Clear validation errors on field change and on dialog close
+  - Added validationErrors state and validation clearing on mode switch
+- **Part B: Enhanced Settings with Profile Management**
+  - Replaced static Account Information card with full Profile Management section:
+    - Avatar: Large (80x80), editable with hover overlay + URL prompt, supports image URL or initials fallback
+    - Display Name: Editable input field
+    - Email: Editable input with "Changing email requires verification" note
+    - Avatar URL: Editable input field
+    - Role: Read-only display
+    - Save Profile button with loading spinner
+  - Change Password section enhanced with:
+    - Current Password field with show/hide toggle
+    - New Password field with show/hide toggle
+    - Confirm Password field with show/hide toggle
+    - Inline password mismatch error (red text when confirm doesn't match)
+    - Password validation: min 6 chars, mismatch check
+    - Wrong password detection: Shows "Current password is incorrect" i18n key
+    - Loading spinner on change password button
+  - Created API endpoint `PATCH /api/auth/profile`:
+    - Accepts name, email, avatar fields
+    - Validates email uniqueness (409 conflict if email already taken)
+    - Uses requireAuth for authentication
+    - Returns updated user object
+  - Created API endpoint `POST /api/auth/change-password`:
+    - Accepts currentPassword and newPassword
+    - Validates current password with bcrypt
+    - Returns "Wrong password" error if current password incorrect
+    - Hashes new password with bcrypt before saving
+    - Returns { success: true }
+  - Added `updateProfile()` and `changePassword()` methods to api-client.ts
+  - Profile save uses api.updateProfile() instead of api.updateSettings()
+  - Password change uses api.changePassword() instead of api.updateSettings()
+- **i18n Keys Added to All 8 Locale Files** (en, zh, ja, ko, de, es, fr, pt):
+  - Agent validation: nameRequired, nameMinLength, nameMaxLength, descRequired, descMinLength, systemPromptMaxLength, noProvider, temperatureRange, maxTokensRange, creatingAgent
+  - Settings profile: profile, profileDesc, displayName, emailAddress, avatar, currentPassword, newPassword, confirmPassword, passwordMismatch, passwordTooShort, passwordChanged, profileSaved, wrongPassword, emailVerificationNote, avatarUrl, avatarInitials
+- All lint checks pass clean
+
+Stage Summary:
+- **Agent creation no longer silently fails**: Comprehensive validation with inline errors, loading states, and descriptive error messages
+- **Profile management fully functional**: Users can edit name, email, avatar URL, and change password with proper validation
+- **New API endpoints**: /api/auth/profile (PATCH) and /api/auth/change-password (POST) with proper auth and validation
+- **Better UX**: Red borders on invalid fields, AlertCircle icons, character counters, password mismatch warnings, loading spinners

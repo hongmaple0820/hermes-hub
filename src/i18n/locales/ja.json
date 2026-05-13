@@ -221,7 +221,9 @@
     "serviceDatabase": "データベース (SQLite)",
     "checking": "確認中...",
     "healthy": "正常",
-    "unhealthy": "停止"
+    "unhealthy": "停止",
+    "messagesPerDay": "1日あたりのメッセージ数",
+    "totalMessages": "総メッセージ数"
   },
   "agents": {
     "title": "エージェント",
@@ -286,7 +288,17 @@
     "agentVersion": "エージェントバージョン",
     "lastActive": "最終アクティビティ",
     "connected": "接続済み",
-    "disconnected": "未接続"
+    "disconnected": "未接続",
+    "nameRequired": "エージェント名は必須です",
+    "nameMinLength": "名前は2文字以上必要です",
+    "nameMaxLength": "名前は50文字以内です",
+    "descRequired": "ACRPエージェントには説明が必要です",
+    "descMinLength": "説明は10文字以上必要です",
+    "systemPromptMaxLength": "システムプロンプトは4000文字以内です",
+    "noProvider": "LLMプロバイダーが選択されていません。エージェントは応答できません。",
+    "temperatureRange": "温度は0から2の間である必要があります",
+    "maxTokensRange": "最大トークン数は1から32000の間である必要があります",
+    "creatingAgent": "エージェントを作成中..."
   },
   "agentDetail": {
     "configuration": "エージェント設定",
@@ -616,7 +628,15 @@
     "searchPlaceholder": "ルームを検索...",
     "noSearchResults": "一致するルームなし",
     "tryDifferentSearch": "別の検索語をお試しください",
-    "createRoomDesc": "新しいマルチエージェントコラボレーションルームを作成"
+    "createRoomDesc": "新しいマルチエージェントコラボレーションルームを作成",
+    "realtime": "リアルタイム",
+    "typing": "{name}が入力中...",
+    "typingMultiple": "人が入力中...",
+    "onlineMembers": "オンライン",
+    "noMessages": "メッセージはまだありません。会話を始めましょう！",
+    "messagePlaceholder": "メッセージを入力...",
+    "noOnlineMembers": "オンラインのメンバーはいません",
+    "agentsInRoom": "ルーム内のエージェント"
   },
   "settingsPage": {
     "title": "設定",
@@ -807,7 +827,23 @@
     "serviceHealth": "サービスヘルス",
     "serviceHealthDesc": "すべてのプラットフォームサービスのリアルタイム健全性状態",
     "checkAllServices": "更新",
-    "responseTime": "応答"
+    "responseTime": "応答",
+    "profile": "プロフィール",
+    "profileDesc": "アカウント設定を管理",
+    "displayName": "表示名",
+    "emailAddress": "メールアドレス",
+    "avatar": "アバター",
+    "currentPassword": "現在のパスワード",
+    "newPassword": "新しいパスワード",
+    "confirmPassword": "新しいパスワードの確認",
+    "passwordMismatch": "パスワードが一致しません",
+    "passwordTooShort": "パスワードは6文字以上必要です",
+    "passwordChanged": "パスワードが変更されました",
+    "profileSaved": "プロフィールが保存されました",
+    "wrongPassword": "現在のパスワードが正しくありません",
+    "emailVerificationNote": "メールの変更には確認が必要です",
+    "avatarUrl": "アバターURL",
+    "avatarInitials": "イニシャル"
   },
   "language": {
     "switch": "言語",
@@ -1552,16 +1588,23 @@
       "success": "成功",
       "warning": "警告",
       "error": "エラー",
-      "agentEvents": "エージェントイベント"
+      "agentEvents": "エージェントイベント",
+      "newMessage": "メッセージ"
     },
     "today": "今日",
     "yesterday": "昨日",
+    "thisWeek": "今週",
     "earlier": "以前",
     "delete": "削除",
     "justNow": "たった今",
     "minutesAgo": "{count}分前",
     "hoursAgo": "{count}時間前",
     "daysAgo": "{count}日前",
+    "live": "リアルタイム",
+    "unread": "未読",
+    "newAgent": "新しいエージェントが作成されました",
+    "agentReply": "エージェントが返信しました",
+    "capabilityDone": "機能が完了しました",
     "types": {
       "info": "情報",
       "success": "成功",
@@ -1570,9 +1613,9 @@
       "agentConnected": "エージェント接続",
       "agentDisconnected": "エージェント切断",
       "skillInvoked": "スキル実行",
-      "capabilityResult": "機能結果"
-    },
-    "unread": "未読"
+      "capabilityResult": "機能結果",
+      "newMessage": "新しいメッセージ"
+    }
   },
   "agentControl": {
     "step1Title": "エージェントを作成",

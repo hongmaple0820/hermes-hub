@@ -2,6 +2,39 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
 
+// Helper: push notification for capability invocation
+async function pushCapabilityNotification(userId: string, agentName: string, capabilityName: string, agentId: string) {
+  try {
+    const dbNotif = await db.notification.create({
+      data: {
+        userId,
+        type: 'capability_result',
+        title: 'Capability completed',
+        message: `Capability "${capabilityName}" on agent "${agentName}" has been invoked.`,
+        actionUrl: `/agents/${agentId}`,
+      },
+    })
+    await fetch('http://localhost:3003/internal/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        notification: {
+          id: dbNotif.id,
+          type: 'capability_result',
+          title: 'Capability completed',
+          message: `Capability "${capabilityName}" on agent "${agentName}" has been invoked.`,
+          actionUrl: `/agents/${agentId}`,
+          timestamp: dbNotif.createdAt.toISOString(),
+        },
+      }),
+      signal: AbortSignal.timeout(3000),
+    })
+  } catch {
+    // Silently fail — notifications are non-critical
+  }
+}
+
 // POST /api/acrp/agents/[id]/invoke — Invoke a capability on an agent
 export async function POST(
   request: NextRequest,
@@ -105,6 +138,9 @@ export async function POST(
         data: { status: 'sent' },
       })
     }
+
+    // Push notification for capability invocation (fire-and-forget)
+    pushCapabilityNotification(user.id, agent.name, capability.name, agentId)
 
     return NextResponse.json({
       invocationId: invocation.id,

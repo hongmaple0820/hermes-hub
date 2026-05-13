@@ -221,7 +221,9 @@
     "serviceDatabase": "데이터베이스 (SQLite)",
     "checking": "확인 중...",
     "healthy": "정상",
-    "unhealthy": "중단"
+    "unhealthy": "중단",
+    "messagesPerDay": "일일 메시지 수",
+    "totalMessages": "총 메시지 수"
   },
   "agents": {
     "title": "에이전트",
@@ -286,7 +288,17 @@
     "agentVersion": "에이전트 버전",
     "lastActive": "최근 활동",
     "connected": "연결됨",
-    "disconnected": "연결 끊김"
+    "disconnected": "연결 끊김",
+    "nameRequired": "에이전트 이름은 필수입니다",
+    "nameMinLength": "이름은 2자 이상이어야 합니다",
+    "nameMaxLength": "이름은 50자 이하여야 합니다",
+    "descRequired": "ACRP 에이전트에는 설명이 필요합니다",
+    "descMinLength": "설명은 10자 이상이어야 합니다",
+    "systemPromptMaxLength": "시스템 프롬프트는 4000자 이하여야 합니다",
+    "noProvider": "LLM 제공자가 선택되지 않았습니다. 에이전트가 응답할 수 없습니다.",
+    "temperatureRange": "온도는 0에서 2 사이여야 합니다",
+    "maxTokensRange": "최대 토큰 수는 1에서 32000 사이여야 합니다",
+    "creatingAgent": "에이전트 생성 중..."
   },
   "agentDetail": {
     "configuration": "에이전트 구성",
@@ -616,7 +628,15 @@
     "searchPlaceholder": "방 검색...",
     "noSearchResults": "일치하는 방 없음",
     "tryDifferentSearch": "다른 검색어를 시도하세요",
-    "createRoomDesc": "새 멀티 에이전트 협업 방 만들기"
+    "createRoomDesc": "새 멀티 에이전트 협업 방 만들기",
+    "realtime": "실시간",
+    "typing": "{name}님이 입력 중...",
+    "typingMultiple": "명이 입력 중...",
+    "onlineMembers": "온라인",
+    "noMessages": "아직 메시지가 없습니다. 대화를 시작하세요!",
+    "messagePlaceholder": "메시지를 입력하세요...",
+    "noOnlineMembers": "온라인 멤버가 없습니다",
+    "agentsInRoom": "방의 에이전트"
   },
   "settingsPage": {
     "title": "설정",
@@ -807,7 +827,23 @@
     "serviceHealth": "서비스 상태",
     "serviceHealthDesc": "모든 플랫폼 서비스의 실시간 상태",
     "checkAllServices": "새로고침",
-    "responseTime": "응답"
+    "responseTime": "응답",
+    "profile": "프로필",
+    "profileDesc": "계정 설정 관리",
+    "displayName": "표시 이름",
+    "emailAddress": "이메일 주소",
+    "avatar": "아바타",
+    "currentPassword": "현재 비밀번호",
+    "newPassword": "새 비밀번호",
+    "confirmPassword": "새 비밀번호 확인",
+    "passwordMismatch": "비밀번호가 일치하지 않습니다",
+    "passwordTooShort": "비밀번호는 6자 이상이어야 합니다",
+    "passwordChanged": "비밀번호가 변경되었습니다",
+    "profileSaved": "프로필이 저장되었습니다",
+    "wrongPassword": "현재 비밀번호가 올바르지 않습니다",
+    "emailVerificationNote": "이메일 변경 시 인증이 필요합니다",
+    "avatarUrl": "아바타 URL",
+    "avatarInitials": "이니셜"
   },
   "language": {
     "switch": "언어",
@@ -1552,16 +1588,23 @@
       "success": "성공",
       "warning": "경고",
       "error": "오류",
-      "agentEvents": "에이전트 이벤트"
+      "agentEvents": "에이전트 이벤트",
+      "newMessage": "메시지"
     },
     "today": "오늘",
     "yesterday": "어제",
+    "thisWeek": "이번 주",
     "earlier": "이전",
     "delete": "삭제",
     "justNow": "방금",
     "minutesAgo": "{count}분 전",
     "hoursAgo": "{count}시간 전",
     "daysAgo": "{count}일 전",
+    "live": "실시간",
+    "unread": "읽지 않음",
+    "newAgent": "새 에이전트가 생성되었습니다",
+    "agentReply": "에이전트가 답변했습니다",
+    "capabilityDone": "기능이 완료되었습니다",
     "types": {
       "info": "정보",
       "success": "성공",
@@ -1570,9 +1613,9 @@
       "agentConnected": "에이전트 연결",
       "agentDisconnected": "에이전트 연결 해제",
       "skillInvoked": "스킬 호출",
-      "capabilityResult": "기능 결과"
-    },
-    "unread": "읽지 않음"
+      "capabilityResult": "기능 결과",
+      "newMessage": "새 메시지"
+    }
   },
   "agentControl": {
     "step1Title": "에이전트 생성",

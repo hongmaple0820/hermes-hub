@@ -202,6 +202,15 @@ class ApiClient {
     return this.get<{ user: any }>('/auth/me');
   }
 
+  // Profile management
+  async updateProfile(data: { name?: string; email?: string; avatar?: string }) {
+    return this.patch<{ user: any }>('/auth/profile', data);
+  }
+
+  async changePassword(data: { currentPassword: string; newPassword: string }) {
+    return this.post<{ success: boolean }>('/auth/change-password', data);
+  }
+
   // Providers
   async getProviders() {
     return this.get<{ providers: any[] }>('/providers');
@@ -357,6 +366,10 @@ class ApiClient {
 
   async sendChatRoomMessage(roomId: string, content: string) {
     return this.post<{ message: any }>(`/chat-rooms/${roomId}/messages`, { content });
+  }
+
+  async joinChatRoom(joinCode: string) {
+    return this.post<{ room: any; joined?: boolean; alreadyMember?: boolean }>('/chat-rooms/join', { joinCode });
   }
 
   // Channels
@@ -645,6 +658,34 @@ class ApiClient {
     }>(`/agents/${agentId}/generate-skill-endpoint`, { skillId, regenerate: true });
   }
 
+  // Notifications
+  async getNotifications(limit?: number, unreadOnly?: boolean) {
+    const params = new URLSearchParams();
+    if (limit) params.set('limit', String(limit));
+    if (unreadOnly) params.set('unread', 'true');
+    return this.get<{ notifications: any[]; unreadCount: number; total: number }>(`/notifications?${params.toString()}`);
+  }
+
+  async createNotification(data: { userId?: string; type: string; title: string; message: string; actionUrl?: string; metadata?: any }) {
+    return this.post<{ notification: any }>('/notifications', data);
+  }
+
+  async markNotificationRead(notificationId: string) {
+    return this.patch<{ success: boolean; notificationId }>('/notifications', { notificationId });
+  }
+
+  async markAllNotificationsRead() {
+    return this.patch<{ success: boolean; action: string }>('/notifications', { markAllRead: true });
+  }
+
+  async deleteNotification(id: string) {
+    return this.del(`/notifications?id=${encodeURIComponent(id)}`);
+  }
+
+  async clearAllNotifications() {
+    return this.del('/notifications?clearAll=true');
+  }
+
   // ACRP - Agent Capability Registration Protocol
   async generateAcrpToken(agentId: string) {
     return this.post<{ agentToken: string; wsConnectUrl: string; wsDirectUrl: string; agentId: string }>('/acrp/generate-token', { agentId });
@@ -701,6 +742,37 @@ class ApiClient {
       activeProviders: number;
       recentActivityCount: number;
     }>('/analytics/overview');
+  }
+
+  async getDashboardAnalytics() {
+    return this.get<{
+      agents: {
+        total: number;
+        online: number;
+        builtin: number;
+        acrp: number;
+        acrpConnected: number;
+      };
+      conversations: {
+        total: number;
+        convsPerDay: { date: string; count: number }[];
+      };
+      messages: {
+        total: number;
+        messagesPerDay: { date: string; count: number }[];
+      };
+      providers: {
+        total: number;
+        active: number;
+      };
+      skills: {
+        total: number;
+        totalInvocations: number;
+      };
+      chatRooms: {
+        total: number;
+      };
+    }>('/analytics/dashboard');
   }
 
   // Context Engine

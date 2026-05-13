@@ -221,7 +221,9 @@
     "serviceDatabase": "数据库 (SQLite)",
     "checking": "检查中...",
     "healthy": "正常",
-    "unhealthy": "离线"
+    "unhealthy": "离线",
+    "messagesPerDay": "每日消息数",
+    "totalMessages": "总消息数"
   },
   "agents": {
     "title": "智能体",
@@ -286,7 +288,17 @@
     "agentVersion": "智能体版本",
     "lastActive": "最近活跃",
     "connected": "已连接",
-    "disconnected": "未连接"
+    "disconnected": "未连接",
+    "nameRequired": "智能体名称为必填项",
+    "nameMinLength": "名称至少需要2个字符",
+    "nameMaxLength": "名称最多50个字符",
+    "descRequired": "ACRP智能体必须填写描述",
+    "descMinLength": "描述至少需要10个字符",
+    "systemPromptMaxLength": "系统提示词最多4000个字符",
+    "noProvider": "未选择LLM提供商，智能体将无法响应。",
+    "temperatureRange": "温度值必须在0到2之间",
+    "maxTokensRange": "最大令牌数必须在1到32000之间",
+    "creatingAgent": "正在创建智能体..."
   },
   "agentDetail": {
     "configuration": "智能体配置",
@@ -616,7 +628,15 @@
     "searchPlaceholder": "搜索房间...",
     "noSearchResults": "没有匹配的房间",
     "tryDifferentSearch": "请尝试不同的搜索词",
-    "createRoomDesc": "创建一个新的多智能体协作房间"
+    "createRoomDesc": "创建一个新的多智能体协作房间",
+    "realtime": "实时",
+    "typing": "{name} 正在输入...",
+    "typingMultiple": "人正在输入...",
+    "onlineMembers": "在线",
+    "noMessages": "暂无消息，开始聊天吧！",
+    "messagePlaceholder": "输入消息...",
+    "noOnlineMembers": "暂无在线成员",
+    "agentsInRoom": "房间中的智能体"
   },
   "settingsPage": {
     "title": "设置",
@@ -807,7 +827,23 @@
     "serviceHealth": "服务健康",
     "serviceHealthDesc": "所有平台服务的实时健康状态",
     "checkAllServices": "刷新",
-    "responseTime": "响应"
+    "responseTime": "响应",
+    "profile": "个人资料",
+    "profileDesc": "管理您的账户设置",
+    "displayName": "显示名称",
+    "emailAddress": "邮箱地址",
+    "avatar": "头像",
+    "currentPassword": "当前密码",
+    "newPassword": "新密码",
+    "confirmPassword": "确认新密码",
+    "passwordMismatch": "两次输入的密码不一致",
+    "passwordTooShort": "密码至少需要6个字符",
+    "passwordChanged": "密码修改成功",
+    "profileSaved": "个人资料保存成功",
+    "wrongPassword": "当前密码不正确",
+    "emailVerificationNote": "更改邮箱需要验证",
+    "avatarUrl": "头像URL",
+    "avatarInitials": "首字母"
   },
   "language": {
     "switch": "语言",
@@ -1590,16 +1626,23 @@
       "success": "成功",
       "warning": "警告",
       "error": "错误",
-      "agentEvents": "智能体事件"
+      "agentEvents": "智能体事件",
+      "newMessage": "消息"
     },
     "today": "今天",
     "yesterday": "昨天",
+    "thisWeek": "本周",
     "earlier": "更早",
     "delete": "删除",
     "justNow": "刚刚",
     "minutesAgo": "{count}分钟前",
     "hoursAgo": "{count}小时前",
     "daysAgo": "{count}天前",
+    "live": "实时",
+    "unread": "未读",
+    "newAgent": "新智能体已创建",
+    "agentReply": "智能体已回复",
+    "capabilityDone": "能力调用完成",
     "types": {
       "info": "信息",
       "success": "成功",
@@ -1608,9 +1651,9 @@
       "agentConnected": "智能体已连接",
       "agentDisconnected": "智能体已断开",
       "skillInvoked": "技能已调用",
-      "capabilityResult": "能力结果"
-    },
-    "unread": "未读"
+      "capabilityResult": "能力结果",
+      "newMessage": "新消息"
+    }
   },
   "agentControl": {
     "step1Title": "创建代理",
