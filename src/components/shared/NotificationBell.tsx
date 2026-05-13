@@ -80,6 +80,7 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const totalCount = notifications.length;
 
   const handleNotificationClick = (notification: Notification) => {
     if (!notification.read) {
@@ -103,21 +104,31 @@ export function NotificationBell() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative h-9 w-9 rounded-lg hover:bg-accent transition-all duration-200"
+          className={cn(
+            "relative h-9 w-9 rounded-lg hover:bg-accent transition-all duration-200",
+            unreadCount > 0 && "text-foreground"
+          )}
         >
-          <Bell className="w-[18px] h-[18px]" />
+          <Bell className={cn(
+            "w-[18px] h-[18px] transition-all duration-300",
+            unreadCount > 0 && "text-foreground"
+          )} />
           {unreadCount > 0 && (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-            >
-              <Badge
-                className="absolute -top-1 -right-1 h-5 min-w-5 px-1 text-[10px] font-bold bg-red-500 text-white border-0 hover:bg-red-500 rounded-full flex items-center justify-center"
+            <>
+              {/* Pulse ring animation for unread */}
+              <span className="absolute inset-0 rounded-lg animate-ping bg-red-500/20 pointer-events-none" />
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 25 }}
               >
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </Badge>
-            </motion.div>
+                <Badge
+                  className="absolute -top-1 -right-1 h-5 min-w-5 px-1 text-[10px] font-bold bg-red-500 text-white border-0 hover:bg-red-500 rounded-full flex items-center justify-center shadow-sm shadow-red-500/30"
+                >
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Badge>
+              </motion.div>
+            </>
           )}
         </Button>
       </PopoverTrigger>
@@ -131,8 +142,13 @@ export function NotificationBell() {
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-sm">{t('notifications.title')}</h3>
             {unreadCount > 0 && (
+              <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20">
+                {unreadCount} {t('notifications.unread')}
+              </Badge>
+            )}
+            {totalCount > 0 && unreadCount === 0 && (
               <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
-                {unreadCount}
+                {totalCount}
               </Badge>
             )}
           </div>

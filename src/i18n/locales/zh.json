@@ -80,7 +80,8 @@
     "strong": "强",
     "termsOfService": "服务条款",
     "privacyPolicy": "隐私政策",
-    "agreeToTerms": "注册即表示您同意我们的"
+    "agreeToTerms": "注册即表示您同意我们的",
+    "withEmail": "使用邮箱"
   },
   "nav": {
     "dashboard": "仪表盘",
@@ -196,7 +197,27 @@
     "agentResponseTime": "Agent响应时间",
     "avgResponse": "平均响应",
     "normal": "正常",
-    "activeConnections": "活跃连接"
+    "activeConnections": "活跃连接",
+    "goodMorning": "早上好",
+    "goodAfternoon": "下午好",
+    "goodEvening": "晚上好",
+    "defaultUser": "用户",
+    "addProvider": "添加提供商",
+    "startChat": "开始聊天",
+    "services": "实时服务健康与连接状态",
+    "allHealthy": "全部正常",
+    "issuesFound": "{count} 个异常",
+    "responseTime": "响应",
+    "uptime": "运行时间",
+    "lastChecked": "最后检查",
+    "serviceNextjs": "Next.js 应用",
+    "serviceChat": "聊天服务",
+    "serviceSkillWs": "技能 WebSocket",
+    "serviceTerminal": "终端服务",
+    "serviceDatabase": "数据库 (SQLite)",
+    "checking": "检查中...",
+    "healthy": "正常",
+    "unhealthy": "离线"
   },
   "agents": {
     "title": "智能体",
@@ -248,6 +269,8 @@
     "filterAll": "全部",
     "filterBuiltin": "内置",
     "filterAcrp": "ACRP",
+    "agentSingle": "个智能体",
+    "agentPlural": "个智能体",
     "generateToken": "生成 ACRP 令牌",
     "generateLater": "稍后生成",
     "agentCreated": "智能体创建成功！",
@@ -523,7 +546,18 @@
     "exportSuccess": "对话导出成功",
     "importSuccess": "对话导入成功",
     "importFailed": "对话导入失败",
-    "importInvalidFormat": "无效的对话文件格式"
+    "importInvalidFormat": "无效的对话文件格式",
+    "suggestion1": "试试问：\"你能帮我什么？\"",
+    "suggestion2": "试试问：\"写一个排序数组的函数\"",
+    "suggestion3": "试试问：\"解释WebSocket的工作原理\"",
+    "suggestion4": "试试问：\"帮我调试这个错误\"",
+    "justNow": "刚刚",
+    "minutesAgo": "{count}分钟前",
+    "hoursAgo": "{count}小时前",
+    "daysAgo": "{count}天前",
+    "welcomeTitle": "开始对话",
+    "welcomeDesc": "选择一个智能体并开始聊天。您的AI助手已准备就绪。",
+    "quickStartSuggestions": "快速开始建议"
   },
   "chatRooms": {
     "title": "聊天室",
@@ -721,7 +755,24 @@
     "links": "链接",
     "documentation": "文档",
     "support": "支持",
-    "accentCyan": "青色"
+    "accentCyan": "青色",
+    "appearanceTab": "外观",
+    "fontSize": "字体大小",
+    "fontSizeDesc": "调整界面的基础字体大小",
+    "fontSizeSmall": "小",
+    "fontSizeMedium": "中",
+    "fontSizeLarge": "大",
+    "interfaceTab": "界面",
+    "interfaceDesc": "控制界面密度和动画",
+    "animationsEnabled": "动画效果",
+    "animationsEnabledDesc": "启用界面中的平滑过渡和动画效果",
+    "exportAllData": "导出所有数据",
+    "exportAllDataDesc": "导出所有数据包括对话",
+    "exportAllSuccess": "所有数据导出成功",
+    "importData": "导入数据",
+    "importDataDesc": "从 JSON 备份文件导入数据",
+    "license": "许可证",
+    "licenseDesc": "本项目基于 MIT 许可证授权"
   },
   "settings": {
     "accountInfo": "账户信息",
@@ -1132,6 +1183,7 @@
   },
   "skillProtocol": {
     "title": "技能插件协议",
+    "marketplaceTitle": "技能市场",
     "subtitle": "管理技能端点、回调配置和外部智能体连接",
     "store": "技能商店",
     "mySkills": "我的技能",
@@ -1409,7 +1461,11 @@
     "sectionCommunication": "通讯",
     "sectionManagement": "管理",
     "sectionSystem": "系统",
-    "newBadge": "新"
+    "newBadge": "新",
+    "favorites": "收藏",
+    "collapseAll": "折叠所有分区",
+    "expandAll": "展开所有分区",
+    "rightClickToRemove": "右键点击移除"
   },
   "commandPalette": {
     "placeholder": "搜索命令、视图、Agent...",
@@ -1436,6 +1492,26 @@
     "exportDataDesc": "将数据导出为 JSON",
     "importData": "导入数据",
     "importDataDesc": "从 JSON 文件导入数据"
+  },
+  "keyboard": {
+    "title": "键盘快捷键",
+    "navigation": "导航",
+    "actions": "操作",
+    "shortcuts": "快捷键",
+    "description": "使用键盘快捷键快速导航和执行操作",
+    "openCommandPalette": "打开命令面板",
+    "openSettings": "打开设置",
+    "openHelp": "打开键盘快捷键",
+    "closeDialog": "关闭对话框",
+    "switchView": "切换视图",
+    "nav1": "前往仪表盘",
+    "nav2": "前往智能体",
+    "nav3": "前往提供商",
+    "nav4": "前往技能",
+    "nav5": "前往智能体控制",
+    "nav6": "前往频道",
+    "nav7": "前往聊天",
+    "nav8": "前往聊天室"
   },
   "onboarding": {
     "welcome": "欢迎来到 Hermes Hub！",
@@ -1507,6 +1583,7 @@
       "agentDisconnected": "智能体已断开",
       "skillInvoked": "技能已调用",
       "capabilityResult": "能力结果"
-    }
+    },
+    "unread": "未读"
   }
 }

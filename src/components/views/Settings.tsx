@@ -30,7 +30,8 @@ import {
   Radio, Bell, Eye, EyeOff, MessageSquare, RotateCcw, Download,
   Upload, AlertTriangle, Trash2, Info, ExternalLink, CheckCircle2,
   XCircle, Wifi, WifiOff, Server, Database, Globe, Monitor, Heart,
-  RefreshCw, EyeIcon, Sun, Moon, MonitorSmartphone, Zap, Hexagon
+  RefreshCw, EyeIcon, Sun, Moon, MonitorSmartphone, Zap, Hexagon,
+  FileText, Scale, Code, Sparkles, Type, Move, Keyboard
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -76,6 +77,12 @@ const ACCENT_COLORS = [
   { id: 'rose', label: 'settingsPage.accentRose', color: 'hsl(347 77% 50%)', bg: 'bg-rose-500' },
   { id: 'amber', label: 'settingsPage.accentAmber', color: 'hsl(38 92% 50%)', bg: 'bg-amber-500' },
   { id: 'cyan', label: 'settingsPage.accentCyan', color: 'hsl(188 94% 43%)', bg: 'bg-cyan-500' },
+];
+
+const FONT_SIZE_OPTIONS = [
+  { value: 'small', labelKey: 'settingsPage.fontSizeSmall' },
+  { value: 'medium', labelKey: 'settingsPage.fontSizeMedium' },
+  { value: 'large', labelKey: 'settingsPage.fontSizeLarge' },
 ];
 
 const AUTO_REFRESH_OPTIONS = [
@@ -300,6 +307,61 @@ export function Settings({ onLogout }: SettingsProps) {
     }
   };
 
+  // Export ALL data (conversations included)
+  const handleExportAllData = async () => {
+    try {
+      const [agentsData, providersData, skillsData, convsData] = await Promise.all([
+        api.getAgents().catch(() => ({ agents: [] })),
+        api.getProviders().catch(() => ({ providers: [] })),
+        api.getSkills().catch(() => ({ skills: [] })),
+        api.getConversations().catch(() => ({ conversations: [] })),
+      ]);
+
+      const exportData = {
+        version: '2.0.0',
+        exportedAt: new Date().toISOString(),
+        agents: (agentsData.agents || []).map((a: Record<string, unknown>) => ({
+          name: a.name,
+          mode: a.mode,
+          systemPrompt: a.systemPrompt,
+          model: a.model,
+          temperature: a.temperature,
+        })),
+        providers: (providersData.providers || []).map((p: Record<string, unknown>) => ({
+          name: p.name,
+          provider: p.provider,
+          baseUrl: p.baseUrl,
+        })),
+        skills: (skillsData.skills || []).map((s: Record<string, unknown>) => ({
+          name: s.name,
+          category: s.category,
+          handlerType: s.handlerType,
+          config: s.config,
+        })),
+        conversations: (convsData.conversations || []).map((c: Record<string, unknown>) => ({
+          id: c.id,
+          title: c.title,
+          messages: c.messages,
+        })),
+        settings: settings,
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `hermes-hub-all-data-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(t('settingsPage.exportAllSuccess'));
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Export failed';
+      toast.error(msg);
+    }
+  };
+
   // Import configuration
   const handleImportConfig = async (file: File) => {
     try {
@@ -423,6 +485,31 @@ export function Settings({ onLogout }: SettingsProps) {
     }
   };
 
+  // Font size handler
+  const handleFontSizeChange = (fontSize: string) => {
+    updateSetting('fontSize', fontSize);
+    const root = document.documentElement;
+    const sizeMap: Record<string, string> = {
+      small: '14px',
+      medium: '16px',
+      large: '18px',
+    };
+    root.style.fontSize = sizeMap[fontSize] || '16px';
+  };
+
+  // Animation toggle handler
+  const handleAnimationToggle = (enabled: boolean) => {
+    updateSetting('animationsEnabled', enabled);
+    const root = document.documentElement;
+    if (!enabled) {
+      root.style.setProperty('--animation-duration', '0s');
+      root.classList.add('reduce-motion');
+    } else {
+      root.style.removeProperty('--animation-duration');
+      root.classList.remove('reduce-motion');
+    }
+  };
+
   const conversationCount = conversations?.length || 0;
   const agentCount = agents?.length || 0;
 
@@ -437,6 +524,9 @@ export function Settings({ onLogout }: SettingsProps) {
         <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="general" className="gap-1.5 text-xs">
             <Palette className="w-3.5 h-3.5" /> {t('settingsPage.generalTab')}
+          </TabsTrigger>
+          <TabsTrigger value="appearance" className="gap-1.5 text-xs">
+            <Sun className="w-3.5 h-3.5" /> {t('settingsPage.appearanceTab')}
           </TabsTrigger>
           <TabsTrigger value="acrp" className="gap-1.5 text-xs">
             <Hexagon className="w-3.5 h-3.5" /> {t('settingsPage.acrpTab')}
@@ -529,73 +619,6 @@ export function Settings({ onLogout }: SettingsProps) {
                     onCheckedChange={(v) => updateSetting('bellOnComplete', v)}
                   />
                 </SettingRow>
-              </CardContent>
-            </Card>
-
-            {/* Theme Settings */}
-            <Card>
-              <CardHeader className="pb-3">
-                <SectionHeader
-                  icon={Sun}
-                  title={t('settingsPage.theme')}
-                  description={t('settingsPage.themeDesc')}
-                />
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Theme Selector */}
-                <div>
-                  <Label className="text-sm font-medium mb-3 block">{t('settingsPage.theme')}</Label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { value: 'light', icon: Sun, label: t('settingsPage.themeLight'), preview: 'bg-white border' },
-                      { value: 'dark', icon: Moon, label: t('settingsPage.themeDark'), preview: 'bg-zinc-900 border-zinc-700' },
-                      { value: 'system', icon: MonitorSmartphone, label: t('settingsPage.themeSystem'), preview: 'bg-gradient-to-r from-white to-zinc-900 border' },
-                    ].map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => setTheme(opt.value)}
-                        className={`relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${
-                          mounted && theme === opt.value
-                            ? 'border-primary bg-primary/5 shadow-sm'
-                            : 'border-border hover:border-primary/50'
-                        }`}
-                      >
-                        <div className={`w-10 h-10 rounded-md ${opt.preview}`} />
-                        <span className="text-xs font-medium">{opt.label}</span>
-                        {mounted && theme === opt.value && (
-                          <CheckCircle2 className="absolute top-1.5 right-1.5 w-4 h-4 text-primary" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Accent Color */}
-                <div>
-                  <Label className="text-sm font-medium mb-3 block">{t('settingsPage.accentColor')}</Label>
-                  <p className="text-xs text-muted-foreground mb-3">{t('settingsPage.accentColorDesc')}</p>
-                  <div className="flex gap-3">
-                    {ACCENT_COLORS.map((accent) => (
-                      <button
-                        key={accent.id}
-                        onClick={() => handleAccentChange(accent.id)}
-                        className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border-2 transition-all ${
-                          getSetting('accentColor', 'default') === accent.id
-                            ? 'border-primary shadow-sm'
-                            : 'border-transparent hover:border-primary/30'
-                        }`}
-                      >
-                        <div
-                          className="w-8 h-8 rounded-full border-2 border-white shadow-md"
-                          style={{ backgroundColor: accent.color }}
-                        />
-                        <span className="text-[10px] font-medium">{t(accent.label)}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </CardContent>
             </Card>
 
@@ -1081,7 +1104,7 @@ export function Settings({ onLogout }: SettingsProps) {
                     variant="outline"
                     size="sm"
                     className="gap-1.5"
-                    onClick={() => toast.info(t('auth.comingSoon'))}
+                    onClick={handleExportAllData}
                   >
                     <Download className="w-3.5 h-3.5" /> {t('settings.exportData')}
                   </Button>
@@ -1101,6 +1124,145 @@ export function Settings({ onLogout }: SettingsProps) {
                     <Trash2 className="w-3.5 h-3.5" /> {t('settings.deleteAccount')}
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ==================== APPEARANCE TAB ==================== */}
+        <TabsContent value="appearance">
+          <div className="space-y-6">
+
+            {/* Theme Settings */}
+            <Card>
+              <CardHeader className="pb-3">
+                <SectionHeader
+                  icon={Sun}
+                  title={t('settingsPage.theme')}
+                  description={t('settingsPage.themeDesc')}
+                />
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Theme Selector */}
+                <div>
+                  <Label className="text-sm font-medium mb-3 block">{t('settingsPage.theme')}</Label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { value: 'light', icon: Sun, label: t('settingsPage.themeLight'), preview: 'bg-white border' },
+                      { value: 'dark', icon: Moon, label: t('settingsPage.themeDark'), preview: 'bg-zinc-900 border-zinc-700' },
+                      { value: 'system', icon: MonitorSmartphone, label: t('settingsPage.themeSystem'), preview: 'bg-gradient-to-r from-white to-zinc-900 border' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setTheme(opt.value)}
+                        className={`relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                          mounted && theme === opt.value
+                            ? 'border-primary bg-primary/5 shadow-sm'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-md ${opt.preview}`} />
+                        <span className="text-xs font-medium">{opt.label}</span>
+                        {mounted && theme === opt.value && (
+                          <CheckCircle2 className="absolute top-1.5 right-1.5 w-4 h-4 text-primary" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Accent Color */}
+                <div>
+                  <Label className="text-sm font-medium mb-3 block">{t('settingsPage.accentColor')}</Label>
+                  <p className="text-xs text-muted-foreground mb-3">{t('settingsPage.accentColorDesc')}</p>
+                  <div className="flex gap-3">
+                    {ACCENT_COLORS.map((accent) => (
+                      <button
+                        key={accent.id}
+                        onClick={() => handleAccentChange(accent.id)}
+                        className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border-2 transition-all ${
+                          getSetting('accentColor', 'default') === accent.id
+                            ? 'border-primary shadow-sm'
+                            : 'border-transparent hover:border-primary/30'
+                        }`}
+                      >
+                        <div
+                          className="w-8 h-8 rounded-full border-2 border-white shadow-md"
+                          style={{ backgroundColor: accent.color }}
+                        />
+                        <span className="text-[10px] font-medium">{t(accent.label)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Font Size */}
+            <Card>
+              <CardHeader className="pb-3">
+                <SectionHeader
+                  icon={Type}
+                  title={t('settingsPage.fontSize')}
+                  description={t('settingsPage.fontSizeDesc')}
+                />
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-3">
+                  {FONT_SIZE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => handleFontSizeChange(opt.value)}
+                      className={`relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                        getSetting('fontSize', 'medium') === opt.value
+                          ? 'border-primary bg-primary/5 shadow-sm'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <span className={`${opt.value === 'small' ? 'text-xs' : opt.value === 'large' ? 'text-lg' : 'text-sm'} font-medium`}>
+                        Aa
+                      </span>
+                      <span className="text-xs font-medium">{t(opt.labelKey)}</span>
+                      {getSetting('fontSize', 'medium') === opt.value && (
+                        <CheckCircle2 className="absolute top-1.5 right-1.5 w-4 h-4 text-primary" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Compact Mode & Animation Toggles */}
+            <Card>
+              <CardHeader className="pb-3">
+                <SectionHeader
+                  icon={Move}
+                  title={t('settingsPage.interfaceTab')}
+                  description={t('settingsPage.interfaceDesc')}
+                />
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <SettingRow
+                  label={t('settingsPage.compactMode')}
+                  description={t('settingsPage.compactModeDesc')}
+                >
+                  <Switch
+                    checked={getSetting('compactMode', false) as boolean}
+                    onCheckedChange={(v) => updateSetting('compactMode', v)}
+                  />
+                </SettingRow>
+                <Separator />
+                <SettingRow
+                  label={t('settingsPage.animationsEnabled')}
+                  description={t('settingsPage.animationsEnabledDesc')}
+                >
+                  <Switch
+                    checked={getSetting('animationsEnabled', true) as boolean}
+                    onCheckedChange={(v) => handleAnimationToggle(v)}
+                  />
+                </SettingRow>
               </CardContent>
             </Card>
           </div>
@@ -1211,35 +1373,51 @@ export function Settings({ onLogout }: SettingsProps) {
                 />
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Export All Data */}
+                  <Button
+                    variant="outline"
+                    className="h-auto py-4 flex flex-col items-center gap-2"
+                    onClick={handleExportAllData}
+                  >
+                    <Download className="w-5 h-5" />
+                    <span className="text-sm font-medium">{t('settingsPage.exportAllData')}</span>
+                    <span className="text-[10px] text-muted-foreground">{t('settingsPage.exportAllDataDesc')}</span>
+                  </Button>
+                  {/* Import Data */}
+                  <Button
+                    variant="outline"
+                    className="h-auto py-4 flex flex-col items-center gap-2"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="w-5 h-5" />
+                    <span className="text-sm font-medium">{t('settingsPage.importData')}</span>
+                    <span className="text-[10px] text-muted-foreground">{t('settingsPage.importDataDesc')}</span>
+                  </Button>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setImportDialogOpen(true);
+                      // Store file for later use in confirmation
+                      (fileInputRef.current as HTMLInputElement & { _pendingFile?: File })._pendingFile = file;
+                    }
+                  }}
+                />
+                <Separator />
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button
                     variant="outline"
                     className="flex-1 gap-2"
                     onClick={handleExportConfig}
                   >
-                    <Download className="w-4 h-4" /> {t('settingsPage.exportConfig')}
+                    <FileText className="w-4 h-4" /> {t('settingsPage.exportConfig')}
                   </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1 gap-2"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="w-4 h-4" /> {t('settingsPage.importConfig')}
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".json"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setImportDialogOpen(true);
-                        // Store file for later use in confirmation
-                        (fileInputRef.current as HTMLInputElement & { _pendingFile?: File })._pendingFile = file;
-                      }
-                    }}
-                  />
                 </div>
                 <p className="text-xs text-muted-foreground">{t('settingsPage.exportDesc')}</p>
                 <p className="text-xs text-muted-foreground">{t('settingsPage.importDesc')}</p>
@@ -1319,6 +1497,20 @@ export function Settings({ onLogout }: SettingsProps) {
                     <p className="text-lg font-bold mt-1">2.0</p>
                   </div>
                 </div>
+
+                <Separator />
+
+                {/* License Info */}
+                <div className="flex items-center gap-4 p-4 rounded-lg border bg-muted/30">
+                  <div className="p-2 rounded-lg bg-muted">
+                    <Scale className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{t('settingsPage.license')}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t('settingsPage.licenseDesc')}</p>
+                  </div>
+                  <Badge variant="secondary" className="ml-auto text-xs">MIT</Badge>
+                </div>
               </CardContent>
             </Card>
 
@@ -1385,6 +1577,20 @@ export function Settings({ onLogout }: SettingsProps) {
                     <p className="text-sm font-medium mt-1">SQLite (Prisma)</p>
                   </div>
                 </div>
+
+                <Separator className="my-4" />
+
+                {/* Keyboard Shortcuts Link */}
+                <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                  <div className="p-2 rounded-lg bg-muted">
+                    <Keyboard className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{t('keyboard.title')}</p>
+                    <p className="text-xs text-muted-foreground">{t('keyboard.description')}</p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-mono">⌘/</Badge>
+                </div>
               </CardContent>
             </Card>
 
@@ -1399,9 +1605,10 @@ export function Settings({ onLogout }: SettingsProps) {
               <CardContent>
                 <div className="space-y-2">
                   {[
-                    { label: 'GitHub', href: 'https://github.com/hongmaple0820/hermes-hub', icon: Globe },
+                    { label: 'GitHub', href: 'https://github.com/hongmaple0820/hermes-hub', icon: Code },
                     { label: t('settingsPage.documentation'), href: 'https://github.com/hongmaple0820/hermes-hub#readme', icon: Info },
                     { label: t('settingsPage.support'), href: 'https://github.com/hongmaple0820/hermes-hub/issues', icon: MessageSquare },
+                    { label: t('settingsPage.license'), href: 'https://github.com/hongmaple0820/hermes-hub/blob/main/LICENSE', icon: Scale },
                   ].map((link) => {
                     const LinkIcon = link.icon;
                     return (

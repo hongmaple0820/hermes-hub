@@ -150,6 +150,18 @@
   }
 }
 
+/* Active nav item gradient pulse animation */
+@keyframes gradient-pulse {
+  0%, 100% {
+    background-position: 0% 50%;
+    opacity: 1;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 0.8;
+  }
+}
+
 /* Sidebar custom scrollbar */
 .sidebar-scroll {
   scrollbar-width: thin;

@@ -458,7 +458,7 @@ export function AgentManager() {
           ))}
         </div>
         <span className="text-xs text-muted-foreground">
-          {filteredAgents.length} {filteredAgents.length === 1 ? 'agent' : 'agents'}
+          {filteredAgents.length} {filteredAgents.length === 1 ? t('agents.agentSingle') : t('agents.agentPlural')}
         </span>
       </div>
 

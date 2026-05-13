@@ -585,7 +585,7 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                       </div>
                       <div className="relative flex justify-center text-xs uppercase">
                         <span className="bg-card/80 backdrop-blur-sm px-3 text-muted-foreground">
-                          {isRegister ? t('auth.signUp') : t('auth.signIn')} with email
+                          {isRegister ? t('auth.signUp') : t('auth.signIn')} {t('auth.withEmail')}
                         </span>
                       </div>
                     </div>

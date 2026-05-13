@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { motion } from 'framer-motion';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 import { ContextIndicator } from '@/components/shared/ContextIndicator';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -107,6 +108,24 @@ function MessageBubble({
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  // Relative time formatting
+  const formatRelativeTime = (dateStr: string) => {
+    if (!dateStr) return '';
+    const now = Date.now();
+    const then = new Date(dateStr).getTime();
+    const diff = now - then;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (seconds < 60) return t('chat.justNow');
+    if (minutes < 60) return t('chat.minutesAgo', { count: minutes });
+    if (hours < 24) return t('chat.hoursAgo', { count: hours });
+    if (days < 7) return t('chat.daysAgo', { count: days });
+    return new Date(dateStr).toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+
   if (isSystem) {
     return (
       <div className="flex justify-center animate-in fade-in duration-200">
@@ -169,12 +188,19 @@ function MessageBubble({
           <span className="text-[10px] text-muted-foreground">
             {formatTime(msg.createdAt)}
           </span>
+          <span className="text-[10px] text-muted-foreground/60">·</span>
+          <span className="text-[10px] text-muted-foreground/70">
+            {formatRelativeTime(msg.createdAt)}
+          </span>
           {isUser && status && (
-            <span className="text-muted-foreground">
-              {status === 'sent' && <Clock className="w-3 h-3" />}
-              {status === 'delivered' && <Check className="w-3 h-3" />}
-              {status === 'read' && <CheckCheck className="w-3 h-3 text-primary" />}
-            </span>
+            <>
+              <span className="text-[10px] text-muted-foreground/60">·</span>
+              <span className="text-muted-foreground">
+                {status === 'sent' && <Clock className="w-3 h-3" />}
+                {status === 'delivered' && <Check className="w-3 h-3" />}
+                {status === 'read' && <CheckCheck className="w-3 h-3 text-primary" />}
+              </span>
+            </>
           )}
         </div>
 
@@ -291,30 +317,59 @@ function EmptyChatState({ onStartChat }: { onStartChat: () => void }) {
   const { t } = useI18n();
 
   const suggestions = [
-    { icon: <Sparkles className="w-4 h-4" />, text: 'Try asking: "What can you help me with?"' },
-    { icon: <Code className="w-4 h-4" />, text: 'Try asking: "Write a function to sort an array"' },
-    { icon: <Globe className="w-4 h-4" />, text: 'Try asking: "Explain how WebSocket works"' },
-    { icon: <Zap className="w-4 h-4" />, text: 'Try asking: "Help me debug this error"' },
+    { icon: <Sparkles className="w-4 h-4" />, text: t('chat.suggestion1'), gradient: 'from-emerald-500/10 to-emerald-500/5' },
+    { icon: <Code className="w-4 h-4" />, text: t('chat.suggestion2'), gradient: 'from-violet-500/10 to-violet-500/5' },
+    { icon: <Globe className="w-4 h-4" />, text: t('chat.suggestion3'), gradient: 'from-cyan-500/10 to-cyan-500/5' },
+    { icon: <Zap className="w-4 h-4" />, text: t('chat.suggestion4'), gradient: 'from-amber-500/10 to-amber-500/5' },
   ];
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
-      <EmptyState
-        icon={MessageSquare}
-        title={t('emptyState.noConversations')}
-        description={t('emptyState.noConversationsDesc')}
-        actionLabel={t('emptyState.startConversation')}
-        onAction={onStartChat}
-        className="py-0"
-      />
+      {/* Hero Section with animated icon */}
+      <motion.div
+        className="relative mb-6"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+      >
+        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 flex items-center justify-center shadow-lg shadow-primary/10">
+          <MessageSquare className="w-10 h-10 text-primary" />
+        </div>
+        {/* Decorative floating dots */}
+        <motion.div
+          className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-500"
+          animate={{ y: [-2, 2, -2] }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="absolute -bottom-1 -left-1 w-2.5 h-2.5 rounded-full bg-cyan-500"
+          animate={{ y: [2, -2, 2] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      </motion.div>
+
+      <motion.div
+        className="text-center mb-8"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.15 }}
+      >
+        <h2 className="text-xl font-bold mb-2">{t('chat.welcomeTitle')}</h2>
+        <p className="text-sm text-muted-foreground max-w-md">{t('chat.welcomeDesc')}</p>
+      </motion.div>
 
       {/* Agent Cards */}
       {agents.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg mb-6">
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg mb-6"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.25 }}
+        >
           {agents.slice(0, 4).map((agent: any) => (
             <Card
               key={agent.id}
-              className="cursor-pointer hover:border-primary/50 transition-colors"
+              className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all duration-200 active:scale-[0.98]"
               onClick={onStartChat}
             >
               <CardContent className="p-4 flex items-center gap-3">
@@ -339,23 +394,32 @@ function EmptyChatState({ onStartChat }: { onStartChat: () => void }) {
               </CardContent>
             </Card>
           ))}
-        </div>
+        </motion.div>
       )}
 
-      {/* Quick start suggestions */}
-      <div className="space-y-2 w-full max-w-md">
-        <p className="text-xs text-muted-foreground text-center mb-3">Quick start suggestions</p>
+      {/* Quick start suggestions with gradient backgrounds */}
+      <motion.div
+        className="space-y-2 w-full max-w-md"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.35 }}
+      >
+        <p className="text-xs text-muted-foreground text-center mb-3">{t('chat.quickStartSuggestions')}</p>
         {suggestions.map((s, i) => (
           <button
             key={i}
-            className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors text-left"
+            className={cn(
+              'w-full flex items-center gap-3 p-3 rounded-xl border border-border transition-all duration-200 text-left',
+              'hover:shadow-sm hover:-translate-y-0.5 active:scale-[0.98]',
+              'bg-gradient-to-r', s.gradient
+            )}
             onClick={onStartChat}
           >
             <span className="text-muted-foreground">{s.icon}</span>
             <span className="text-sm text-muted-foreground">{s.text}</span>
           </button>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -1195,7 +1259,7 @@ function RoomsPanel() {
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search rooms..."
+              placeholder={t('chatRooms.searchPlaceholder')}
               value={roomSearch}
               onChange={(e) => setRoomSearch(e.target.value)}
               className="pl-8 h-8 text-xs"

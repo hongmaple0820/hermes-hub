@@ -11,7 +11,7 @@ import {
   Activity, ArrowUpRight, Zap, Wifi, WifiOff, TrendingUp,
   Clock, Cpu, Globe, Shield, Sparkles, BarChart3, Radio,
   CheckCircle, Eye, LogOut, Plus, Settings, Timer, Uptime,
-  ArrowDownRight, RefreshCw
+  ArrowDownRight, RefreshCw, Database, HelpCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -202,11 +202,32 @@ const animationStyles = `
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+@keyframes shimmerSkeleton {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
 `;
 
 export function Dashboard() {
-  const { agents, providers, skills, conversations, chatRooms, setCurrentView, setSelectedAgentId, addNotification } = useAppStore();
+  const { agents, providers, skills, conversations, chatRooms, setCurrentView, setSelectedAgentId, addNotification, user } = useAppStore();
   const { t } = useI18n();
+
+  // Loading state (skeleton)
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Time-of-day greeting
+  const getGreeting = useCallback(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return t('dashboard.goodMorning');
+    if (hour < 18) return t('dashboard.goodAfternoon');
+    return t('dashboard.goodEvening');
+  }, [t]);
+
+  const userName = user?.name || user?.email || t('dashboard.defaultUser');
 
   // Last updated timestamp
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -317,6 +338,86 @@ export function Dashboard() {
     apiResponseTime: 45,
     memoryUsage: 62,
     cpuLoad: 23,
+  };
+
+  // Service Health Monitor - real-time status checks
+  interface ServiceHealth {
+    id: string;
+    name: string;
+    port: number;
+    online: boolean;
+    uptime: number | null;
+    responseTime: number | null;
+    lastChecked: Date | null;
+    checking: boolean;
+  }
+
+  const [serviceHealths, setServiceHealths] = useState<ServiceHealth[]>([
+    { id: 'nextjs', name: t('dashboard.serviceNextjs'), port: 3000, online: false, uptime: null, responseTime: null, lastChecked: null, checking: false },
+    { id: 'chat', name: t('dashboard.serviceChat'), port: 3003, online: false, uptime: null, responseTime: null, lastChecked: null, checking: false },
+    { id: 'skill-ws', name: t('dashboard.serviceSkillWs'), port: 3004, online: false, uptime: null, responseTime: null, lastChecked: null, checking: false },
+    { id: 'terminal', name: t('dashboard.serviceTerminal'), port: 3005, online: false, uptime: null, responseTime: null, lastChecked: null, checking: false },
+    { id: 'database', name: t('dashboard.serviceDatabase'), port: 0, online: false, uptime: null, responseTime: null, lastChecked: null, checking: false },
+  ]);
+
+  const checkServiceHealth = useCallback(async () => {
+    const portMap: Record<string, number> = { nextjs: 3000, chat: 3003, 'skill-ws': 3004, terminal: 3005 };
+
+    setServiceHealths(prev => prev.map(s => ({ ...s, checking: true })));
+
+    const results = await Promise.allSettled(
+      Object.entries(portMap).map(async ([id, port]) => {
+        const start = Date.now();
+        try {
+          const res = await fetch(`/api/health?XTransformPort=${port}`, {
+            signal: AbortSignal.timeout(5000),
+          });
+          const responseTime = Date.now() - start;
+          if (res.ok) {
+            const data = await res.json().catch(() => ({}));
+            return { id, online: true, uptime: data.uptime ?? null, responseTime };
+          }
+          return { id, online: false, uptime: null, responseTime };
+        } catch {
+          return { id, online: false, uptime: null, responseTime: Date.now() - start };
+        }
+      })
+    );
+
+    const now = new Date();
+    setServiceHealths(prev => prev.map(s => {
+      if (s.id === 'database') {
+        // Database is always shown as online since data is loaded
+        return { ...s, online: true, uptime: null, responseTime: null, lastChecked: now, checking: false };
+      }
+      const idx = Object.keys(portMap).indexOf(s.id);
+      if (idx >= 0 && results[idx]) {
+        const r = results[idx];
+        if (r.status === 'fulfilled') {
+          return { ...s, ...r.value, lastChecked: now, checking: false };
+        }
+      }
+      return { ...s, lastChecked: now, checking: false };
+    }));
+  }, [t]);
+
+  // Auto-refresh service health every 30 seconds
+  useEffect(() => {
+    checkServiceHealth();
+    const interval = setInterval(checkServiceHealth, 30000);
+    return () => clearInterval(interval);
+  }, [checkServiceHealth]);
+
+  const healthyCount = serviceHealths.filter(s => s.online).length;
+  const unhealthyCount = serviceHealths.filter(s => !s.online).length;
+  const allHealthy = unhealthyCount === 0;
+
+  const formatUptime = (uptime: number | null) => {
+    if (uptime === null) return '—';
+    const hours = Math.floor(uptime / 3600);
+    const minutes = Math.floor((uptime % 3600) / 60);
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
   };
 
   // Conversations per day (last 7 days) - mock data based on actual count
@@ -608,15 +709,6 @@ export function Dashboard() {
   // Quick Actions Grid data
   const quickActionItems = [
     {
-      label: t('dashboard.newConversation'),
-      icon: MessageSquare,
-      color: 'text-emerald-600 dark:text-emerald-400',
-      bgColor: 'bg-emerald-500/10 dark:bg-emerald-500/15',
-      borderColor: 'border-emerald-200 dark:border-emerald-800',
-      hoverBorder: 'hover:border-emerald-400 dark:hover:border-emerald-600',
-      view: 'chat' as const,
-    },
-    {
       label: t('dashboard.createAgent'),
       icon: Plus,
       color: 'text-violet-600 dark:text-violet-400',
@@ -624,6 +716,15 @@ export function Dashboard() {
       borderColor: 'border-violet-200 dark:border-violet-800',
       hoverBorder: 'hover:border-violet-400 dark:hover:border-violet-600',
       view: 'agents' as const,
+    },
+    {
+      label: t('dashboard.addProvider'),
+      icon: Server,
+      color: 'text-emerald-600 dark:text-emerald-400',
+      bgColor: 'bg-emerald-500/10 dark:bg-emerald-500/15',
+      borderColor: 'border-emerald-200 dark:border-emerald-800',
+      hoverBorder: 'hover:border-emerald-400 dark:hover:border-emerald-600',
+      view: 'providers' as const,
     },
     {
       label: t('dashboard.browseSkills'),
@@ -635,13 +736,13 @@ export function Dashboard() {
       view: 'skills' as const,
     },
     {
-      label: t('dashboard.systemSettings'),
-      icon: Settings,
-      color: 'text-amber-600 dark:text-amber-400',
-      bgColor: 'bg-amber-500/10 dark:bg-amber-500/15',
-      borderColor: 'border-amber-200 dark:border-amber-800',
-      hoverBorder: 'hover:border-amber-400 dark:hover:border-amber-600',
-      view: 'settings' as const,
+      label: t('dashboard.startChat'),
+      icon: MessageSquare,
+      color: 'text-cyan-600 dark:text-cyan-400',
+      bgColor: 'bg-cyan-500/10 dark:bg-cyan-500/15',
+      borderColor: 'border-cyan-200 dark:border-cyan-800',
+      hoverBorder: 'hover:border-cyan-400 dark:hover:border-cyan-600',
+      view: 'chat' as const,
     },
   ];
 
@@ -677,8 +778,18 @@ export function Dashboard() {
 
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">{t('dashboard.title')}</h1>
-              <p className="text-muted-foreground mt-1">{t('dashboard.subtitle')}</p>
+              <div className="flex items-center gap-2 mb-1">
+                <h1 className="text-2xl font-bold tracking-tight">{getGreeting()},</h1>
+                <motion.span
+                  className="text-2xl font-bold bg-gradient-to-r from-emerald-600 via-cyan-600 to-violet-600 bg-clip-text text-transparent"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                >
+                  {userName}
+                </motion.span>
+              </div>
+              <p className="text-muted-foreground text-sm">{t('dashboard.subtitle')}</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
               {/* Last Updated indicator */}
@@ -719,9 +830,24 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Quick Stats Grid - Enhanced with gradient backgrounds and animated counters */}
+        {/* Quick Stats Grid - Enhanced with gradient backgrounds, animated counters, and skeleton loading */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {quickStats.map((stat, index) => (
+          {isLoading ? (
+            quickStats.map((_, index) => (
+              <Card key={`skeleton-quick-${index}`} className="border-l-4 rounded-2xl shadow-sm border-l-muted">
+                <CardContent className="p-4">
+                  <div className="w-8 h-8 rounded-full bg-muted animate-pulse mb-2" />
+                  <div className="h-7 w-16 rounded bg-muted animate-pulse mb-1"
+                    style={{ background: 'linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--muted)/0.5) 50%, hsl(var(--muted)) 75%)', backgroundSize: '200% 100%', animation: 'shimmerSkeleton 1.5s ease infinite' }}
+                  />
+                  <div className="h-3 w-20 rounded bg-muted animate-pulse"
+                    style={{ background: 'linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--muted)/0.5) 50%, hsl(var(--muted)) 75%)', backgroundSize: '200% 100%', animation: 'shimmerSkeleton 1.5s ease infinite', animationDelay: `${index * 0.1}s` }}
+                  />
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+          quickStats.map((stat, index) => (
             <motion.div
               key={stat.label}
               initial={{ opacity: 0, y: 12 }}
@@ -749,12 +875,41 @@ export function Dashboard() {
                 </CardContent>
               </Card>
             </motion.div>
-          ))}
+          ))
+          )}
         </div>
 
-        {/* Stats Grid with sparklines - Enhanced with gradient backgrounds, animated counters, and trend indicators */}
+        {/* Stats Grid with sparklines - Enhanced with skeleton loading, gradient backgrounds, animated counters, and trend indicators */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {stats.map((stat, index) => (
+          {isLoading ? (
+            stats.map((_, index) => (
+              <Card key={`skeleton-stat-${index}`} className="rounded-2xl border-l-4 border-l-muted">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <div className="h-4 w-20 rounded bg-muted"
+                    style={{ background: 'linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--muted)/0.5) 50%, hsl(var(--muted)) 75%)', backgroundSize: '200% 100%', animation: 'shimmerSkeleton 1.5s ease infinite', animationDelay: `${index * 0.1}s` }}
+                  />
+                  <div className="w-9 h-9 rounded-lg bg-muted animate-pulse" />
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <div className="h-8 w-16 rounded bg-muted mb-2"
+                        style={{ background: 'linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--muted)/0.5) 50%, hsl(var(--muted)) 75%)', backgroundSize: '200% 100%', animation: 'shimmerSkeleton 1.5s ease infinite', animationDelay: `${index * 0.12}s` }}
+                      />
+                      <div className="h-3 w-24 rounded bg-muted animate-pulse mb-1" />
+                      <div className="h-2 w-20 rounded bg-muted animate-pulse" />
+                    </div>
+                    <div className="flex items-end gap-[2px] h-6">
+                      {[1,2,3,4,5].map(i => (
+                        <div key={i} className="w-1 rounded-t-sm bg-muted animate-pulse" style={{ height: `${20 + Math.random() * 60}%` }} />
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+          stats.map((stat, index) => (
             <motion.div
               key={stat.title}
               initial={{ opacity: 0, y: 16 }}
@@ -796,7 +951,8 @@ export function Dashboard() {
                 </CardContent>
               </Card>
             </motion.div>
-          ))}
+          ))
+          )}
         </div>
 
         {/* Middle Row: Quick Actions Grid + Agent Activity Timeline + System Health */}
@@ -918,7 +1074,7 @@ export function Dashboard() {
             </Card>
           </motion.div>
 
-          {/* System Health Card */}
+          {/* System Health / Service Monitor Card */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -926,36 +1082,107 @@ export function Dashboard() {
           >
             <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-emerald-500" />
-                  {t('dashboard.systemHealth')}
-                </CardTitle>
-                <CardDescription>{t('dashboard.platformHealth')}</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Activity className={cn('w-4 h-4', allHealthy ? 'text-emerald-500' : 'text-red-500')} />
+                      {t('dashboard.systemHealth')}
+                    </CardTitle>
+                    <CardDescription>{t('dashboard.services')}</CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={cn(
+                      'text-[10px] px-2 py-0.5',
+                      allHealthy
+                        ? 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-700 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                        : 'border-red-300 bg-red-50/60 dark:border-red-700 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                    )}>
+                      {allHealthy ? t('dashboard.allHealthy') : t('dashboard.issuesFound', { count: unhealthyCount })}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-7 h-7 shrink-0 text-muted-foreground hover:text-foreground"
+                      onClick={checkServiceHealth}
+                    >
+                      <RefreshCw className={cn('w-3.5 h-3.5', serviceHealths.some(s => s.checking) && 'animate-spin')} />
+                    </Button>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Health metrics */}
-                <div className="space-y-3">
-                  <HealthBar
-                    value={systemHealth.apiResponseTime}
-                    label={t('dashboard.apiResponseTime')}
-                    unit="ms"
-                  />
-                  <HealthBar
-                    value={systemHealth.memoryUsage}
-                    label={t('dashboard.memoryUsage')}
-                    unit="%"
-                  />
-                  <HealthBar
-                    value={systemHealth.cpuLoad}
-                    label={t('dashboard.cpuLoad')}
-                    unit="%"
-                  />
+              <CardContent className="space-y-2">
+                {serviceHealths.map((service) => (
+                  <motion.div
+                    key={service.id}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className={cn(
+                      'flex items-center gap-3 py-2 px-3 rounded-lg transition-all duration-200',
+                      'hover:bg-accent/50',
+                      service.online ? 'border-l-2 border-l-emerald-500' : 'border-l-2 border-l-red-500'
+                    )}
+                  >
+                    {/* Status dot */}
+                    <div className="relative shrink-0">
+                      <div className={cn(
+                        'w-2.5 h-2.5 rounded-full',
+                        service.checking ? 'bg-amber-400 animate-pulse' :
+                        service.online ? 'bg-emerald-500' : 'bg-red-500'
+                      )} />
+                      {service.online && !service.checking && (
+                        <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping opacity-30" />
+                      )}
+                    </div>
+
+                    {/* Service info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium truncate">{service.name}</span>
+                        {service.port > 0 && (
+                          <span className="text-[10px] text-muted-foreground font-mono">:{service.port}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 mt-0.5">
+                        {service.responseTime !== null && (
+                          <span className="text-[10px] text-muted-foreground">
+                            {t('dashboard.responseTime')}: {service.responseTime}ms
+                          </span>
+                        )}
+                        {service.uptime !== null && (
+                          <span className="text-[10px] text-muted-foreground">
+                            {t('dashboard.uptime')}: {formatUptime(service.uptime)}
+                          </span>
+                        )}
+                        {service.checking && (
+                          <span className="text-[10px] text-amber-500">{t('dashboard.checking')}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Status badge */}
+                    <Badge variant="outline" className={cn(
+                      'text-[9px] px-1.5 py-0 shrink-0',
+                      service.checking ? 'border-amber-300 text-amber-600 dark:text-amber-400' :
+                      service.online ? 'border-emerald-300 text-emerald-600 dark:text-emerald-400' :
+                      'border-red-300 text-red-600 dark:text-red-400'
+                    )}>
+                      {service.checking ? t('dashboard.checking') :
+                       service.online ? t('dashboard.healthy') : t('dashboard.unhealthy')}
+                    </Badge>
+                  </motion.div>
+                ))}
+
+                <Separator className="my-1" />
+
+                {/* Last checked */}
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
+                  <span>{t('dashboard.lastChecked')}</span>
+                  <span>{serviceHealths[0]?.lastChecked?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) || '—'}</span>
                 </div>
 
-                <Separator className="my-2" />
-
-                {/* System status indicators */}
-                <div className="space-y-1.5">
+                {/* Legacy system indicators */}
+                <div className="space-y-1.5 mt-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground flex items-center gap-1.5">
                       <Server className="w-3 h-3" /> {t('dashboard.llmProviders')}

@@ -80,7 +80,8 @@
     "strong": "Stark",
     "termsOfService": "Nutzungsbedingungen",
     "privacyPolicy": "Datenschutzrichtlinie",
-    "agreeToTerms": "Mit der Anmeldung stimmen Sie unseren"
+    "agreeToTerms": "Mit der Anmeldung stimmen Sie unseren",
+    "withEmail": "mit E-Mail"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -196,7 +197,27 @@
     "agentResponseTime": "Agent-Antwortzeit",
     "avgResponse": "Durchschnittliche Antwort",
     "normal": "Normal",
-    "activeConnections": "Aktive Verbindungen"
+    "activeConnections": "Aktive Verbindungen",
+    "goodMorning": "Guten Morgen",
+    "goodAfternoon": "Guten Tag",
+    "goodEvening": "Guten Abend",
+    "defaultUser": "Benutzer",
+    "addProvider": "Anbieter hinzufuegen",
+    "startChat": "Chat starten",
+    "services": "Echtzeit-Service-Status & Konnektivität",
+    "allHealthy": "Alle gesund",
+    "issuesFound": "{count} Probleme",
+    "responseTime": "Antwort",
+    "uptime": "Laufzeit",
+    "lastChecked": "Zuletzt geprüft",
+    "serviceNextjs": "Next.js App",
+    "serviceChat": "Chat-Dienst",
+    "serviceSkillWs": "Skill WebSocket",
+    "serviceTerminal": "Terminal-Dienst",
+    "serviceDatabase": "Datenbank (SQLite)",
+    "checking": "Prüfe...",
+    "healthy": "Gesund",
+    "unhealthy": "Down"
   },
   "agents": {
     "title": "Agenten",
@@ -248,6 +269,8 @@
     "filterAll": "Alle",
     "filterBuiltin": "Integriert",
     "filterAcrp": "ACRP",
+    "agentSingle": "Agent",
+    "agentPlural": "Agenten",
     "generateToken": "ACRP-Token generieren",
     "generateLater": "Später generieren",
     "agentCreated": "Agent erfolgreich erstellt!",
@@ -523,7 +546,18 @@
     "exportSuccess": "Gespraech erfolgreich exportiert",
     "importSuccess": "Gespraech erfolgreich importiert",
     "importFailed": "Gespraech importieren fehlgeschlagen",
-    "importInvalidFormat": "Ungueltiges Gespraech-Dateiformat"
+    "importInvalidFormat": "Ungueltiges Gespraech-Dateiformat",
+    "suggestion1": "Frag mal: \"Wobei kannst du helfen?\"",
+    "suggestion2": "Frag mal: \"Schreibe eine Funktion zum Sortieren eines Arrays\"",
+    "suggestion3": "Frag mal: \"Erkläre, wie WebSocket funktioniert\"",
+    "suggestion4": "Frag mal: \"Hilf mir, diesen Fehler zu debuggen\"",
+    "justNow": "Gerade eben",
+    "minutesAgo": "Vor {count} Min.",
+    "hoursAgo": "Vor {count} Std.",
+    "daysAgo": "Vor {count} Tagen",
+    "welcomeTitle": "Gespraech starten",
+    "welcomeDesc": "Waehle einen Agenten und beginne zu chatten. Deine KI-Assistenten sind bereit.",
+    "quickStartSuggestions": "Schnellstart-Vorschlaege"
   },
   "chatRooms": {
     "title": "Chaträume",
@@ -721,7 +755,24 @@
     "links": "Links",
     "documentation": "Dokumentation",
     "support": "Support",
-    "accentCyan": "Cyan"
+    "accentCyan": "Cyan",
+    "appearanceTab": "Erscheinungsbild",
+    "fontSize": "Schriftgröße",
+    "fontSizeDesc": "Basisschriftgröße der Oberfläche anpassen",
+    "fontSizeSmall": "Klein",
+    "fontSizeMedium": "Mittel",
+    "fontSizeLarge": "Groß",
+    "interfaceTab": "Oberfläche",
+    "interfaceDesc": "Oberflächendichte und Animationen steuern",
+    "animationsEnabled": "Animationen",
+    "animationsEnabledDesc": "Weiche Übergänge und Animationen in der Oberfläche aktivieren",
+    "exportAllData": "Alle Daten exportieren",
+    "exportAllDataDesc": "Alle Daten einschließlich Konversationen exportieren",
+    "exportAllSuccess": "Alle Daten erfolgreich exportiert",
+    "importData": "Daten importieren",
+    "importDataDesc": "Daten aus einer JSON-Backup-Datei importieren",
+    "license": "Lizenz",
+    "licenseDesc": "Dieses Projekt ist unter der MIT-Lizenz lizenziert"
   },
   "settings": {
     "accountInfo": "Kontoinformationen",
@@ -1132,6 +1183,7 @@
   },
   "skillProtocol": {
     "title": "Skill-Plugin-Protokoll",
+    "marketplaceTitle": "Fähigkeiten-Marktplatz",
     "subtitle": "Skill-Endpunkte, Callbacks und externe Agentenverbindungen verwalten",
     "store": "Skill-Store",
     "mySkills": "Meine Skills",
@@ -1409,7 +1461,11 @@
     "sectionCommunication": "Kommunikation",
     "sectionManagement": "Verwaltung",
     "sectionSystem": "System",
-    "newBadge": "Neu"
+    "newBadge": "Neu",
+    "favorites": "Favoriten",
+    "collapseAll": "Alle Bereiche einklappen",
+    "expandAll": "Alle Bereiche aufklappen",
+    "rightClickToRemove": "Rechtsklick zum Entfernen"
   },
   "commandPalette": {
     "placeholder": "Befehle, Ansichten, Agents suchen...",
@@ -1436,6 +1492,26 @@
     "exportDataDesc": "Daten als JSON exportieren",
     "importData": "Daten importieren",
     "importDataDesc": "Daten aus JSON-Datei importieren"
+  },
+  "keyboard": {
+    "title": "Tastaturkürzel",
+    "navigation": "Navigation",
+    "actions": "Aktionen",
+    "shortcuts": "Kürzel",
+    "description": "Verwenden Sie Tastaturkürzel für schnelle Navigation und Aktionen",
+    "openCommandPalette": "Befehlspalette öffnen",
+    "openSettings": "Einstellungen öffnen",
+    "openHelp": "Tastaturkürzel öffnen",
+    "closeDialog": "Dialog schließen",
+    "switchView": "Ansicht wechseln",
+    "nav1": "Zum Dashboard",
+    "nav2": "Zu den Agenten",
+    "nav3": "Zu den Anbietern",
+    "nav4": "Zu den Skills",
+    "nav5": "Zur Agentensteuerung",
+    "nav6": "Zu den Kanälen",
+    "nav7": "Zum Chat",
+    "nav8": "Zu den Chaträumen"
   },
   "notifications": {
     "title": "Benachrichtigungen",
@@ -1469,6 +1545,7 @@
       "agentDisconnected": "Agent getrennt",
       "skillInvoked": "Skill aufgerufen",
       "capabilityResult": "Fähigkeitsergebnis"
-    }
+    },
+    "unread": "ungelesen"
   }
 }

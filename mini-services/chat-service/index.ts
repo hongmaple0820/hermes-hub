@@ -1072,6 +1072,22 @@ async function handleHermesAgent(
 // ---------------------------------------------------------------------------
 
 const PORT = 3003
+
+// Health check HTTP handler (before Socket.IO takes over)
+httpServer.on('request', (req, res) => {
+  if (req.url === '/health' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({
+      status: 'ok',
+      service: 'hermes-chat',
+      port: PORT,
+      connectedUsers: connectedUsers.size,
+      activeRooms: activeRooms.size,
+      uptime: process.uptime(),
+    }))
+  }
+})
+
 httpServer.listen(PORT, () => {
   console.log(`[Hermes Chat Service] Socket.IO server running on port ${PORT}`)
   console.log(`[Hermes Chat Service] Ready to accept connections`)

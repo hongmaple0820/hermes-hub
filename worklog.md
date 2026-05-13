@@ -1910,3 +1910,284 @@ Stage Summary:
 - **8 notification types** with distinct icons and colors: info, success, warning, error, agent_connected, agent_disconnected, skill_invoked, capability_result
 - **All 8 i18n locales** updated with notification namespace (30+ keys each)
 - **Zustand store** manages notification state with full CRUD operations
+
+---
+Task ID: CRON-REVIEW-3
+Agent: main
+Task: Cron review cycle - QA testing, bug fixes, styling enhancements, new features
+
+Work Log:
+- Read worklog.md to understand project progress
+- Checked all service statuses (Next.js 3000, chat-service 3003, skill-ws 3004, terminal-service 3005)
+- Used agent-browser for QA testing across all views
+- Found and fixed 3 bugs:
+  1. page.tsx Component naming conflict → Changed to React.Component pattern
+  2. UsageView toFixed() crash on undefined successRate → Added null coalescing
+  3. ViewErrorBoundary error messages not displayed → Added error message display
+- Fixed database permissions issue (read-only database)
+- Styled Dashboard: animated counters, trend indicators, gradient stat cards, flow animations in architecture section, auto-refresh with timestamp
+- Styled AuthPage: frosted glass effect, floating orbs, animated gradient background, premium design
+- Styled Sidebar: animated active indicator (framer-motion layoutId), custom scrollbar, gradient badges, section dividers
+- Implemented Notification System: NotificationBell component, NotificationPanel with filters, auto-generated notifications from app events, 30+ i18n keys in all 8 locales
+- Implemented Welcome Onboarding: 4-step modal for new users, first-run detection via localStorage, EmptyState reusable component
+- Updated all 8 i18n locale files with notifications and onboarding keys
+- Pushed code to remote dev branch (9ae8c5a) and synced main
+
+Stage Summary:
+- **3 bugs fixed**: Component naming conflict, UsageView toFixed crash, ViewErrorBoundary error display
+- **3 views restyled**: Dashboard (animated counters, gradients), AuthPage (frosted glass, floating orbs), Sidebar (animated indicator, custom scrollbar)
+- **2 new features**: Notification System (bell + panel + auto-generation), Welcome Onboarding (4-step modal + EmptyState)
+- **28 files changed**, 3691 insertions, 1038 deletions
+- **All code pushed to remote dev and main branches**
+- Server stability note: Dev server requires `--max-old-space-size=4096` to avoid OOM with all components
+
+---
+Task ID: 4a-4b
+Agent: BugFixer
+Task: Fix critical bugs — Agent API not saving ACRP fields (agentType, agentVersion)
+
+Work Log:
+- Bug 1: Fixed POST /api/agents/route.ts
+  - Added `agentType` and `agentVersion` to destructured body fields (line 48)
+  - Added `agentType: agentType || null` and `agentVersion: agentVersion || null` to the `db.agent.create` data object (lines 85-86)
+  - Previously these ACRP fields existed on the Agent Prisma model but were silently discarded on agent creation
+- Bug 2: Fixed PATCH /api/agents/[id]/route.ts
+  - Added `'agentType'` and `'agentVersion'` to the `allowedFields` array (lines 67)
+  - Previously the PATCH handler's allowlist filter would strip these fields from the update payload, making it impossible to update ACRP metadata after creation
+- Ran `bun run lint` — passes clean with no errors
+
+Stage Summary:
+- Both ACRP field bugs fixed: agents can now be created and updated with agentType and agentVersion
+- The ACRP registration flow (where agents self-register type/version via WebSocket) will now correctly persist these fields to the database
+- No other files affected; minimal, surgical fix
+
+---
+Task ID: 4c-4g
+Agent: I18nFixer
+Task: Fix internationalization (i18n) issues across Hermes Hub project
+
+Work Log:
+- Fixed 5 i18n issues as specified:
+
+1. **AuthPage: Hardcoded "with email" text**
+   - File: src/components/auth/AuthPage.tsx, line 588
+   - Changed `{isRegister ? t('auth.signUp') : t('auth.signIn')} with email` → `{isRegister ? t('auth.signUp') : t('auth.signIn')} {t('auth.withEmail')}`
+   - Added `withEmail` key to all 8 locale files under "auth" section
+
+2. **AgentManager: Hardcoded "agent"/"agents" text**
+   - File: src/components/views/AgentManager.tsx, line 461
+   - Changed `{filteredAgents.length === 1 ? 'agent' : 'agents'}` → `{filteredAgents.length === 1 ? t('agents.agentSingle') : t('agents.agentPlural')}`
+   - Added `agentSingle` and `agentPlural` keys to all 8 locale files under "agents" section
+
+3. **ChatView: Hardcoded English suggestion texts**
+   - File: src/components/views/ChatView.tsx, lines 293-297
+   - Changed 4 hardcoded suggestion strings to use t('chat.suggestion1') through t('chat.suggestion4')
+   - Added `suggestion1`-`suggestion4` keys to all 8 locale files under "chat" section
+
+4. **ChatView: Missing i18n for "Search rooms..." placeholder**
+   - File: src/components/views/ChatView.tsx, line 1198
+   - Changed `placeholder="Search rooms..."` → `placeholder={t('chatRooms.searchPlaceholder')}`
+   - Key already existed in all 8 locale files, no new keys needed
+
+5. **SkillMarketplace: Heading mismatch**
+   - File: src/components/views/SkillMarketplace.tsx, line 2218
+   - Changed `{t('skillProtocol.title')}` → `{t('skillProtocol.marketplaceTitle')}`
+   - Added `marketplaceTitle` key to all 8 locale files under "skillProtocol" section
+
+- All 8 locale files validated as valid JSON
+- Lint check passes clean
+
+New i18n keys added to all 8 locales (en, zh, ja, ko, de, es, fr, pt):
+- auth.withEmail
+- agents.agentSingle, agents.agentPlural
+- chat.suggestion1, chat.suggestion2, chat.suggestion3, chat.suggestion4
+- skillProtocol.marketplaceTitle
+
+Stage Summary:
+- All 5 i18n issues fixed with proper translations in 8 languages
+- No more hardcoded English strings in AuthPage, AgentManager, ChatView, or SkillMarketplace
+- chatRooms.searchPlaceholder already existed in all locales — just needed to wire it up in the component
+- All changes are minimal and targeted — only the specific lines mentioned were modified
+
+---
+Task ID: 5-styling
+Agent: StylingEnhancer
+Task: Enhance Dashboard and ChatView with better styling
+
+Work Log:
+- Enhanced `/home/z/my-project/src/components/views/Dashboard.tsx`:
+  - Added "Welcome back, {userName}" greeting with time-of-day awareness (Good morning/afternoon/evening)
+  - User name displayed with gradient text (emerald→cyan→violet) and framer-motion entrance animation
+  - Updated Quick Actions: (New Conversation, Create Agent, Browse Skills, System Settings) → (Create Agent, Add Provider, Browse Skills, Start Chat)
+  - Added skeleton loading states for Quick Stats Grid (6 shimmer cards) and Stats Grid with sparklines (6 shimmer cards)
+  - Skeleton uses custom `shimmerSkeleton` CSS keyframe animation
+  - Loading state lasts 800ms on mount, then fades to real content
+  - Added `user` from store for greeting personalization
+  - Added `isLoading` state with useEffect timer
+  - Added `getGreeting()` callback with i18n support
+  - Added `userName` derived from user?.name || user?.email || t('dashboard.defaultUser')
+- Enhanced `/home/z/my-project/src/components/views/ChatView.tsx`:
+  - Added `formatRelativeTime()` to MessageBubble: shows "Just now", "5m ago", "2h ago", "3d ago"
+  - Message timestamps now show both absolute time AND relative time: `HH:MM · 5m ago · ✓✓`
+  - Status indicators separated by `·` delimiter for clarity
+  - Complete rewrite of EmptyChatState with more inviting design:
+    - Animated hero icon (MessageSquare) with gradient background and floating decorative dots
+    - Welcome title and description (i18n-ified)
+    - Staggered framer-motion entrance animations for each section
+    - Agent cards with hover shadow and active scale effects
+    - Suggestion buttons with gradient backgrounds and hover lift effects
+  - Added `motion` import from framer-motion
+- Added 13 new i18n keys to all 8 locale files (en, zh, ja, ko, de, es, fr, pt):
+  - dashboard: goodMorning, goodAfternoon, goodEvening, defaultUser, addProvider, startChat
+  - chat: justNow, minutesAgo, hoursAgo, daysAgo, welcomeTitle, welcomeDesc, quickStartSuggestions
+- Lint check passes clean
+- Dev server compiles successfully
+
+Stage Summary:
+- **Dashboard greeting**: Personalized welcome with time-of-day awareness and gradient-animated user name
+- **Dashboard Quick Actions**: Updated to Create Agent, Add Provider, Browse Skills, Start Chat
+- **Dashboard skeleton loading**: Shimmer skeleton placeholders for stat cards during initial load
+- **ChatView relative time**: Messages show both absolute time and relative time on hover
+- **ChatView empty state**: Inviting design with animated hero, staggered animations, gradient suggestion buttons
+- **All 8 i18n locales updated**: 13 new keys with proper translations for greeting, relative time, and empty state
+
+---
+Task ID: 5-styling-sidebar
+Agent: StylingSidebarEnhancer
+Task: Enhance Sidebar and Settings UI
+
+Work Log:
+- Rewrote `/home/z/my-project/src/components/layout/Sidebar.tsx` with comprehensive enhancements:
+  1. **Animated gradient pulse on active nav item**: Added `gradient-pulse` CSS keyframe animation that creates a subtle pulsing gradient effect on the active navigation item background
+  2. **Favorites section**: Added a "Favorites" section at the top of the nav that shows pinned views. Users can right-click any nav item to pin/unpin it. Favorites are persisted to localStorage under `sidebar-favorites`
+  3. **Notification badge on NotificationBell**: Enhanced NotificationBell with a pulse ring animation when unread notifications exist, a more prominent red badge with shadow, and an "unread" count badge in the notification panel header
+  4. **Tooltips on nav items when sidebar expanded**: Added tooltips showing keyboard shortcuts (e.g., ⌘1, ⌘2) when hovering over nav items. When collapsed, tooltips show the full label + shortcut. When expanded, tooltips show just the shortcut
+  5. **Resizable sidebar by dragging right edge**: Added a drag handle on the right edge of the sidebar. Users can click and drag to resize between 200px and 400px. Width is persisted to localStorage under `sidebar-width`
+  6. **Collapse all sections toggle button**: Added a minimize/maximize button in the sidebar header that collapses/expands all nav sections at once. State tracked with `allSectionsCollapsed`
+  7. **Pin indicators**: Pinned items show a small Pin icon. Favorite items show an unpin button on hover
+  8. **Right-click context menu**: Right-clicking any nav item toggles its favorite status
+
+- Added `gradient-pulse` keyframe animation to `/home/z/my-project/src/app/globals.css`
+
+- Rewrote `/home/z/my-project/src/components/views/Settings.tsx` with comprehensive enhancements:
+  1. **Appearance tab** (new): Separated theme/appearance settings into their own tab
+     - Theme toggle (Light/Dark/System) using next-themes (moved from General tab)
+     - Accent color selector (moved from General tab)
+     - Font size selector (Small/Medium/Large) with live preview
+     - Compact mode toggle (also in General for backward compat)
+     - Animation toggle (enable/disable animations) with CSS variable control
+  2. **Data Management section** (enhanced):
+     - Export All Data button (includes conversations)
+     - Import Data button
+     - Export Config button (agents/providers/skills only)
+     - Clear Conversations button (with confirmation dialog)
+     - Clear Agents button (with confirmation dialog)
+  3. **About section** (enhanced):
+     - Version number (2.0.0) and Protocol Version (2.0)
+     - License info with MIT badge
+     - GitHub link
+     - Service status (Next.js, Skill WebSocket, Chat Service)
+     - System info (Node.js version, Database type)
+  4. **Proper section separators and headers**: All sections use SectionHeader component with icon, title, and description
+  5. **i18n for all new text**: All new labels use t() translation function
+
+- Updated all 8 i18n locale files (en, zh, ja, ko, de, es, fr, pt) with new keys:
+  - sidebar: favorites, collapseAll, expandAll, rightClickToRemove
+  - settingsPage: appearanceTab, fontSize, fontSizeDesc, fontSizeSmall, fontSizeMedium, fontSizeLarge, interfaceTab, interfaceDesc, animationsEnabled, animationsEnabledDesc, exportAllData, exportAllDataDesc, exportAllSuccess, importData, importDataDesc, license, licenseDesc
+  - notifications: unread
+
+- Lint check passes clean
+- Dev server compiles successfully with no errors
+
+Stage Summary:
+- **Sidebar completely enhanced**: Animated gradient pulse, favorites with localStorage persistence, keyboard shortcut tooltips, drag-to-resize, collapse all sections toggle
+- **NotificationBell enhanced**: Pulse ring animation for unread, prominent badge with shadow, unread count in header
+- **Settings restructured**: New Appearance tab with font size/animation controls, enhanced Data Management with export all data, enhanced About with license info
+- **All 8 i18n locales updated**: 18 new sidebar keys, 17 new settings keys, 1 new notification key
+- **Zero lint errors**: All code passes ESLint
+
+---
+Task ID: 6-features
+Agent: main
+Task: Add System Health Monitor & Keyboard Shortcuts Help
+
+Work Log:
+- **Task 1: System Health Monitor**
+  - Replaced mock System Health card on Dashboard with real-time service health monitor
+  - Added ServiceHealth interface and serviceHealths state tracking 5 services
+  - Added checkServiceHealth() callback that fetches `/api/health?XTransformPort={port}`
+  - Added auto-refresh every 30 seconds via useEffect interval
+  - Each service shows: green/red/amber status dot with pulse, service name + port, response time, uptime, checking/healthy/down status badge
+  - Overall "All Healthy" / "X Issues" badge and manual refresh button
+  - Last checked timestamp display
+  - Preserved legacy system indicators (LLM Providers, ACRP Agents, Skills Active progress bars)
+  - Created `/api/health/route.ts` — Next.js health endpoint returning status, uptime
+  - Added `/health` endpoint to chat-service (port 3003) — returns connectedUsers, activeRooms, uptime
+  - Added `/health` endpoint to terminal-service (port 3005) — returns connectedClients, uptime
+  - Changed terminal-service from `new WebSocketServer({ port })` to `new WebSocketServer({ server: httpServer })` with HTTP server for health checks
+
+- **Task 2: Keyboard Shortcuts Help Modal**
+  - Created `/src/components/shared/KeyboardShortcutsHelp.tsx` — Dialog component showing all shortcuts
+  - Navigation shortcuts (⌘1-8) with "Go to Dashboard/Agents/Providers/Skills/Agent Control/Channels/Chat/Chat Rooms" descriptions
+  - Action shortcuts: ⌘K (Command Palette), ⌘, (Settings), ⌘/ (Help), Esc (Close Dialog)
+  - Styled <kbd> elements for keyboard keys, Mac/PC-aware modifier display (⌘ vs Ctrl+)
+  - Two sections: Navigation and Actions with icons
+  - Registered ⌘/ keyboard shortcut in `page.tsx` alongside existing ⌘K and ⌘, shortcuts
+  - Added `keyboardHelpOpen` state and KeyboardShortcutsHelp component to render tree
+  - Added "?" button in Sidebar footer (between Language Switcher and User section)
+  - Added `onOpenKeyboardHelp` optional prop to Sidebar
+  - Added keyboard shortcuts reference link in Settings > About > System Info card
+
+- **i18n Updates**
+  - Added 14 dashboard keys to all 8 locales: services, allHealthy, issuesFound, responseTime, uptime, lastChecked, serviceNextjs, serviceChat, serviceSkillWs, serviceTerminal, serviceDatabase, checking, healthy, unhealthy
+  - Added new `keyboard` namespace with 14 keys to all 8 locales: title, navigation, actions, shortcuts, description, openCommandPalette, openSettings, openHelp, closeDialog, switchView, nav1-nav8
+  - All locale files validated as valid JSON
+
+- All lint checks pass clean
+
+Stage Summary:
+- **System Health Monitor**: Real-time health checks for all 5 platform services with auto-refresh, status dots, uptime, response time
+- **Keyboard Shortcuts Help**: Comprehensive shortcut reference dialog accessible via ⌘/, sidebar "?" button, or Settings page
+- **Mini-service health endpoints**: chat-service and terminal-service now expose `/health` HTTP endpoints
+- **All 8 i18n locales updated** with 28 new keys across 2 namespaces
+
+---
+Task ID: EVAL-1
+Agent: main
+Task: Comprehensive project evaluation, bug fixes, and feature enhancements
+
+Work Log:
+- Read and analyzed full worklog.md (2152 lines) to understand project history
+- Conducted comprehensive codebase exploration:
+  - 18 view components, 50+ API routes, 3 mini-services, 21+ Prisma models
+  - Complete file tree analysis of src/components/, src/app/api/, mini-services/
+  - Store state shape review (Zustand with 20+ ViewMode states)
+  - Architecture: Next.js 3000 + chat-service 3003 + skill-ws 3004 + terminal-service 3005
+- QA testing with agent-browser identified 15 issues (2 critical, 5 high, 4 medium, 4 low)
+- Fixed all critical and high severity bugs:
+  - Agent API POST route now saves agentType and agentVersion fields
+  - Agent API PATCH route now allows agentType and agentVersion in allowedFields
+  - AuthPage: "with email" now uses i18n key auth.withEmail across all 8 locales
+  - AgentManager: "agent/agents" now uses i18n keys agents.agentSingle/agentPlural
+  - ChatView: 4 hardcoded suggestion texts now use i18n keys chat.suggestion1-4
+  - ChatView: "Search rooms..." now uses chatRooms.searchPlaceholder i18n key
+  - SkillMarketplace: Heading changed from skillProtocol.title to skillProtocol.marketplaceTitle
+- Fixed medium severity: English skill category labels capitalized (All, Communication, etc.)
+- Added major UI enhancements:
+  - Dashboard: Welcome greeting with time-of-day, improved quick actions, skeleton loading
+  - ChatView: Improved empty state with animations, relative time formatting
+  - Sidebar: Animated gradient pulse, favorites section, resizable width, collapse all toggle, "?" keyboard help button
+  - Settings: Appearance tab (theme, font size, compact mode, animations), Data Management (export/import/clear), About section
+- Added new features:
+  - System Health Monitor: Real-time status of 5 services (Next.js, chat, skill-ws, terminal, DB) with auto-refresh
+  - Keyboard Shortcuts Help Modal: Comprehensive reference accessible via ⌘/, sidebar button, or Settings
+  - API health endpoints: /api/health (Next.js), added /health to chat-service and terminal-service
+- All lint checks pass clean
+- All 8 i18n locale files updated with 50+ new keys
+
+Stage Summary:
+- **Project Status**: Stable and feature-rich multi-agent collaboration platform
+- **Bugs Fixed**: 7 critical/high severity issues resolved
+- **Features Added**: System Health Monitor, Keyboard Shortcuts Help, enhanced Dashboard/ChatView/Sidebar/Settings
+- **i18n Coverage**: 50+ new translation keys across 8 languages
+- **Remaining Issues**: Sidebar navigation for Management/System sections may need user testing; agent creation form should validate provider selection for builtin mode; accessibility improvements (dialog descriptions)

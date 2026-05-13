@@ -2215,7 +2215,7 @@ socket.on('skill:heartbeat-ack', (data) => {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">{t('skillProtocol.title')}</h1>
+        <h1 className="text-2xl font-bold">{t('skillProtocol.marketplaceTitle')}</h1>
         <p className="text-muted-foreground text-sm">{t('skillProtocol.subtitle')}</p>
       </div>
 

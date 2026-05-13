@@ -80,7 +80,8 @@
     "strong": "Forte",
     "termsOfService": "Termos de serviço",
     "privacyPolicy": "Política de privacidade",
-    "agreeToTerms": "Ao se inscrever, você concorda com nossos"
+    "agreeToTerms": "Ao se inscrever, você concorda com nossos",
+    "withEmail": "com email"
   },
   "nav": {
     "dashboard": "Painel",
@@ -196,7 +197,27 @@
     "agentResponseTime": "Tempo de resposta do Agent",
     "avgResponse": "Resposta media",
     "normal": "Normal",
-    "activeConnections": "Conexoes ativas"
+    "activeConnections": "Conexoes ativas",
+    "goodMorning": "Bom dia",
+    "goodAfternoon": "Boa tarde",
+    "goodEvening": "Boa noite",
+    "defaultUser": "Usuario",
+    "addProvider": "Adicionar provedor",
+    "startChat": "Iniciar chat",
+    "services": "Saúde do serviço em tempo real e conectividade",
+    "allHealthy": "Tudo saudável",
+    "issuesFound": "{count} problemas",
+    "responseTime": "Resposta",
+    "uptime": "Tempo ativo",
+    "lastChecked": "Última verificação",
+    "serviceNextjs": "Aplicação Next.js",
+    "serviceChat": "Serviço de Chat",
+    "serviceSkillWs": "Skill WebSocket",
+    "serviceTerminal": "Serviço de Terminal",
+    "serviceDatabase": "Banco de dados (SQLite)",
+    "checking": "Verificando...",
+    "healthy": "Saudável",
+    "unhealthy": "Inativo"
   },
   "agents": {
     "title": "Agentes",
@@ -248,6 +269,8 @@
     "filterAll": "Todos",
     "filterBuiltin": "Integrado",
     "filterAcrp": "ACRP",
+    "agentSingle": "agente",
+    "agentPlural": "agentes",
     "generateToken": "Gerar token ACRP",
     "generateLater": "Gerar depois",
     "agentCreated": "Agente criado com sucesso!",
@@ -523,7 +546,18 @@
     "exportSuccess": "Conversa exportada com sucesso",
     "importSuccess": "Conversa importada com sucesso",
     "importFailed": "Falha ao importar conversa",
-    "importInvalidFormat": "Formato de arquivo de conversa invalido"
+    "importInvalidFormat": "Formato de arquivo de conversa invalido",
+    "suggestion1": "Pergunte: \"Como você pode me ajudar?\"",
+    "suggestion2": "Pergunte: \"Escreva uma função para ordenar um array\"",
+    "suggestion3": "Pergunte: \"Explique como o WebSocket funciona\"",
+    "suggestion4": "Pergunte: \"Ajude-me a depurar este erro\"",
+    "justNow": "Agora mesmo",
+    "minutesAgo": "Ha {count} min",
+    "hoursAgo": "Ha {count} h",
+    "daysAgo": "Ha {count} dias",
+    "welcomeTitle": "Inicie uma conversa",
+    "welcomeDesc": "Escolha um agente e comece a conversar. Seus assistentes de IA estao prontos.",
+    "quickStartSuggestions": "Sugestoes de inicio rapido"
   },
   "chatRooms": {
     "title": "Salas de Chat",
@@ -721,7 +755,24 @@
     "links": "Links",
     "documentation": "Documentacao",
     "support": "Suporte",
-    "accentCyan": "Ciano"
+    "accentCyan": "Ciano",
+    "appearanceTab": "Aparência",
+    "fontSize": "Tamanho da fonte",
+    "fontSizeDesc": "Ajustar o tamanho da fonte base da interface",
+    "fontSizeSmall": "Pequeno",
+    "fontSizeMedium": "Médio",
+    "fontSizeLarge": "Grande",
+    "interfaceTab": "Interface",
+    "interfaceDesc": "Controlar densidade e animações da interface",
+    "animationsEnabled": "Animações",
+    "animationsEnabledDesc": "Ativar transições suaves e animações em toda a interface",
+    "exportAllData": "Exportar todos os dados",
+    "exportAllDataDesc": "Exportar todos os dados incluindo conversas",
+    "exportAllSuccess": "Todos os dados exportados com sucesso",
+    "importData": "Importar dados",
+    "importDataDesc": "Importar dados de um arquivo de backup JSON",
+    "license": "Licença",
+    "licenseDesc": "Este projeto está licenciado sob a Licença MIT"
   },
   "settings": {
     "accountInfo": "Informações da conta",
@@ -1132,6 +1183,7 @@
   },
   "skillProtocol": {
     "title": "Protocolo de Plugin de Skill",
+    "marketplaceTitle": "Mercado de Habilidades",
     "subtitle": "Gerenciar endpoints de skills, callbacks e conexões de agentes externos",
     "store": "Loja de Skills",
     "mySkills": "Meus Skills",
@@ -1409,7 +1461,11 @@
     "sectionCommunication": "Comunicação",
     "sectionManagement": "Gestão",
     "sectionSystem": "Sistema",
-    "newBadge": "Novo"
+    "newBadge": "Novo",
+    "favorites": "Favoritos",
+    "collapseAll": "Recolher todas as seções",
+    "expandAll": "Expandir todas as seções",
+    "rightClickToRemove": "Clique direito para remover"
   },
   "commandPalette": {
     "placeholder": "Pesquisar comandos, visualizacoes, agents...",
@@ -1436,6 +1492,26 @@
     "exportDataDesc": "Exportar dados como JSON",
     "importData": "Importar dados",
     "importDataDesc": "Importar dados de arquivo JSON"
+  },
+  "keyboard": {
+    "title": "Atalhos de teclado",
+    "navigation": "Navegação",
+    "actions": "Ações",
+    "shortcuts": "Atalhos",
+    "description": "Use atalhos de teclado para navegar e realizar ações rapidamente",
+    "openCommandPalette": "Abrir paleta de comandos",
+    "openSettings": "Abrir configurações",
+    "openHelp": "Abrir atalhos de teclado",
+    "closeDialog": "Fechar diálogo",
+    "switchView": "Trocar visualização",
+    "nav1": "Ir para o Painel",
+    "nav2": "Ir para Agentes",
+    "nav3": "Ir para Provedores",
+    "nav4": "Ir para Skills",
+    "nav5": "Ir para Controle de Agentes",
+    "nav6": "Ir para Canais",
+    "nav7": "Ir para o Chat",
+    "nav8": "Ir para Salas de Chat"
   },
   "notifications": {
     "title": "Notificações",
@@ -1469,6 +1545,7 @@
       "agentDisconnected": "Agente desconectado",
       "skillInvoked": "Skill invocada",
       "capabilityResult": "Resultado de capacidade"
-    }
+    },
+    "unread": "não lido"
   }
 }

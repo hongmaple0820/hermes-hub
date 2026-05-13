@@ -80,7 +80,8 @@
     "strong": "強い",
     "termsOfService": "利用規約",
     "privacyPolicy": "プライバシーポリシー",
-    "agreeToTerms": "サインアップすることで、以下に同意したことになります"
+    "agreeToTerms": "サインアップすることで、以下に同意したことになります",
+    "withEmail": "メールで"
   },
   "nav": {
     "dashboard": "ダッシュボード",
@@ -196,7 +197,27 @@
     "agentResponseTime": "Agent応答時間",
     "avgResponse": "平均応答",
     "normal": "正常",
-    "activeConnections": "アクティブ接続"
+    "activeConnections": "アクティブ接続",
+    "goodMorning": "おはようございます",
+    "goodAfternoon": "こんにちは",
+    "goodEvening": "こんばんは",
+    "defaultUser": "ユーザー",
+    "addProvider": "プロバイダーを追加",
+    "startChat": "チャットを開始",
+    "services": "リアルタイムサービスヘルス＆接続状態",
+    "allHealthy": "すべて正常",
+    "issuesFound": "{count} 件の問題",
+    "responseTime": "応答",
+    "uptime": "稼働時間",
+    "lastChecked": "最終チェック",
+    "serviceNextjs": "Next.js アプリ",
+    "serviceChat": "チャットサービス",
+    "serviceSkillWs": "スキル WebSocket",
+    "serviceTerminal": "ターミナルサービス",
+    "serviceDatabase": "データベース (SQLite)",
+    "checking": "確認中...",
+    "healthy": "正常",
+    "unhealthy": "停止"
   },
   "agents": {
     "title": "エージェント",
@@ -248,6 +269,8 @@
     "filterAll": "すべて",
     "filterBuiltin": "内蔵",
     "filterAcrp": "ACRP",
+    "agentSingle": "エージェント",
+    "agentPlural": "エージェント",
     "generateToken": "ACRPトークンを生成",
     "generateLater": "後で生成",
     "agentCreated": "エージェントが正常に作成されました！",
@@ -523,7 +546,18 @@
     "exportSuccess": "会話のエクスポートに成功しました",
     "importSuccess": "会話のインポートに成功しました",
     "importFailed": "会話のインポートに失敗しました",
-    "importInvalidFormat": "無効な会話ファイル形式"
+    "importInvalidFormat": "無効な会話ファイル形式",
+    "suggestion1": "聞いてみる：\"何を手伝えますか？\"",
+    "suggestion2": "聞いてみる：\"配列をソートする関数を書いて\"",
+    "suggestion3": "聞いてみる：\"WebSocketの仕組みを説明して\"",
+    "suggestion4": "聞いてみる：\"このエラーのデバッグを手伝って\"",
+    "justNow": "たった今",
+    "minutesAgo": "{count}分前",
+    "hoursAgo": "{count}時間前",
+    "daysAgo": "{count}日前",
+    "welcomeTitle": "会話を始めましょう",
+    "welcomeDesc": "エージェントを選んでチャットを始めましょう。AIアシスタントがお手伝いします。",
+    "quickStartSuggestions": "クイックスタート提案"
   },
   "chatRooms": {
     "title": "チャットルーム",
@@ -721,7 +755,24 @@
     "links": "リンク",
     "documentation": "ドキュメント",
     "support": "サポート",
-    "accentCyan": "シアン"
+    "accentCyan": "シアン",
+    "appearanceTab": "外観",
+    "fontSize": "フォントサイズ",
+    "fontSizeDesc": "インターフェースの基本フォントサイズを調整",
+    "fontSizeSmall": "小",
+    "fontSizeMedium": "中",
+    "fontSizeLarge": "大",
+    "interfaceTab": "インターフェース",
+    "interfaceDesc": "インターフェースの密度とアニメーションを制御",
+    "animationsEnabled": "アニメーション",
+    "animationsEnabledDesc": "インターフェース全体のスムーズなトランジションとアニメーションを有効にする",
+    "exportAllData": "すべてのデータをエクスポート",
+    "exportAllDataDesc": "会話を含むすべてのデータをエクスポート",
+    "exportAllSuccess": "すべてのデータをエクスポートしました",
+    "importData": "データをインポート",
+    "importDataDesc": "JSONバックアップファイルからデータをインポート",
+    "license": "ライセンス",
+    "licenseDesc": "このプロジェクトはMITライセンスの下で提供されています"
   },
   "settings": {
     "accountInfo": "アカウント情報",
@@ -1132,6 +1183,7 @@
   },
   "skillProtocol": {
     "title": "スキルプラグインプロトコル",
+    "marketplaceTitle": "スキルマーケットプレイス",
     "subtitle": "スキルエンドポイント、コールバック設定、外部エージェント接続を管理",
     "store": "スキルストア",
     "mySkills": "マイスキル",
@@ -1409,7 +1461,11 @@
     "sectionCommunication": "コミュニケーション",
     "sectionManagement": "管理",
     "sectionSystem": "システム",
-    "newBadge": "新規"
+    "newBadge": "新規",
+    "favorites": "お気に入り",
+    "collapseAll": "すべてのセクションを折りたたむ",
+    "expandAll": "すべてのセクションを展開",
+    "rightClickToRemove": "右クリックで削除"
   },
   "commandPalette": {
     "placeholder": "コマンド、ビュー、Agentを検索...",
@@ -1436,6 +1492,26 @@
     "exportDataDesc": "データをJSONでエクスポート",
     "importData": "データインポート",
     "importDataDesc": "JSONファイルからデータをインポート"
+  },
+  "keyboard": {
+    "title": "キーボードショートカット",
+    "navigation": "ナビゲーション",
+    "actions": "アクション",
+    "shortcuts": "ショートカット",
+    "description": "キーボードショートカットで素早く操作",
+    "openCommandPalette": "コマンドパレットを開く",
+    "openSettings": "設定を開く",
+    "openHelp": "キーボードショートカットを開く",
+    "closeDialog": "ダイアログを閉じる",
+    "switchView": "ビューを切り替え",
+    "nav1": "ダッシュボードへ",
+    "nav2": "エージェントへ",
+    "nav3": "プロバイダーへ",
+    "nav4": "スキルへ",
+    "nav5": "エージェントコントロールへ",
+    "nav6": "チャンネルへ",
+    "nav7": "チャットへ",
+    "nav8": "チャットルームへ"
   },
   "notifications": {
     "title": "通知",
@@ -1469,6 +1545,7 @@
       "agentDisconnected": "エージェント切断",
       "skillInvoked": "スキル実行",
       "capabilityResult": "機能結果"
-    }
+    },
+    "unread": "未読"
   }
 }

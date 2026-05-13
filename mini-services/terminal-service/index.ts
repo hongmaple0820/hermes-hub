@@ -1,4 +1,5 @@
 import { WebSocketServer, WebSocket } from 'ws';
+import { createServer } from 'http';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -788,7 +789,26 @@ function buildPrompt(session: TerminalSession): string {
 // ---------------------------------------------------------------------------
 
 const PORT = 3005;
-const wss = new WebSocketServer({ port: PORT });
+
+// Create HTTP server for health check
+const httpServer = createServer((req, res) => {
+  if (req.url === '/health' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      status: 'ok',
+      service: 'hermes-terminal',
+      port: PORT,
+      connectedClients: clients.size,
+      uptime: process.uptime(),
+    }));
+  } else {
+    res.writeHead(404);
+    res.end('Not found');
+  }
+});
+httpServer.listen(PORT);
+
+const wss = new WebSocketServer({ server: httpServer });
 const clients = new Map<WebSocket, AuthenticatedClient>();
 let pidCounter = 1000;
 
@@ -1135,12 +1155,13 @@ wss.on('connection', (ws: WebSocket, req) => {
 // Start & Graceful Shutdown
 // ---------------------------------------------------------------------------
 
-console.log(`[Hermes Terminal Service] WebSocket server running on port ${PORT}`);
+console.log(`[Hermes Terminal Service] WebSocket + HTTP server running on port ${PORT}`);
+console.log(`[Hermes Terminal Service] Health check: http://localhost:${PORT}/health`);
 console.log(`[Hermes Terminal Service] Ready to accept connections`);
 
 const shutdown = () => {
   console.log('[Hermes Terminal Service] Shutting down...');
-  wss.close(() => { console.log('[Hermes Terminal Service] Server closed'); process.exit(0); });
+  wss.close(() => { httpServer.close(() => { console.log('[Hermes Terminal Service] Server closed'); process.exit(0); }); });
 };
 
 process.on('SIGTERM', shutdown);

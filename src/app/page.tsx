@@ -27,6 +27,7 @@ import { SessionSearch } from '@/components/views/SessionSearch';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { Toaster, toast } from 'sonner';
 import { CommandPalette } from '@/components/shared/CommandPalette';
+import { KeyboardShortcutsHelp } from '@/components/shared/KeyboardShortcutsHelp';
 import { WelcomeOnboarding, isOnboardingCompleted } from '@/components/shared/WelcomeOnboarding';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import { NotificationPanel } from '@/components/shared/NotificationPanel';
@@ -95,6 +96,7 @@ function AppContent() {
 
   const [initialized, setInitialized] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [keyboardHelpOpen, setKeyboardHelpOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Check for existing session on mount
@@ -170,6 +172,13 @@ function AppContent() {
       if (e.key === 'k') {
         e.preventDefault();
         setCommandPaletteOpen((prev) => !prev);
+        return;
+      }
+
+      // Cmd+/ → Keyboard Shortcuts Help
+      if (e.key === '/') {
+        e.preventDefault();
+        setKeyboardHelpOpen((prev) => !prev);
         return;
       }
 
@@ -339,7 +348,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen flex bg-background">
-      <Sidebar onLogout={handleLogout} />
+      <Sidebar onLogout={handleLogout} onOpenKeyboardHelp={() => setKeyboardHelpOpen(true)} />
       <main className="flex-1 overflow-auto relative">
         {/* Notification Bell - Fixed top right */}
         <div className="fixed top-4 right-4 z-40">
@@ -372,6 +381,7 @@ function AppContent() {
       </main>
       <SessionSearch />
       <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
+      <KeyboardShortcutsHelp open={keyboardHelpOpen} onOpenChange={setKeyboardHelpOpen} />
       <WelcomeOnboarding open={showOnboarding} onComplete={() => setShowOnboarding(false)} />
       <Toaster />
     </div>

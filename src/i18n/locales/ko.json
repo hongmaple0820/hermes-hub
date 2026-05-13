@@ -80,7 +80,8 @@
     "strong": "강함",
     "termsOfService": "서비스 약관",
     "privacyPolicy": "개인정보 처리방침",
-    "agreeToTerms": "가입하면 다음에 동의하게 됩니다"
+    "agreeToTerms": "가입하면 다음에 동의하게 됩니다",
+    "withEmail": "이메일로"
   },
   "nav": {
     "dashboard": "대시보드",
@@ -196,7 +197,27 @@
     "agentResponseTime": "Agent 응답 시간",
     "avgResponse": "평균 응답",
     "normal": "정상",
-    "activeConnections": "활성 연결"
+    "activeConnections": "활성 연결",
+    "goodMorning": "좋은 아침이에요",
+    "goodAfternoon": "좋은 오후에요",
+    "goodEvening": "좋은 저녁이에요",
+    "defaultUser": "사용자",
+    "addProvider": "제공자 추가",
+    "startChat": "채팅 시작",
+    "services": "실시간 서비스 상태 및 연결",
+    "allHealthy": "모두 정상",
+    "issuesFound": "{count}개 문제",
+    "responseTime": "응답",
+    "uptime": "가동시간",
+    "lastChecked": "마지막 확인",
+    "serviceNextjs": "Next.js 앱",
+    "serviceChat": "채팅 서비스",
+    "serviceSkillWs": "스킬 WebSocket",
+    "serviceTerminal": "터미널 서비스",
+    "serviceDatabase": "데이터베이스 (SQLite)",
+    "checking": "확인 중...",
+    "healthy": "정상",
+    "unhealthy": "중단"
   },
   "agents": {
     "title": "에이전트",
@@ -248,6 +269,8 @@
     "filterAll": "전체",
     "filterBuiltin": "내장",
     "filterAcrp": "ACRP",
+    "agentSingle": "에이전트",
+    "agentPlural": "에이전트",
     "generateToken": "ACRP 토큰 생성",
     "generateLater": "나중에 생성",
     "agentCreated": "에이전트가 성공적으로 생성되었습니다!",
@@ -523,7 +546,18 @@
     "exportSuccess": "대화 내보내기 성공",
     "importSuccess": "대화 가져오기 성공",
     "importFailed": "대화 가져오기 실패",
-    "importInvalidFormat": "잘못된 대화 파일 형식"
+    "importInvalidFormat": "잘못된 대화 파일 형식",
+    "suggestion1": "물어보기: \"무엇을 도와드릴까요?\"",
+    "suggestion2": "물어보기: \"배열 정렬 함수를 작성해줘\"",
+    "suggestion3": "물어보기: \"WebSocket 작동 원리를 설명해줘\"",
+    "suggestion4": "물어보기: \"이 오류를 디버그해 줘\"",
+    "justNow": "방금",
+    "minutesAgo": "{count}분 전",
+    "hoursAgo": "{count}시간 전",
+    "daysAgo": "{count}일 전",
+    "welcomeTitle": "대화를 시작하세요",
+    "welcomeDesc": "에이전트를 선택하고 채팅을 시작하세요. AI 어시스턴트가 도와드릴 준비가 되었습니다.",
+    "quickStartSuggestions": "빠른 시작 제안"
   },
   "chatRooms": {
     "title": "채팅방",
@@ -721,7 +755,24 @@
     "links": "링크",
     "documentation": "문서",
     "support": "지원",
-    "accentCyan": "시안"
+    "accentCyan": "시안",
+    "appearanceTab": "외관",
+    "fontSize": "글꼴 크기",
+    "fontSizeDesc": "인터페이스의 기본 글꼴 크기를 조정",
+    "fontSizeSmall": "작게",
+    "fontSizeMedium": "보통",
+    "fontSizeLarge": "크게",
+    "interfaceTab": "인터페이스",
+    "interfaceDesc": "인터페이스 밀도 및 애니메이션 제어",
+    "animationsEnabled": "애니메이션",
+    "animationsEnabledDesc": "인터페이스 전체의 부드러운 전환 및 애니메이션 활성화",
+    "exportAllData": "모든 데이터 내보내기",
+    "exportAllDataDesc": "대화를 포함한 모든 데이터 내보내기",
+    "exportAllSuccess": "모든 데이터를 내보냈습니다",
+    "importData": "데이터 가져오기",
+    "importDataDesc": "JSON 백업 파일에서 데이터 가져오기",
+    "license": "라이선스",
+    "licenseDesc": "이 프로젝트는 MIT 라이선스에 따라 배포됩니다"
   },
   "settings": {
     "accountInfo": "계정 정보",
@@ -1132,6 +1183,7 @@
   },
   "skillProtocol": {
     "title": "스킬 플러그인 프로토콜",
+    "marketplaceTitle": "스킬 마켓플레이스",
     "subtitle": "스킬 엔드포인트, 콜백 설정 및 외부 에이전트 연결 관리",
     "store": "스킬 스토어",
     "mySkills": "내 스킬",
@@ -1409,7 +1461,11 @@
     "sectionCommunication": "소통",
     "sectionManagement": "관리",
     "sectionSystem": "시스템",
-    "newBadge": "신규"
+    "newBadge": "신규",
+    "favorites": "즐겨찾기",
+    "collapseAll": "모든 섹션 접기",
+    "expandAll": "모든 섹션 펼치기",
+    "rightClickToRemove": "우클릭으로 제거"
   },
   "commandPalette": {
     "placeholder": "명령, 보기, Agent 검색...",
@@ -1436,6 +1492,26 @@
     "exportDataDesc": "JSON으로 데이터 내보내기",
     "importData": "데이터 가져오기",
     "importDataDesc": "JSON 파일에서 데이터 가져오기"
+  },
+  "keyboard": {
+    "title": "키보드 단축키",
+    "navigation": "탐색",
+    "actions": "작업",
+    "shortcuts": "단축키",
+    "description": "키보드 단축키로 빠르게 탐색하고 작업을 수행하세요",
+    "openCommandPalette": "명령 팔레트 열기",
+    "openSettings": "설정 열기",
+    "openHelp": "키보드 단축키 열기",
+    "closeDialog": "대화상자 닫기",
+    "switchView": "보기 전환",
+    "nav1": "대시보드로",
+    "nav2": "에이전트로",
+    "nav3": "제공자로",
+    "nav4": "스킬로",
+    "nav5": "에이전트 제어로",
+    "nav6": "채널로",
+    "nav7": "채팅으로",
+    "nav8": "채팅방으로"
   },
   "notifications": {
     "title": "알림",
@@ -1469,6 +1545,7 @@
       "agentDisconnected": "에이전트 연결 해제",
       "skillInvoked": "스킬 호출",
       "capabilityResult": "기능 결과"
-    }
+    },
+    "unread": "읽지 않음"
   }
 }
