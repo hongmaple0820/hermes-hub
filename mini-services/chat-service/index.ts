@@ -1,4 +1,4 @@
-import { createServer } from 'http'
+import { createServer, IncomingMessage, ServerResponse } from 'http'
 import { Server, Socket } from 'socket.io'
 import { createDecipheriv, scryptSync } from 'crypto'
 
@@ -30,6 +30,8 @@ function decrypt(encryptedText: string): string {
   return decrypted
 }
 
+const PORT = 3003
+
 const httpServer = createServer()
 const io = new Server(httpServer, {
   // DO NOT change the path, it is used by Caddy to forward the request to the correct port
@@ -40,6 +42,30 @@ const io = new Server(httpServer, {
   },
   pingTimeout: 60000,
   pingInterval: 25000,
+})
+
+// Prepend our HTTP request handler BEFORE Socket.IO's handler so that
+// /health is handled by us, not Socket.IO (which returns "Transport unknown").
+const existingListeners = httpServer.listeners('request').slice()
+httpServer.removeAllListeners('request')
+httpServer.on('request', (req: IncomingMessage, res: ServerResponse) => {
+  const urlPath = (req.url || '/').split('?')[0]
+  if (urlPath === '/health' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({
+      status: 'ok',
+      service: 'hermes-chat-service',
+      port: PORT,
+      connectedClients: connectedUsers.size,
+      activeRooms: activeRooms.size,
+      uptime: process.uptime(),
+    }))
+    return
+  }
+  // Forward to Socket.IO's request handler(s)
+  for (const listener of existingListeners) {
+    ;(listener as (req: IncomingMessage, res: ServerResponse) => void)(req, res)
+  }
 })
 
 // ---------------------------------------------------------------------------
@@ -1100,23 +1126,6 @@ async function handleHermesAgent(
 // ---------------------------------------------------------------------------
 // Start Server
 // ---------------------------------------------------------------------------
-
-const PORT = 3003
-
-// Health check HTTP handler (before Socket.IO takes over)
-httpServer.on('request', (req, res) => {
-  if (req.url === '/health' && req.method === 'GET') {
-    res.writeHead(200, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify({
-      status: 'ok',
-      service: 'hermes-chat',
-      port: PORT,
-      connectedUsers: connectedUsers.size,
-      activeRooms: activeRooms.size,
-      uptime: process.uptime(),
-    }))
-  }
-})
 
 httpServer.listen(PORT, () => {
   console.log(`[Hermes Chat Service] Socket.IO server running on port ${PORT}`)

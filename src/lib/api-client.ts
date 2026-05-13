@@ -1,52 +1,116 @@
 /**
  * Frontend API Client for Hermes Hub
+ * Uses JWT-based authentication with httpOnly cookie fallback
  */
 
 const API_BASE = '/api';
 
 class ApiClient {
+  private token: string | null = null;
   private userId: string | null = null;
+  private refreshPromise: Promise<boolean> | null = null;
 
-  private persistAuth(userId: string) {
+  private persistAuth(token: string, userId: string) {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('hermes-auth-user-id', userId);
+      localStorage.setItem('hermes_auth_token', token);
+      localStorage.setItem('hermes_auth_user_id', userId);
     }
   }
 
-  private restoreAuth(): string | null {
+  private restoreAuth(): { token: string | null; userId: string | null } {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('hermes-auth-user-id');
+      const token = localStorage.getItem('hermes_auth_token');
+      const userId = localStorage.getItem('hermes_auth_user_id');
+      // Also check legacy keys for backward compatibility
+      if (!token) {
+        const legacyToken = localStorage.getItem('hermes-auth-user-id') || localStorage.getItem('hermes_token');
+        if (legacyToken) {
+          // Legacy: the token was actually a userId
+          return { token: null, userId: legacyToken };
+        }
+      }
+      return { token, userId };
     }
-    return null;
+    return { token: null, userId: null };
   }
 
   private clearPersistedAuth() {
     if (typeof window !== 'undefined') {
+      localStorage.removeItem('hermes_auth_token');
+      localStorage.removeItem('hermes_auth_user_id');
+      // Also clean legacy keys
       localStorage.removeItem('hermes-auth-user-id');
+      localStorage.removeItem('hermes_token');
+      localStorage.removeItem('hermes_user');
     }
+  }
+
+  setAuth(token: string, userId: string) {
+    this.token = token;
+    this.userId = userId;
+    this.persistAuth(token, userId);
   }
 
   setUserId(id: string) {
     this.userId = id;
-    this.persistAuth(id);
+    this.persistAuth(this.token || id, id);
   }
 
   getUserId(): string | null {
     return this.userId;
   }
 
+  getToken(): string | null {
+    return this.token;
+  }
+
   logout() {
+    this.token = null;
     this.userId = null;
     this.clearPersistedAuth();
+    // Call logout API to clear httpOnly cookies
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
   }
 
   tryRestoreAuth(): boolean {
-    const stored = this.restoreAuth();
-    if (stored) {
-      this.userId = stored;
+    const { token, userId } = this.restoreAuth();
+    if (token && userId) {
+      this.token = token;
+      this.userId = userId;
+      return true;
+    }
+    // Legacy: if only userId, we can try using it as x-user-id for backward compat
+    if (userId) {
+      this.userId = userId;
       return true;
     }
     return false;
+  }
+
+  async refreshToken(): Promise<boolean> {
+    if (this.refreshPromise) return this.refreshPromise;
+
+    this.refreshPromise = (async () => {
+      try {
+        const res = await fetch('/api/auth/refresh', { method: 'POST' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.token && data.user) {
+            this.token = data.token;
+            this.userId = data.user.id;
+            this.persistAuth(data.token, data.user.id);
+            return true;
+          }
+        }
+        return false;
+      } catch {
+        return false;
+      } finally {
+        this.refreshPromise = null;
+      }
+    })();
+
+    return this.refreshPromise;
   }
 
   private async request(path: string, options: RequestInit = {}): Promise<Response> {
@@ -55,6 +119,12 @@ class ApiClient {
       ...(options.headers as Record<string, string>),
     };
 
+    // Send JWT token as Authorization header
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    // Also send x-user-id for backward compat with legacy auth
     if (this.userId) {
       headers['x-user-id'] = this.userId;
     }
@@ -63,6 +133,23 @@ class ApiClient {
       ...options,
       headers,
     });
+
+    // On 401, try to refresh the token once
+    if (res.status === 401 && this.token) {
+      const refreshed = await this.refreshToken();
+      if (refreshed) {
+        // Retry the request with new token
+        headers['Authorization'] = `Bearer ${this.token}`;
+        if (this.userId) headers['x-user-id'] = this.userId;
+        const retryRes = await fetch(`${API_BASE}${path}`, {
+          ...options,
+          headers,
+        });
+        if (retryRes.ok) return retryRes;
+      }
+      // Refresh failed — logout
+      this.logout();
+    }
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({ error: res.statusText }));
@@ -399,6 +486,7 @@ class ApiClient {
 
   async uploadFile(formData: FormData) {
     const headers: Record<string, string> = {};
+    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
     if (this.userId) headers['x-user-id'] = this.userId;
     const res = await fetch(`${API_BASE}/files/upload`, {
       method: 'POST',
@@ -486,9 +574,9 @@ class ApiClient {
 
   // Skill Plugin Protocol
   async generateSkillEndpoint(agentId: string, skillId: string) {
-    return this.post<{ 
-      endpointUrl: string; 
-      endpointToken: string; 
+    return this.post<{
+      endpointUrl: string;
+      endpointToken: string;
       callbackSecret: string;
       wsConnectUrl: string;
       wsDirectUrl: string;
@@ -536,10 +624,10 @@ class ApiClient {
 
   // Skill WebSocket Connection
   async getSkillConnectionInfo(agentId: string, skillId: string) {
-    return this.get<{ 
-      endpointToken: string | null; 
-      callbackUrl: string | null; 
-      callbackSecret: string | null; 
+    return this.get<{
+      endpointToken: string | null;
+      callbackUrl: string | null;
+      callbackSecret: string | null;
       wsStatus: { connected: boolean; lastHeartbeat: string | null; socketId: string | null };
       wsConnectUrl: string | null;
       connectionMode: string;
@@ -547,9 +635,9 @@ class ApiClient {
   }
 
   async regenerateSkillEndpoint(agentId: string, skillId: string) {
-    return this.post<{ 
-      endpointUrl: string; 
-      endpointToken: string; 
+    return this.post<{
+      endpointUrl: string;
+      endpointToken: string;
       callbackSecret: string;
       wsConnectUrl: string;
       wsDirectUrl: string;

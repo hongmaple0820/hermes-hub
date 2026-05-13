@@ -439,9 +439,9 @@ export function Sidebar({ onLogout, onOpenKeyboardHelp }: SidebarProps) {
                               >
                                 <PinOff className="w-3 h-3 text-muted-foreground hover:text-foreground" />
                               </button>
-                              {/* Keyboard Shortcut */}
+                              {/* Keyboard Shortcut - show on hover */}
                               {item.shortcut && (
-                                <span className="text-[9px] text-muted-foreground/40 font-mono ml-1 hidden lg:inline relative z-10 group-hover/item:text-muted-foreground/60 transition-colors">
+                                <span className="text-[9px] text-transparent font-mono ml-1 hidden lg:inline relative z-10 group-hover/item:text-muted-foreground/70 transition-colors duration-200">
                                   {item.shortcut}
                                 </span>
                               )}
@@ -614,9 +614,9 @@ export function Sidebar({ onLogout, onOpenKeyboardHelp }: SidebarProps) {
                                     {unreadConvs}
                                   </span>
                                 )}
-                                {/* Keyboard Shortcut */}
+                                {/* Keyboard Shortcut - show on hover */}
                                 {item.shortcut && (
-                                  <span className="text-[9px] text-muted-foreground/40 font-mono ml-1 hidden lg:inline relative z-10 group-hover/item:text-muted-foreground/60 transition-colors">
+                                  <span className="text-[9px] text-transparent font-mono ml-1 hidden lg:inline relative z-10 group-hover/item:text-muted-foreground/70 transition-colors duration-200">
                                     {item.shortcut}
                                   </span>
                                 )}

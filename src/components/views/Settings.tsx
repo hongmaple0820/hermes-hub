@@ -31,7 +31,7 @@ import {
   Upload, AlertTriangle, Trash2, Info, ExternalLink, CheckCircle2,
   XCircle, Wifi, WifiOff, Server, Database, Globe, Monitor, Heart,
   RefreshCw, EyeIcon, Sun, Moon, MonitorSmartphone, Zap, Hexagon,
-  FileText, Scale, Code, Sparkles, Type, Move, Keyboard
+  FileText, Scale, Code, Sparkles, Type, Move, Keyboard, Terminal
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -138,8 +138,11 @@ export function Settings({ onLogout }: SettingsProps) {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // About / service status state
+  // About / service health state
   const [serviceStatuses, setServiceStatuses] = useState<Record<string, 'checking' | 'online' | 'offline'>>({});
+  const [serviceHealth, setServiceHealth] = useState<Record<string, { uptime?: string; responseTime?: number }>>({});
+  const [healthRefreshing, setHealthRefreshing] = useState(false);
+  const healthRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -157,57 +160,127 @@ export function Settings({ onLogout }: SettingsProps) {
     loadSettings();
   }, [loadSettings]);
 
-  // Check service statuses
-  useEffect(() => {
-    const checkServices = async () => {
-      const statuses: Record<string, 'checking' | 'online' | 'offline'> = {
-        nextjs: 'checking',
-        'skill-ws': 'checking',
-        'chat-service': 'checking',
-      };
-      setServiceStatuses(statuses);
-
-      // Next.js is always online if we're loading this page
-      statuses.nextjs = 'online';
-      setServiceStatuses({ ...statuses });
-
-      // Check skill-ws
-      try {
-        const res = await fetch('/api/skill-protocol/validate?XTransformPort=3004&check=health', {
-          signal: AbortSignal.timeout(3000),
-        }).catch(() => null);
-        if (res?.ok) {
-          statuses['skill-ws'] = 'online';
-        } else {
-          // Try alternate health check
-          try {
-            const healthRes = await fetch('/health?XTransformPort=3004', {
-              signal: AbortSignal.timeout(3000),
-            });
-            statuses['skill-ws'] = healthRes.ok ? 'online' : 'offline';
-          } catch {
-            statuses['skill-ws'] = 'offline';
-          }
-        }
-      } catch {
-        statuses['skill-ws'] = 'offline';
-      }
-      setServiceStatuses({ ...statuses });
-
-      // Check chat-service
-      try {
-        const res = await fetch('/health?XTransformPort=3003', {
-          signal: AbortSignal.timeout(3000),
-        });
-        statuses['chat-service'] = res.ok ? 'online' : 'offline';
-      } catch {
-        statuses['chat-service'] = 'offline';
-      }
-      setServiceStatuses({ ...statuses });
+  // Check service health with uptime and response time
+  const checkServiceHealth = useCallback(async () => {
+    setHealthRefreshing(true);
+    const statuses: Record<string, 'checking' | 'online' | 'offline'> = {
+      nextjs: 'checking',
+      'skill-ws': 'checking',
+      'chat-service': 'checking',
+      terminal: 'checking',
     };
+    const health: Record<string, { uptime?: string; responseTime?: number }> = {};
+    setServiceStatuses(statuses);
 
-    checkServices();
+    // Next.js is always online if we're loading this page
+    statuses.nextjs = 'online';
+    health.nextjs = { uptime: '-', responseTime: 0 };
+    setServiceStatuses({ ...statuses });
+    setServiceHealth({ ...health });
+
+    // Check skill-ws
+    try {
+      const start = Date.now();
+      const res = await fetch('/api/health?XTransformPort=3004', {
+        signal: AbortSignal.timeout(5000),
+      }).catch(() => null);
+      const elapsed = Date.now() - start;
+      if (res?.ok) {
+        statuses['skill-ws'] = 'online';
+        try {
+          const data = await res.json();
+          health['skill-ws'] = {
+            uptime: data.uptime ? formatUptime(data.uptime) : '-',
+            responseTime: elapsed,
+          };
+        } catch {
+          health['skill-ws'] = { uptime: '-', responseTime: elapsed };
+        }
+      } else {
+        statuses['skill-ws'] = 'offline';
+        health['skill-ws'] = { uptime: '-', responseTime: elapsed };
+      }
+    } catch {
+      statuses['skill-ws'] = 'offline';
+      health['skill-ws'] = { uptime: '-', responseTime: -1 };
+    }
+    setServiceStatuses({ ...statuses });
+    setServiceHealth({ ...health });
+
+    // Check chat-service
+    try {
+      const start = Date.now();
+      const res = await fetch('/api/health?XTransformPort=3003', {
+        signal: AbortSignal.timeout(5000),
+      });
+      const elapsed = Date.now() - start;
+      statuses['chat-service'] = res.ok ? 'online' : 'offline';
+      if (res.ok) {
+        try {
+          const data = await res.json();
+          health['chat-service'] = {
+            uptime: data.uptime ? formatUptime(data.uptime) : '-',
+            responseTime: elapsed,
+          };
+        } catch {
+          health['chat-service'] = { uptime: '-', responseTime: elapsed };
+        }
+      } else {
+        health['chat-service'] = { uptime: '-', responseTime: elapsed };
+      }
+    } catch {
+      statuses['chat-service'] = 'offline';
+      health['chat-service'] = { uptime: '-', responseTime: -1 };
+    }
+    setServiceStatuses({ ...statuses });
+    setServiceHealth({ ...health });
+
+    // Check terminal service (3005)
+    try {
+      const start = Date.now();
+      const res = await fetch('/api/health?XTransformPort=3005', {
+        signal: AbortSignal.timeout(5000),
+      });
+      const elapsed = Date.now() - start;
+      statuses.terminal = res.ok ? 'online' : 'offline';
+      if (res.ok) {
+        try {
+          const data = await res.json();
+          health.terminal = {
+            uptime: data.uptime ? formatUptime(data.uptime) : '-',
+            responseTime: elapsed,
+          };
+        } catch {
+          health.terminal = { uptime: '-', responseTime: elapsed };
+        }
+      } else {
+        health.terminal = { uptime: '-', responseTime: elapsed };
+      }
+    } catch {
+      statuses.terminal = 'offline';
+      health.terminal = { uptime: '-', responseTime: -1 };
+    }
+    setServiceStatuses({ ...statuses });
+    setServiceHealth({ ...health });
+    setHealthRefreshing(false);
   }, []);
+
+  // Format uptime from seconds to human readable
+  const formatUptime = (seconds: number): string => {
+    if (seconds < 60) return `${Math.floor(seconds)}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+    return `${Math.floor(seconds / 86400)}d ${Math.floor((seconds % 86400) / 3600)}h`;
+  };
+
+  useEffect(() => {
+    checkServiceHealth();
+    // Auto-refresh every 60 seconds
+    healthRefreshRef.current = setInterval(checkServiceHealth, 60000);
+    return () => {
+      if (healthRefreshRef.current) clearInterval(healthRefreshRef.current);
+    };
+  }, [checkServiceHealth]);
 
   const updateSetting = async (key: string, value: unknown) => {
     try {
@@ -1514,45 +1587,109 @@ export function Settings({ onLogout }: SettingsProps) {
               </CardContent>
             </Card>
 
-            {/* Service Status */}
+            {/* Service Health Dashboard */}
             <Card>
               <CardHeader className="pb-3">
-                <SectionHeader
-                  icon={Server}
-                  title={t('settingsPage.serviceStatus')}
-                  description={t('settingsPage.serviceStatusDesc')}
-                />
+                <div className="flex items-start justify-between">
+                  <SectionHeader
+                    icon={Heart}
+                    title={t('settings.serviceHealth')}
+                    description={t('settings.serviceHealthDesc')}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 shrink-0"
+                    onClick={checkServiceHealth}
+                    disabled={healthRefreshing}
+                  >
+                    <RefreshCw className={cn('w-3.5 h-3.5', healthRefreshing && 'animate-spin')} />
+                    {t('settings.checkAllServices')}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {[
-                    { key: 'nextjs', name: 'Next.js', icon: Globe, port: 3000 },
-                    { key: 'skill-ws', name: 'Skill WebSocket', icon: Wifi, port: 3004 },
+                    { key: 'nextjs', name: 'Next.js App', icon: Globe, port: 3000 },
                     { key: 'chat-service', name: 'Chat Service', icon: MessageSquare, port: 3003 },
+                    { key: 'skill-ws', name: 'Skill WebSocket', icon: Wifi, port: 3004 },
+                    { key: 'terminal', name: 'Terminal Service', icon: Terminal, port: 3005 },
                   ].map((service) => {
                     const status = serviceStatuses[service.key] || 'checking';
+                    const healthInfo = serviceHealth[service.key];
                     const Icon = service.icon;
                     return (
-                      <div key={service.key} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div key={service.key} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/30 transition-colors">
                         <div className="flex items-center gap-3">
+                          {/* Status dot with pulse animation */}
+                          <span className="relative flex h-3 w-3 shrink-0">
+                            {status === 'online' && (
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                            )}
+                            <span className={cn(
+                              'relative inline-flex rounded-full h-3 w-3 shrink-0',
+                              status === 'online' ? 'bg-green-500' : status === 'offline' ? 'bg-red-500' : 'bg-amber-400'
+                            )} />
+                          </span>
                           <Icon className="w-4 h-4 text-muted-foreground" />
                           <div>
                             <p className="text-sm font-medium">{service.name}</p>
                             <p className="text-xs text-muted-foreground">:{service.port}</p>
                           </div>
                         </div>
-                        <Badge
-                          variant={status === 'online' ? 'default' : status === 'offline' ? 'destructive' : 'outline'}
-                          className="gap-1"
-                        >
-                          {status === 'online' && <CheckCircle2 className="w-3 h-3" />}
-                          {status === 'offline' && <XCircle className="w-3 h-3" />}
-                          {status === 'checking' && <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />}
-                          {status === 'online' ? t('common.online') : status === 'offline' ? t('common.offline') : '...'}
-                        </Badge>
+                        <div className="flex items-center gap-4">
+                          {/* Uptime */}
+                          {healthInfo?.uptime && healthInfo.uptime !== '-' && (
+                            <div className="text-right hidden sm:block">
+                              <p className="text-[10px] text-muted-foreground">{t('dashboard.uptime')}</p>
+                              <p className="text-xs font-medium">{healthInfo.uptime}</p>
+                            </div>
+                          )}
+                          {/* Response time */}
+                          {healthInfo?.responseTime !== undefined && healthInfo.responseTime >= 0 && (
+                            <div className="text-right">
+                              <p className="text-[10px] text-muted-foreground">{t('settings.responseTime')}</p>
+                              <p className={cn(
+                                'text-xs font-medium',
+                                healthInfo.responseTime < 200 ? 'text-green-600' :
+                                healthInfo.responseTime < 1000 ? 'text-amber-600' : 'text-red-600'
+                              )}>
+                                {healthInfo.responseTime}ms
+                              </p>
+                            </div>
+                          )}
+                          {/* Status badge */}
+                          <Badge
+                            variant={status === 'online' ? 'default' : status === 'offline' ? 'destructive' : 'outline'}
+                            className="gap-1"
+                          >
+                            {status === 'online' && <CheckCircle2 className="w-3 h-3" />}
+                            {status === 'offline' && <XCircle className="w-3 h-3" />}
+                            {status === 'checking' && <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />}
+                            {status === 'online' ? t('common.online') : status === 'offline' ? t('common.offline') : '...'}
+                          </Badge>
+                        </div>
                       </div>
                     );
                   })}
+                </div>
+                {/* Overall health summary */}
+                <div className="mt-4 pt-3 border-t flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      'w-2.5 h-2.5 rounded-full',
+                      Object.values(serviceStatuses).filter(s => s === 'online').length === Object.keys(serviceStatuses).length
+                        ? 'bg-green-500' : Object.values(serviceStatuses).some(s => s === 'offline')
+                          ? 'bg-red-500' : 'bg-amber-400'
+                    )} />
+                    <span className="text-xs text-muted-foreground">
+                      {Object.values(serviceStatuses).filter(s => s === 'online').length}/{Object.keys(serviceStatuses).length} {t('common.online').toLowerCase()}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">
+                    {t('dashboard.lastChecked')}: {new Date().toLocaleTimeString()}
+                  </span>
                 </div>
               </CardContent>
             </Card>

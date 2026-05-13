@@ -583,6 +583,42 @@ Stage Summary:
 - **All 8 locales updated**: 50+ new dashboard i18n keys with proper translations
 
 ---
+Task ID: 7
+Agent: QABugFixer
+Task: Fix QA bugs from agent-browser testing
+
+Work Log:
+- Bug 1: Fixed Dashboard stat card text issues
+  - Providers card: Changed detail from "{activeProviders.length} active" to t('dashboard.providersConfigured', { count: providers.length }) — now shows "X configured" instead of duplicate "X active"
+  - Conversations card: Changed subtitle from t('dashboard.conversationsActive') to t('dashboard.conversationsActiveCount', { count: ... }) — now shows "X active chats" with count
+  - Chat Rooms card: Changed detail from t('dashboard.multiAgent') to t('dashboard.chatRoomsCollaborative') — now shows "Collaborative spaces" instead of duplicate "Multi-agent"
+  - Agent card: Fixed "Builtin Mode-" trailing dash when model is empty — now conditionally shows model, provider name, or empty string
+- Bug 2: Fixed temperature slider floating-point issue in AgentManager
+  - Line 376: Changed `{form.temperature}` to `{Math.round(form.temperature * 10) / 10}` for display
+  - Line 135: Changed `temperature: form.temperature` to `temperature: Math.round(form.temperature * 10) / 10` for API submission
+- Bug 3: Fixed Skill Store installed state tracking
+  - Added `loadInstalledSkills()` call after successful skill install in `handleInstall` function
+  - Now the Skill Store tab immediately reflects the installed state after installing a skill
+- Bug 4: Verified Dashboard Start Chat button — already correctly wired with `setCurrentView(action.view)` where action.view is 'chat'
+- Bug 5: Fixed Agent Control Center "Copied!" button state stuck
+  - Updated CopyButton in both AgentControlCenter.tsx and SkillMarketplace.tsx
+  - Changed label rendering from `{label}` to `{copied ? label : t('common.copy')}` — now shows "Copy" before clicking and "Copied!" after
+- Bug 6: Added i18n keys for all 8 locale files (en, zh, ja, ko, de, es, fr, pt)
+  - `common.copy`: "Copy" (+ translations)
+  - `dashboard.providersConfigured`: "{count} configured" (+ translations)
+  - `dashboard.conversationsActiveCount`: "{count} active chats" (+ translations)
+  - `dashboard.chatRoomsCollaborative`: "Collaborative spaces" (+ translations)
+- Lint check passes clean
+
+Stage Summary:
+- All 6 QA bugs fixed across Dashboard, AgentManager, SkillMarketplace, and AgentControlCenter components
+- 4 new i18n keys added to all 8 locale files with proper translations
+- Temperature display now rounds to 1 decimal place (no more 0.699999988079071)
+- Skill Store immediately reflects installed state after install
+- CopyButton now shows "Copy" / "Copied!" text conditionally instead of permanently showing "Copied!"
+- Dashboard stat cards no longer show duplicate text in subtitle/detail fields
+
+---
 Task ID: 4
 Agent: AgentManagerEnhancer
 Task: Enhance AgentManager component
@@ -2508,3 +2544,132 @@ Stage Summary:
 - Agent deletion safely nullifies conversation references instead of causing FK constraint errors
 - Conversation creation enforces agent ownership — users can't create conversations with other users' private agents
 - Skill installedAt timestamp is now correctly set when a skill is installed to an agent
+---
+Task ID: 2
+Agent: JWTAuthImplementer
+Task: Implement JWT authentication system
+
+Work Log:
+- Created `/src/lib/jwt.ts` with JWT sign/verify utilities using `jose` library (already installed v6.2.3)
+  - `signAccessToken()`: Signs JWT with userId, email, role; 7-day expiry; HS256 algorithm
+  - `signRefreshToken()`: Signs refresh JWT with userId; 30-day expiry
+  - `verifyToken()`: Verifies JWT with issuer/audience validation
+  - Exported cookie names and options for httpOnly cookie management
+- Updated `/src/app/api/auth/login/route.ts`: Replaced `token: user.id` with proper JWT access token; added refresh token; set httpOnly cookies
+- Updated `/src/app/api/auth/register/route.ts`: Same pattern as login - issue JWT tokens and set httpOnly cookies
+- Updated `/src/lib/auth.ts`:
+  - `getAuthUser()`: Now tries JWT from httpOnly cookie first, then JWT from Authorization: Bearer header, then legacy x-user-id header, then legacy query param
+  - `extractUserId()`: Changed from sync to async; tries JWT verification first, then falls back to legacy methods
+  - `requireAuth()`: Now delegates to `getAuthUser()` for consistent JWT-aware validation
+- Updated `/src/app/api/auth/logout/route.ts`: Clears both httpOnly cookies (access + refresh tokens) on logout
+- Created `/src/app/api/auth/refresh/route.ts`: New endpoint that validates refresh token from httpOnly cookie and issues new access + refresh tokens
+- Updated `/src/lib/api-client.ts`:
+  - Added `token` field alongside `userId` for JWT storage
+  - `setAuth(token, userId)`: New method to store JWT + userId together
+  - `setUserId()`: Kept for backward compat, now also stores with token
+  - `tryRestoreAuth()`: Restores both JWT token and userId from localStorage; checks legacy keys
+  - `refreshToken()`: New method that calls /api/auth/refresh to get new tokens
+  - `request()`: Sends `Authorization: Bearer <jwt>` header; also sends `x-user-id` for backward compat; auto-refreshes on 401
+  - `uploadFile()`: Updated to send both Authorization and x-user-id headers
+  - `logout()`: Now calls /api/auth/logout to clear httpOnly cookies
+- Updated `/src/app/page.tsx`:
+  - `handleLogin()`: Changed from `api.setUserId(token)` to `api.setAuth(token, userData.id)` to store JWT properly
+  - `handleLogout()`: Updated comment to reflect cookie clearing
+  - `restoreSession()`: Added JWT token refresh fallback when stored access token fails validation
+- Updated `.env`: Added `JWT_SECRET=hermes-hub-production-jwt-secret-key-2024-change-me`
+
+Stage Summary:
+- Replaced insecure raw-userId auth with proper JWT authentication (HS256 signed tokens via jose library)
+- Access tokens expire in 7 days, refresh tokens in 30 days
+- httpOnly cookies provide CSRF protection and prevent XSS token theft
+- Full backward compatibility maintained: legacy x-user-id headers still accepted during migration
+- Auto-refresh on 401 responses in API client
+- All lint checks pass cleanly
+
+---
+Task ID: 3
+Agent: ChatServiceHealthFixer
+Task: Fix chat-service health endpoint returning 404
+
+Work Log:
+- Diagnosed root cause: chat-service's health check handler was registered via `httpServer.on('request', ...)` AFTER Socket.IO had already registered its own request handler. Since Socket.IO's handler runs first, it intercepts all HTTP requests (including `/health`) and returns "Transport unknown" (404) before the health handler ever gets a chance.
+- Read skill-ws service for reference pattern: it uses listener interception (save existing listeners, remove them, add custom handler first, forward non-matching requests to saved listeners)
+- Fixed chat-service `/mini-services/chat-service/index.ts`:
+  - Added `IncomingMessage, ServerResponse` to the `http` import
+  - Moved `PORT` constant to top of file (before health handler references it)
+  - Added listener interception pattern right after `new Server(httpServer, ...)`:
+    - Save Socket.IO's request listeners
+    - Remove all request listeners from httpServer
+    - Add custom handler that checks for `/health` path (strips query string) first
+    - Forward all other requests to Socket.IO's saved listeners
+  - Removed the old broken health handler at the bottom of the file
+  - Updated service name from `hermes-chat` to `hermes-chat-service` for consistency
+  - Added `connectedClients` (from `connectedUsers.size`) and `activeRooms` (from `activeRooms.size`) to health response
+- Fixed terminal-service `/mini-services/terminal-service/index.ts`:
+  - Changed `req.url === '/health'` to `(req.url || '/').split('?')[0] === '/health'` so it matches `/health?XTransformPort=3005` (query string was causing "Not found" response)
+- Verified all endpoints:
+  - `GET /health` → `{"status":"ok","service":"hermes-chat-service","port":3003,"connectedClients":0,"activeRooms":0,"uptime":...}`
+  - `GET /health?XTransformPort=3003` → same JSON response (query string properly stripped)
+  - Socket.IO polling endpoint still works (forwarded correctly)
+- ESLint passes clean on both files
+
+Stage Summary:
+- **Root cause**: Socket.IO registers its own HTTP request handler when attached to an httpServer, intercepting ALL requests including `/health`. The old health handler was added AFTER Socket.IO and never got a chance to run.
+- **Fix**: Used listener interception pattern (same as skill-ws): save Socket.IO's listeners, remove them, prepend custom `/health` handler, forward everything else to Socket.IO.
+- **chat-service health now returns**: `{"status":"ok","service":"hermes-chat-service","port":3003,"connectedClients":N,"activeRooms":N,"uptime":N}`
+- **terminal-service fix**: Query string in `/health?XTransformPort=3005` was not being stripped, causing 404. Fixed by splitting on `?` before comparing.
+- **All 3 mini-service health endpoints now work**: chat-service (3003), skill-ws (3004), terminal-service (3005)
+
+---
+Task ID: 4
+Agent: UIUXEnhancer
+Task: Enhance UI/UX with new features
+
+Work Log:
+- Feature 1: Added Service Health dashboard widget to Settings/About tab
+  - Replaced simple Service Status card with Service Health Dashboard
+  - Added green/red pulse animation status dots for online/offline
+  - Added 4 services: Next.js (3000), Chat Service (3003), Skill WebSocket (3004), Terminal (3005)
+  - Added uptime display (from /api/health endpoint)
+  - Added response time display with color coding (green < 200ms, amber < 1000ms, red >= 1000ms)
+  - Added "Refresh" button to re-check all services
+  - Added auto-refresh every 60 seconds
+  - Added overall health summary bar at bottom
+  - Uses /api/health?XTransformPort={port} endpoint for health checks
+- Feature 2: Improved ChatView empty state
+  - Added larger hero icon with Sparkles decoration
+  - Added "No Conversations Yet" title with explanation text
+  - Added capability showcase row (Skill Invocation, ACRP Protocol, Multi-Agent Chat)
+  - Added "Create New Chat" button with Plus icon
+  - Changed suggestion items to use firstMessage1/2/3 i18n keys
+  - Added emptyCapSkills, emptyCapACRP, emptyCapMulti capability labels
+- Feature 3: Added keyboard shortcut indicators to Sidebar
+  - Changed shortcut text from visible (text-muted-foreground/40) to transparent by default
+  - On hover, shortcut text becomes visible (group-hover/item:text-muted-foreground/70)
+  - Applied to both favorites section and main nav sections
+  - Shortcuts remain visible in tooltips when sidebar is collapsed
+- Feature 4: Chat Rooms search/filter already exists (searchQuery state + filteredRooms)
+  - Verified existing implementation matches requirements
+- Feature 5: Improved Agent Control Center setup guide
+  - Replaced 4-step grid with detailed 5-step vertical layout
+  - Each step has numbered circle with colored gradient and shadow
+  - Connecting line between steps on large screens
+  - Step 1: Create Agent (with button to navigate to Agents view)
+  - Step 2: Generate ACRP Token (with code snippet hint)
+  - Step 3: Connect WebSocket (with syntax-highlighted code example)
+  - Step 4: Register Capabilities (with syntax-highlighted code example)
+  - Step 5: Start Using (with capability badges)
+- i18n Updates: Added new keys to all 8 locale files
+  - settings.serviceHealth, settings.serviceHealthDesc, settings.checkAllServices, settings.responseTime
+  - chat.emptyTitle, chat.emptyDescription, chat.startNewChat, chat.firstMessage1/2/3, chat.emptyCapSkills/ACRP/Multi
+  - sidebar.shortcut
+  - agentControl.step1Title through step5Title + descriptions + step5Cap + step5Bidirectional
+- All lint checks pass clean
+- All 8 locale JSON files validated
+
+Stage Summary:
+- Service Health Dashboard with real-time status, uptime, and response time monitoring
+- Enhanced Chat empty state with capability showcase and action button
+- Sidebar shortcuts now visible only on hover for cleaner UI
+- Setup Guide upgraded to detailed 5-step visual walkthrough with code snippets
+- All new text fully internationalized across 8 languages

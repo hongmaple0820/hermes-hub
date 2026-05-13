@@ -28,6 +28,7 @@
     "required": "必填",
     "optional": "可选",
     "copied": "已复制！",
+    "copy": "复制",
     "noResults": "未找到结果",
     "name": "名称",
     "description": "描述",
@@ -109,12 +110,14 @@
     "agentsOnline": "{count} 个在线",
     "providers": "LLM 供应商",
     "providersActive": "{count} 个活跃",
+    "providersConfigured": "{count} 个已配置",
     "skills": "技能",
     "skillsEnabled": "{count} 个已启用",
     "gateways": "已连接 Agent",
     "gatewaysRunning": "{count} 个已连接",
     "conversations": "会话",
     "conversationsActive": "活跃聊天",
+    "conversationsActiveCount": "{count} 个活跃聊天",
     "chatRooms": "聊天室",
     "chatRoomsMulti": "多智能体协作室",
     "quickActions": "快速操作",
@@ -165,6 +168,7 @@
     "connected": "已连接",
     "rooms": "个房间",
     "multiAgent": "多智能体",
+    "chatRoomsCollaborative": "协作空间",
     "viewAll": "查看全部",
     "justNow": "刚刚",
     "minutesAgo": "{count}分钟前",
@@ -511,7 +515,7 @@
   },
   "chat": {
     "conversations": "会话列表",
-    "startNewChat": "开始新聊天",
+    "startNewChat": "创建新对话",
     "startNewChatTitle": "开始新聊天",
     "noConversations": "暂无会话",
     "noMessages": "暂无消息",
@@ -562,7 +566,15 @@
     "quickStartSuggestions": "快速开始建议",
     "streamingError": "流式传输出错",
     "deleteConversationTitle": "删除对话",
-    "deleteConversationDesc": "确定要删除此对话吗？所有消息将永久丢失。此操作无法撤销。"
+    "deleteConversationDesc": "确定要删除此对话吗？所有消息将永久丢失。此操作无法撤销。",
+    "emptyTitle": "还没有对话",
+    "emptyDescription": "与AI代理聊天、调用技能、通过ACRP与外部代理协作。开始对话吧。",
+    "firstMessage1": "试试问：你能帮我做什么？",
+    "firstMessage2": "试试问：写一个排序数组的函数",
+    "firstMessage3": "试试问：解释WebSocket的工作原理",
+    "emptyCapSkills": "技能调用",
+    "emptyCapACRP": "ACRP协议",
+    "emptyCapMulti": "多代理聊天"
   },
   "chatRooms": {
     "title": "聊天室",
@@ -791,7 +803,11 @@
     "exportData": "导出我的数据",
     "deleteAccount": "删除账户",
     "deleteAccountConfirm": "此操作无法撤销。您的所有数据将被永久删除。",
-    "privacyMode": "隐私模式"
+    "privacyMode": "隐私模式",
+    "serviceHealth": "服务健康",
+    "serviceHealthDesc": "所有平台服务的实时健康状态",
+    "checkAllServices": "刷新",
+    "responseTime": "响应"
   },
   "language": {
     "switch": "语言",
@@ -1474,7 +1490,8 @@
     "favorites": "收藏",
     "collapseAll": "折叠所有分区",
     "expandAll": "展开所有分区",
-    "rightClickToRemove": "右键点击移除"
+    "rightClickToRemove": "右键点击移除",
+    "shortcut": "快捷键"
   },
   "commandPalette": {
     "placeholder": "搜索命令、视图、Agent...",
@@ -1594,5 +1611,20 @@
       "capabilityResult": "能力结果"
     },
     "unread": "未读"
+  },
+  "agentControl": {
+    "step1Title": "创建代理",
+    "step1Desc": "导航到代理管理器并创建新代理。选择ACRP模式进行WebSocket连接。",
+    "step2Title": "生成ACRP令牌",
+    "step2Desc": "选择您的代理并点击生成令牌以获取唯一的连接令牌。",
+    "step2Code": "在代理控制中心点击生成令牌 - 选择代理 - 生成",
+    "step3Title": "连接WebSocket",
+    "step3Desc": "使用wsConnectUrl和代理令牌建立Socket.IO连接。",
+    "step4Title": "注册能力",
+    "step4Desc": "发送agent:register事件，包含代理名称、版本和能力。",
+    "step5Title": "开始使用",
+    "step5Desc": "您的代理已连接！从Hub调用能力并远程处理事件。",
+    "step5Cap": "远程调用",
+    "step5Bidirectional": "双向事件"
   }
 }

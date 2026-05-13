@@ -161,7 +161,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
   return (
     <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={handleCopy}>
       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-      {label && <span>{label}</span>}
+      {label && <span>{copied ? label : t('common.copy')}</span>}
     </Button>
   );
 }
@@ -404,6 +404,8 @@ export function SkillMarketplace() {
       await api.installSkill(skillId, { agentId });
       toast.success(t('skills.installed'));
       setShowInstall(null);
+      // Refresh installed skills so the Skill Store tab shows updated installed state
+      loadInstalledSkills();
     } catch (error: any) {
       toast.error(error.message);
     } finally {

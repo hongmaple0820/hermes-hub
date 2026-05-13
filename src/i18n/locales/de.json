@@ -28,6 +28,7 @@
     "required": "Erforderlich",
     "optional": "Optional",
     "copied": "Kopiert!",
+    "copy": "Kopieren",
     "noResults": "Keine Ergebnisse gefunden",
     "name": "Name",
     "description": "Beschreibung",
@@ -109,12 +110,14 @@
     "agentsOnline": "{count} online",
     "providers": "LLM-Anbieter",
     "providersActive": "{count} aktiv",
+    "providersConfigured": "{count} konfiguriert",
     "skills": "Skills",
     "skillsEnabled": "{count} aktiviert",
     "gateways": "Verbundene Agents",
     "gatewaysRunning": "{count} verbunden",
     "conversations": "Konversationen",
     "conversationsActive": "Aktive Chats",
+    "conversationsActiveCount": "{count} aktive Chats",
     "chatRooms": "Chaträume",
     "chatRoomsMulti": "Multi-Agenten-Räume",
     "quickActions": "Schnellaktionen",
@@ -165,6 +168,7 @@
     "connected": "verbunden",
     "rooms": "Räume",
     "multiAgent": "Multi-Agenten",
+    "chatRoomsCollaborative": "Kollaborationsräume",
     "viewAll": "Alle anzeigen",
     "justNow": "Gerade eben",
     "minutesAgo": "vor {count} Min.",
@@ -511,7 +515,7 @@
   },
   "chat": {
     "conversations": "Konversationen",
-    "startNewChat": "Neuen Chat starten",
+    "startNewChat": "Neuen Chat erstellen",
     "startNewChatTitle": "Neuen Chat starten",
     "noConversations": "Noch keine Konversationen",
     "noMessages": "Noch keine Nachrichten",
@@ -562,7 +566,15 @@
     "quickStartSuggestions": "Schnellstart-Vorschlaege",
     "streamingError": "Streaming-Fehler aufgetreten",
     "deleteConversationTitle": "Unterhaltung löschen",
-    "deleteConversationDesc": "Sind Sie sicher, dass Sie diese Unterhaltung löschen möchten? Alle Nachrichten gehen dauerhaft verloren. Diese Aktion kann nicht rückgängig gemacht werden."
+    "deleteConversationDesc": "Sind Sie sicher, dass Sie diese Unterhaltung löschen möchten? Alle Nachrichten gehen dauerhaft verloren. Diese Aktion kann nicht rückgängig gemacht werden.",
+    "emptyTitle": "Noch keine Gesprache",
+    "emptyDescription": "Chatten Sie mit KI-Agenten, rufen Sie Skills auf und arbeiten Sie ueber ACRP mit externen Agenten zusammen.",
+    "firstMessage1": "Versuchen Sie: Wobei koennen Sie mir helfen?",
+    "firstMessage2": "Versuchen Sie: Schreiben Sie eine Sortierfunktion",
+    "firstMessage3": "Versuchen Sie: Erklaeren Sie wie WebSocket funktioniert",
+    "emptyCapSkills": "Skill-Aufruf",
+    "emptyCapACRP": "ACRP-Protokoll",
+    "emptyCapMulti": "Multi-Agenten-Chat"
   },
   "chatRooms": {
     "title": "Chaträume",
@@ -791,7 +803,11 @@
     "exportData": "Meine Daten exportieren",
     "deleteAccount": "Konto löschen",
     "deleteAccountConfirm": "Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre Daten werden dauerhaft gelöscht.",
-    "privacyMode": "Privatsphäremodus"
+    "privacyMode": "Privatsphäremodus",
+    "serviceHealth": "Dienststatus",
+    "serviceHealthDesc": "Echtzeit-Status aller Plattformdienste",
+    "checkAllServices": "Aktualisieren",
+    "responseTime": "Antwort"
   },
   "language": {
     "switch": "Sprache",
@@ -1474,7 +1490,8 @@
     "favorites": "Favoriten",
     "collapseAll": "Alle Bereiche einklappen",
     "expandAll": "Alle Bereiche aufklappen",
-    "rightClickToRemove": "Rechtsklick zum Entfernen"
+    "rightClickToRemove": "Rechtsklick zum Entfernen",
+    "shortcut": "Tastenkuerzel"
   },
   "commandPalette": {
     "placeholder": "Befehle, Ansichten, Agents suchen...",
@@ -1556,5 +1573,20 @@
       "capabilityResult": "Fähigkeitsergebnis"
     },
     "unread": "ungelesen"
+  },
+  "agentControl": {
+    "step1Title": "Agent erstellen",
+    "step1Desc": "Gehen Sie zum Agent Manager und erstellen Sie einen neuen Agenten. Waehlen Sie ACRP-Modus fuer WebSocket-Verbindungen.",
+    "step2Title": "ACRP-Token generieren",
+    "step2Desc": "Waehlen Sie Ihren Agenten und klicken Sie auf Token generieren um ein Verbindungstoken zu erhalten.",
+    "step2Code": "Klicken Sie im Agent Control Center auf Token generieren - Agent auswaehlen - Generieren",
+    "step3Title": "WebSocket verbinden",
+    "step3Desc": "Verwenden Sie die wsConnectUrl mit Ihrem Agent-Token um eine Socket.IO-Verbindung herzustellen.",
+    "step4Title": "Faehigkeiten registrieren",
+    "step4Desc": "Senden Sie das agent:register-Ereignis mit Name, Version und Faehigkeiten Ihres Agenten.",
+    "step5Title": "Verwendung starten",
+    "step5Desc": "Ihr Agent ist jetzt verbunden! Rufen Sie Faehigkeiten vom Hub auf und behandeln Sie Ereignisse remote.",
+    "step5Cap": "Remote-Aufruf",
+    "step5Bidirectional": "Bidirektionale Ereignisse"
   }
 }

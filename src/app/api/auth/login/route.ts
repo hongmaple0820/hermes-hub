@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { db } from '@/lib/db';
+import { signAccessToken, signRefreshToken, ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE, COOKIE_OPTIONS, REFRESH_COOKIE_OPTIONS } from '@/lib/jwt';
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,7 +37,11 @@ export async function POST(request: NextRequest) {
       data: { status: 'online' },
     });
 
-    return NextResponse.json({
+    // Issue JWT tokens
+    const accessToken = await signAccessToken({ userId: user.id, email: user.email, role: user.role });
+    const refreshToken = await signRefreshToken({ userId: user.id });
+
+    const response = NextResponse.json({
       user: {
         id: user.id,
         email: user.email,
@@ -47,8 +52,14 @@ export async function POST(request: NextRequest) {
         status: 'online',
         createdAt: user.createdAt,
       },
-      token: user.id,
+      token: accessToken, // JWT access token for API headers
     });
+
+    // Set httpOnly cookies
+    response.cookies.set(ACCESS_TOKEN_COOKIE, accessToken, COOKIE_OPTIONS);
+    response.cookies.set(REFRESH_TOKEN_COOKIE, refreshToken, REFRESH_COOKIE_OPTIONS);
+
+    return response;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(

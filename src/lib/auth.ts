@@ -1,10 +1,14 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
+import { verifyToken, ACCESS_TOKEN_COOKIE } from '@/lib/jwt';
 
 /**
- * Simple auth helper for development.
- * Extracts userId from Authorization: Bearer {userId} header or x-user-id header.
- * Returns null if no valid user found.
+ * Get authenticated user from request.
+ * Supports JWT via:
+ * 1. httpOnly cookie (hermes_access_token)
+ * 2. Authorization: Bearer <jwt> header
+ * 3. x-user-id header (legacy, deprecated - will be removed)
+ * 4. ?userId= query param (legacy, deprecated)
  */
 export async function getAuthUser(request: NextRequest): Promise<{
   id: string;
@@ -14,75 +18,92 @@ export async function getAuthUser(request: NextRequest): Promise<{
   role: string;
   status: string;
 } | null> {
-  // Try Authorization header first
+  // 1. Try JWT from httpOnly cookie
+  const cookieToken = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
+  if (cookieToken) {
+    const payload = await verifyToken(cookieToken);
+    if (payload?.userId) {
+      const user = await db.user.findUnique({
+        where: { id: payload.userId },
+        select: { id: true, email: true, name: true, avatar: true, role: true, status: true },
+      });
+      if (user) return user;
+    }
+  }
+
+  // 2. Try JWT from Authorization header
   const authHeader = request.headers.get('authorization');
-  let userId: string | null = null;
-
   if (authHeader?.startsWith('Bearer ')) {
-    userId = authHeader.substring(7).trim();
+    const token = authHeader.substring(7).trim();
+    const payload = await verifyToken(token);
+    if (payload?.userId) {
+      const user = await db.user.findUnique({
+        where: { id: payload.userId },
+        select: { id: true, email: true, name: true, avatar: true, role: true, status: true },
+      });
+      if (user) return user;
+    }
   }
 
-  // Fall back to x-user-id header
-  if (!userId) {
-    userId = request.headers.get('x-user-id');
+  // 3. Legacy: x-user-id header (deprecated, for backward compat during migration)
+  const legacyUserId = request.headers.get('x-user-id');
+  if (legacyUserId) {
+    const user = await db.user.findUnique({
+      where: { id: legacyUserId },
+      select: { id: true, email: true, name: true, avatar: true, role: true, status: true },
+    });
+    if (user) return user;
   }
 
-  // Fall back to query parameter
-  if (!userId) {
-    const url = new URL(request.url);
-    userId = url.searchParams.get('userId');
+  // 4. Legacy: query parameter (deprecated)
+  const url = new URL(request.url);
+  const queryUserId = url.searchParams.get('userId');
+  if (queryUserId) {
+    const user = await db.user.findUnique({
+      where: { id: queryUserId },
+      select: { id: true, email: true, name: true, avatar: true, role: true, status: true },
+    });
+    if (user) return user;
   }
 
-  if (!userId) {
-    return null;
-  }
-
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      avatar: true,
-      role: true,
-      status: true,
-    },
-  });
-
-  return user;
+  return null;
 }
 
 /**
- * Extract userId from request headers/query without database validation.
- * Returns null if no userId found.
+ * Extract userId from request - tries JWT first, then legacy methods.
+ * Returns null if no valid userId found.
  */
-export function extractUserId(request: NextRequest): string | null {
-  // Try Authorization header first
+export async function extractUserId(request: NextRequest): Promise<string | null> {
+  // 1. Try JWT from httpOnly cookie
+  const cookieToken = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
+  if (cookieToken) {
+    const payload = await verifyToken(cookieToken);
+    if (payload?.userId) return payload.userId;
+  }
+
+  // 2. Try JWT from Authorization header
   const authHeader = request.headers.get('authorization');
-  let userId: string | null = null;
-
   if (authHeader?.startsWith('Bearer ')) {
-    userId = authHeader.substring(7).trim();
+    const token = authHeader.substring(7).trim();
+    const payload = await verifyToken(token);
+    if (payload?.userId) return payload.userId;
   }
 
-  // Fall back to x-user-id header
-  if (!userId) {
-    userId = request.headers.get('x-user-id');
-  }
+  // 3. Legacy: x-user-id header
+  const legacyUserId = request.headers.get('x-user-id');
+  if (legacyUserId) return legacyUserId;
 
-  // Fall back to query parameter
-  if (!userId) {
-    const url = new URL(request.url);
-    userId = url.searchParams.get('userId');
-  }
+  // 4. Legacy: query parameter
+  const url = new URL(request.url);
+  const queryUserId = url.searchParams.get('userId');
+  if (queryUserId) return queryUserId;
 
-  return userId;
+  return null;
 }
 
 /**
  * Require authentication - throws if not authenticated.
- * Validates that the userId exists AND the user actually exists in the database.
- * This ensures stale/invalid userIds are rejected even without JWT.
+ * Validates JWT token and ensures user exists in database.
  */
 export async function requireAuth(request: NextRequest): Promise<{
   id: string;
@@ -92,27 +113,9 @@ export async function requireAuth(request: NextRequest): Promise<{
   role: string;
   status: string;
 }> {
-  const userId = extractUserId(request);
-  if (!userId) {
-    throw new Error('Unauthorized');
-  }
-
-  // Explicitly validate the user exists in the database
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      avatar: true,
-      role: true,
-      status: true,
-    },
-  });
-
+  const user = await getAuthUser(request);
   if (!user) {
     throw new Error('Unauthorized');
   }
-
   return user;
 }

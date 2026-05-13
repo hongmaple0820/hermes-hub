@@ -28,6 +28,7 @@
     "required": "Obligatoire",
     "optional": "Facultatif",
     "copied": "Copié !",
+    "copy": "Copier",
     "noResults": "Aucun résultat trouvé",
     "name": "Nom",
     "description": "Description",
@@ -109,12 +110,14 @@
     "agentsOnline": "{count} en ligne",
     "providers": "Fournisseurs LLM",
     "providersActive": "{count} actifs",
+    "providersConfigured": "{count} configurés",
     "skills": "Skills",
     "skillsEnabled": "{count} activés",
     "gateways": "Agents Connectés",
     "gatewaysRunning": "{count} connectés",
     "conversations": "Conversations",
     "conversationsActive": "Chats actifs",
+    "conversationsActiveCount": "{count} chats actifs",
     "chatRooms": "Salons de Chat",
     "chatRoomsMulti": "Salons multi-agents",
     "quickActions": "Actions Rapides",
@@ -165,6 +168,7 @@
     "connected": "connecté",
     "rooms": "salons",
     "multiAgent": "Multi-agents",
+    "chatRoomsCollaborative": "Espaces collaboratifs",
     "viewAll": "Voir Tout",
     "justNow": "À l'instant",
     "minutesAgo": "il y a {count}m",
@@ -511,7 +515,7 @@
   },
   "chat": {
     "conversations": "Conversations",
-    "startNewChat": "Démarrer un Nouveau Chat",
+    "startNewChat": "Creer un nouveau chat",
     "startNewChatTitle": "Démarrer un Nouveau Chat",
     "noConversations": "Aucune conversation",
     "noMessages": "Aucun message",
@@ -562,7 +566,15 @@
     "quickStartSuggestions": "Suggestions de demarrage rapide",
     "streamingError": "Une erreur de streaming s'est produite",
     "deleteConversationTitle": "Supprimer la conversation",
-    "deleteConversationDesc": "Êtes-vous sûr de vouloir supprimer cette conversation ? Tous les messages seront définitivement perdus. Cette action est irréversible."
+    "deleteConversationDesc": "Êtes-vous sûr de vouloir supprimer cette conversation ? Tous les messages seront définitivement perdus. Cette action est irréversible.",
+    "emptyTitle": "Pas encore de conversations",
+    "emptyDescription": "Discutez avec des agents IA, invoquez des competences et collaborez via ACRP.",
+    "firstMessage1": "Essayez de demander: Comment pouvez-vous m'aider?",
+    "firstMessage2": "Essayez de demander: Ecrivez une fonction de tri",
+    "firstMessage3": "Essayez de demander: Expliquez comment fonctionne WebSocket",
+    "emptyCapSkills": "Invocation de Skills",
+    "emptyCapACRP": "Protocole ACRP",
+    "emptyCapMulti": "Chat Multi-Agent"
   },
   "chatRooms": {
     "title": "Salons de Chat",
@@ -791,7 +803,11 @@
     "exportData": "Exporter mes données",
     "deleteAccount": "Supprimer le compte",
     "deleteAccountConfirm": "Cette action est irréversible. Toutes vos données seront définitivement supprimées.",
-    "privacyMode": "Mode confidentialité"
+    "privacyMode": "Mode confidentialité",
+    "serviceHealth": "Sante du Service",
+    "serviceHealthDesc": "Etat de sante en temps reel de tous les services",
+    "checkAllServices": "Actualiser",
+    "responseTime": "Reponse"
   },
   "language": {
     "switch": "Langue",
@@ -1474,7 +1490,8 @@
     "favorites": "Favoris",
     "collapseAll": "Réduire toutes les sections",
     "expandAll": "Développer toutes les sections",
-    "rightClickToRemove": "Clic droit pour supprimer"
+    "rightClickToRemove": "Clic droit pour supprimer",
+    "shortcut": "Raccourci"
   },
   "commandPalette": {
     "placeholder": "Rechercher commandes, vues, agents...",
@@ -1556,5 +1573,20 @@
       "capabilityResult": "Résultat de capacité"
     },
     "unread": "non lu"
+  },
+  "agentControl": {
+    "step1Title": "Creer un Agent",
+    "step1Desc": "Accedez au Gestionnaire d'Agents et creez un nouvel agent. Choisissez le mode ACRP pour les connexions WebSocket.",
+    "step2Title": "Generer un Jeton ACRP",
+    "step2Desc": "Selectionnez votre agent et cliquez sur Generer un Jeton pour obtenir un jeton de connexion unique.",
+    "step2Code": "Cliquez sur Generer un Jeton dans le Centre de Controle - Selectionner l'Agent - Generer",
+    "step3Title": "Connecter WebSocket",
+    "step3Desc": "Utilisez wsConnectUrl avec votre jeton d'agent pour etablir une connexion Socket.IO.",
+    "step4Title": "Enregistrer les Capacites",
+    "step4Desc": "Envoyez l'evenement agent:register avec le nom, la version et les capacites de votre agent.",
+    "step5Title": "Commencer a Utiliser",
+    "step5Desc": "Votre agent est connecte! Invoquez des capacites depuis le Hub et geerez les evenements a distance.",
+    "step5Cap": "Invocation a Distance",
+    "step5Bidirectional": "Evenements Bidirectionnels"
   }
 }

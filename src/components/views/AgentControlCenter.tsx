@@ -114,7 +114,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
   return (
     <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={handleCopy}>
       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-      {label && <span>{label}</span>}
+      {label && <span>{copied ? label : t('common.copy')}</span>}
     </Button>
   );
 }
@@ -1245,31 +1245,146 @@ sio.wait()`;
           </CardContent>
         </Card>
 
-        {/* Step-by-step guide with progress indicators */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { step: 1, title: t('acrp.step1'), desc: t('acrp.step1Desc'), icon: Bot, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200', gradient: 'from-emerald-400 to-emerald-500' },
-            { step: 2, title: t('acrp.step2'), desc: t('acrp.step2Desc'), icon: Key, color: 'bg-violet-500/10 text-violet-600 border-violet-200', gradient: 'from-violet-400 to-violet-500' },
-            { step: 3, title: t('acrp.step3'), desc: t('acrp.step3Desc'), icon: Copy, color: 'bg-amber-500/10 text-amber-600 border-amber-200', gradient: 'from-amber-400 to-amber-500' },
-            { step: 4, title: t('acrp.step4'), desc: t('acrp.step4Desc'), icon: Cable, color: 'bg-cyan-500/10 text-cyan-600 border-cyan-200', gradient: 'from-cyan-400 to-cyan-500' },
-          ].map(({ step, title, desc, icon: Icon, color, gradient }) => (
-            <Card key={step} className="relative overflow-hidden group hover:shadow-md transition-all">
-              <div className={cn('h-1 bg-gradient-to-r', gradient)} />
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className={cn('w-8 h-8 rounded-md flex items-center justify-center border', color)}>
-                    <Icon className="w-4 h-4" />
+        {/* Step-by-step guide with visual numbered circles and connecting lines */}
+        <div className="relative">
+          {/* Connecting line behind steps */}
+          <div className="absolute left-6 top-12 bottom-12 w-0.5 bg-gradient-to-b from-emerald-300 via-amber-300 via-violet-300 via-cyan-300 to-primary/50 hidden lg:block" />
+
+          <div className="space-y-4">
+            {/* Step 1: Create Agent */}
+            <Card className="relative overflow-hidden group hover:shadow-md transition-all">
+              <div className="h-1 bg-gradient-to-r from-emerald-400 to-emerald-500" />
+              <CardContent className="p-5">
+                <div className="flex items-start gap-4">
+                  <div className="flex flex-col items-center gap-2 shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center text-sm font-bold shadow-lg shadow-emerald-500/30">
+                      1
+                    </div>
+                    <div className="w-0.5 h-4 bg-border hidden lg:block" />
                   </div>
-                  <span className="text-xs font-bold text-muted-foreground">{t('acrp.stepNumber', { number: step })}</span>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-semibold mb-1">{t('agentControl.step1Title')}</h4>
+                    <p className="text-xs text-muted-foreground mb-3">{t('agentControl.step1Desc')}</p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs h-7"
+                        onClick={() => {
+                          const store = useAppStore.getState();
+                          store.setCurrentView('agents');
+                        }}
+                      >
+                        <Bot className="w-3 h-3" />
+                        {t('nav.agents')}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-                <h4 className="text-sm font-semibold">{title}</h4>
-                <p className="text-xs text-muted-foreground">{desc}</p>
-                {step < 4 && (
-                  <ArrowRight className="absolute -right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground hidden lg:block" />
-                )}
               </CardContent>
             </Card>
-          ))}
+
+            {/* Step 2: Generate Token */}
+            <Card className="relative overflow-hidden group hover:shadow-md transition-all">
+              <div className="h-1 bg-gradient-to-r from-violet-400 to-violet-500" />
+              <CardContent className="p-5">
+                <div className="flex items-start gap-4">
+                  <div className="flex flex-col items-center gap-2 shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-violet-500 text-white flex items-center justify-center text-sm font-bold shadow-lg shadow-violet-500/30">
+                      2
+                    </div>
+                    <div className="w-0.5 h-4 bg-border hidden lg:block" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-semibold mb-1">{t('agentControl.step2Title')}</h4>
+                    <p className="text-xs text-muted-foreground mb-3">{t('agentControl.step2Desc')}</p>
+                    <div className="bg-muted/50 rounded-lg p-3 border border-border">
+                      <code className="text-[11px] text-muted-foreground font-mono">
+                        {t('agentControl.step2Code')}
+                      </code>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Step 3: Connect WebSocket */}
+            <Card className="relative overflow-hidden group hover:shadow-md transition-all">
+              <div className="h-1 bg-gradient-to-r from-amber-400 to-amber-500" />
+              <CardContent className="p-5">
+                <div className="flex items-start gap-4">
+                  <div className="flex flex-col items-center gap-2 shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center text-sm font-bold shadow-lg shadow-amber-500/30">
+                      3
+                    </div>
+                    <div className="w-0.5 h-4 bg-border hidden lg:block" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-semibold mb-1">{t('agentControl.step3Title')}</h4>
+                    <p className="text-xs text-muted-foreground mb-3">{t('agentControl.step3Desc')}</p>
+                    <div className="bg-zinc-950 text-zinc-100 text-xs p-3 rounded-lg font-mono overflow-x-auto border border-zinc-800">
+                      <span className="text-violet-400">const</span> socket = <span className="text-cyan-400">io</span>(<span className="text-emerald-400">'/?XTransformPort=3004'</span>, {'{'}
+                      {"\n"}  auth: {'{'} <span className="text-amber-400">agentToken</span>: <span className="text-emerald-400">'acrp_...'</span> {'}'}
+                      {"\n"}{'}'});
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Step 4: Register Capabilities */}
+            <Card className="relative overflow-hidden group hover:shadow-md transition-all">
+              <div className="h-1 bg-gradient-to-r from-cyan-400 to-cyan-500" />
+              <CardContent className="p-5">
+                <div className="flex items-start gap-4">
+                  <div className="flex flex-col items-center gap-2 shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-cyan-500 text-white flex items-center justify-center text-sm font-bold shadow-lg shadow-cyan-500/30">
+                      4
+                    </div>
+                    <div className="w-0.5 h-4 bg-border hidden lg:block" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-semibold mb-1">{t('agentControl.step4Title')}</h4>
+                    <p className="text-xs text-muted-foreground mb-3">{t('agentControl.step4Desc')}</p>
+                    <div className="bg-zinc-950 text-zinc-100 text-xs p-3 rounded-lg font-mono overflow-x-auto border border-zinc-800">
+                      socket.<span className="text-cyan-400">emit</span>(<span className="text-emerald-400">'agent:register'</span>, {'{'}
+                      {"\n"}  <span className="text-amber-400">name</span>: <span className="text-emerald-400">'My Agent'</span>,
+                      {"\n"}  <span className="text-amber-400">capabilities</span>: [...]
+                      {"\n"}{'}'});
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Step 5: Start Using */}
+            <Card className="relative overflow-hidden group hover:shadow-md transition-all">
+              <div className="h-1 bg-gradient-to-r from-primary to-primary/60" />
+              <CardContent className="p-5">
+                <div className="flex items-start gap-4">
+                  <div className="flex flex-col items-center gap-2 shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shadow-lg shadow-primary/30">
+                      5
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-semibold mb-1">{t('agentControl.step5Title')}</h4>
+                    <p className="text-xs text-muted-foreground mb-3">{t('agentControl.step5Desc')}</p>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-800">
+                        <Zap className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">{t('agentControl.step5Cap')}</span>
+                      </div>
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/20 bg-primary/5">
+                        <Cable className="w-4 h-4 text-primary" />
+                        <span className="text-xs font-medium text-primary">{t('agentControl.step5Bidirectional')}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Test Connection */}

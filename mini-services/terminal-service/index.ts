@@ -853,7 +853,7 @@ const PORT = 3005;
 
 // Create HTTP server for health check
 const httpServer = createServer((req, res) => {
-  if (req.url === '/health' && req.method === 'GET') {
+  if ((req.url || '/').split('?')[0] === '/health' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       status: 'ok',

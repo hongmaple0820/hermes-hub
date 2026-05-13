@@ -28,6 +28,7 @@
     "required": "Obligatorio",
     "optional": "Opcional",
     "copied": "¡Copiado!",
+    "copy": "Copiar",
     "noResults": "No se encontraron resultados",
     "name": "Nombre",
     "description": "Descripción",
@@ -109,12 +110,14 @@
     "agentsOnline": "{count} en línea",
     "providers": "Proveedores LLM",
     "providersActive": "{count} activos",
+    "providersConfigured": "{count} configurados",
     "skills": "Skills",
     "skillsEnabled": "{count} habilitados",
     "gateways": "Agentes Conectados",
     "gatewaysRunning": "{count} conectados",
     "conversations": "Conversaciones",
     "conversationsActive": "Chats activos",
+    "conversationsActiveCount": "{count} chats activos",
     "chatRooms": "Salas de Chat",
     "chatRoomsMulti": "Salas multi-agente",
     "quickActions": "Acciones Rápidas",
@@ -165,6 +168,7 @@
     "connected": "conectado",
     "rooms": "salas",
     "multiAgent": "Multi-agente",
+    "chatRoomsCollaborative": "Espacios colaborativos",
     "viewAll": "Ver Todo",
     "justNow": "Justo ahora",
     "minutesAgo": "hace {count}m",
@@ -511,7 +515,7 @@
   },
   "chat": {
     "conversations": "Conversaciones",
-    "startNewChat": "Iniciar Nuevo Chat",
+    "startNewChat": "Crear nuevo chat",
     "startNewChatTitle": "Iniciar Nuevo Chat",
     "noConversations": "Aún no hay conversaciones",
     "noMessages": "Aún no hay mensajes",
@@ -562,7 +566,15 @@
     "quickStartSuggestions": "Sugerencias de inicio rápido",
     "streamingError": "Ocurrió un error de transmisión",
     "deleteConversationTitle": "Eliminar conversación",
-    "deleteConversationDesc": "¿Está seguro de que desea eliminar esta conversación? Todos los mensajes se perderán permanentemente. Esta acción no se puede deshacer."
+    "deleteConversationDesc": "¿Está seguro de que desea eliminar esta conversación? Todos los mensajes se perderán permanentemente. Esta acción no se puede deshacer.",
+    "emptyTitle": "Sin conversaciones aun",
+    "emptyDescription": "Chatea con agentes de IA, invoca habilidades y colabora con agentes externos via ACRP.",
+    "firstMessage1": "Intenta preguntar: En que puedes ayudarme?",
+    "firstMessage2": "Intenta preguntar: Escribe una funcion para ordenar un array",
+    "firstMessage3": "Intenta preguntar: Explica como funciona WebSocket",
+    "emptyCapSkills": "Invocacion de Skills",
+    "emptyCapACRP": "Protocolo ACRP",
+    "emptyCapMulti": "Chat Multi-Agente"
   },
   "chatRooms": {
     "title": "Salas de Chat",
@@ -791,7 +803,11 @@
     "exportData": "Exportar mis datos",
     "deleteAccount": "Eliminar cuenta",
     "deleteAccountConfirm": "Esta acción no se puede deshacer. Todos sus datos serán eliminados permanentemente.",
-    "privacyMode": "Modo de privacidad"
+    "privacyMode": "Modo de privacidad",
+    "serviceHealth": "Salud del Servicio",
+    "serviceHealthDesc": "Estado de salud en tiempo real de todos los servicios",
+    "checkAllServices": "Actualizar",
+    "responseTime": "Respuesta"
   },
   "language": {
     "switch": "Idioma",
@@ -1474,7 +1490,8 @@
     "favorites": "Favoritos",
     "collapseAll": "Contraer todas las secciones",
     "expandAll": "Expandir todas las secciones",
-    "rightClickToRemove": "Clic derecho para eliminar"
+    "rightClickToRemove": "Clic derecho para eliminar",
+    "shortcut": "Atajo"
   },
   "commandPalette": {
     "placeholder": "Buscar comandos, vistas, agents...",
@@ -1556,5 +1573,20 @@
       "capabilityResult": "Resultado de capacidad"
     },
     "unread": "no leído"
+  },
+  "agentControl": {
+    "step1Title": "Crear Agente",
+    "step1Desc": "Navegue al Administrador de Agentes y cree un nuevo agente. Elija el modo ACRP para conexiones WebSocket.",
+    "step2Title": "Generar Token ACRP",
+    "step2Desc": "Seleccione su agente y haga clic en Generar Token para obtener un token de conexion unico.",
+    "step2Code": "Haga clic en Generar Token en el Centro de Control - Seleccionar Agente - Generar",
+    "step3Title": "Conectar WebSocket",
+    "step3Desc": "Use la wsConnectUrl con su token de agente para establecer una conexion Socket.IO.",
+    "step4Title": "Registrar Capacidades",
+    "step4Desc": "Envie el evento agent:register con el nombre, version y capacidades de su agente.",
+    "step5Title": "Comenzar a Usar",
+    "step5Desc": "Su agente esta conectado! Invoque capacidades desde el Hub y maneje eventos remotamente.",
+    "step5Cap": "Invocacion Remota",
+    "step5Bidirectional": "Eventos Bidireccionales"
   }
 }

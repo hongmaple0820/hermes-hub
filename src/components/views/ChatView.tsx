@@ -317,10 +317,15 @@ function EmptyChatState({ onStartChat }: { onStartChat: () => void }) {
   const { t } = useI18n();
 
   const suggestions = [
-    { icon: <Sparkles className="w-4 h-4" />, text: t('chat.suggestion1'), gradient: 'from-emerald-500/10 to-emerald-500/5' },
-    { icon: <Code className="w-4 h-4" />, text: t('chat.suggestion2'), gradient: 'from-violet-500/10 to-violet-500/5' },
-    { icon: <Globe className="w-4 h-4" />, text: t('chat.suggestion3'), gradient: 'from-cyan-500/10 to-cyan-500/5' },
-    { icon: <Zap className="w-4 h-4" />, text: t('chat.suggestion4'), gradient: 'from-amber-500/10 to-amber-500/5' },
+    { icon: <Sparkles className="w-4 h-4" />, text: t('chat.firstMessage1'), gradient: 'from-emerald-500/10 to-emerald-500/5' },
+    { icon: <Code className="w-4 h-4" />, text: t('chat.firstMessage2'), gradient: 'from-violet-500/10 to-violet-500/5' },
+    { icon: <Globe className="w-4 h-4" />, text: t('chat.firstMessage3'), gradient: 'from-cyan-500/10 to-cyan-500/5' },
+  ];
+
+  const capabilities = [
+    { icon: <Zap className="w-4 h-4" />, label: t('chat.emptyCapSkills') },
+    { icon: <Radio className="w-4 h-4" />, label: t('chat.emptyCapACRP') },
+    { icon: <Bot className="w-4 h-4" />, label: t('chat.emptyCapMulti') },
   ];
 
   return (
@@ -332,30 +337,59 @@ function EmptyChatState({ onStartChat }: { onStartChat: () => void }) {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
-        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 flex items-center justify-center shadow-lg shadow-primary/10">
-          <MessageSquare className="w-10 h-10 text-primary" />
+        <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 flex items-center justify-center shadow-lg shadow-primary/10 relative">
+          <MessageSquare className="w-12 h-12 text-primary" />
+          <Sparkles className="w-5 h-5 text-amber-500 absolute -top-1 -right-1" />
         </div>
         {/* Decorative floating dots */}
         <motion.div
-          className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-500"
+          className="absolute -top-2 -right-2 w-3 h-3 rounded-full bg-emerald-500"
           animate={{ y: [-2, 2, -2] }}
           transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         />
         <motion.div
-          className="absolute -bottom-1 -left-1 w-2.5 h-2.5 rounded-full bg-cyan-500"
+          className="absolute -bottom-2 -left-2 w-2.5 h-2.5 rounded-full bg-cyan-500"
           animate={{ y: [2, -2, 2] }}
           transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
         />
       </motion.div>
 
       <motion.div
-        className="text-center mb-8"
+        className="text-center mb-6"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.15 }}
       >
-        <h2 className="text-xl font-bold mb-2">{t('chat.welcomeTitle')}</h2>
-        <p className="text-sm text-muted-foreground max-w-md">{t('chat.welcomeDesc')}</p>
+        <h2 className="text-xl font-bold mb-2">{t('chat.emptyTitle')}</h2>
+        <p className="text-sm text-muted-foreground max-w-md">{t('chat.emptyDescription')}</p>
+      </motion.div>
+
+      {/* Capabilities showcase */}
+      <motion.div
+        className="flex items-center gap-4 mb-6"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        {capabilities.map((cap, i) => (
+          <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/30">
+            <span className="text-primary">{cap.icon}</span>
+            <span className="text-xs text-muted-foreground">{cap.label}</span>
+          </div>
+        ))}
+      </motion.div>
+
+      {/* Create New Chat Button */}
+      <motion.div
+        className="mb-8"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.25 }}
+      >
+        <Button onClick={onStartChat} className="gap-2 shadow-md hover:shadow-lg transition-shadow">
+          <Plus className="w-4 h-4" />
+          {t('chat.startNewChat')}
+        </Button>
       </motion.div>
 
       {/* Agent Cards */}
@@ -364,7 +398,7 @@ function EmptyChatState({ onStartChat }: { onStartChat: () => void }) {
           className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg mb-6"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.25 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
         >
           {agents.slice(0, 4).map((agent: any) => (
             <Card
@@ -397,7 +431,7 @@ function EmptyChatState({ onStartChat }: { onStartChat: () => void }) {
         </motion.div>
       )}
 
-      {/* Quick start suggestions with gradient backgrounds */}
+      {/* First message suggestions */}
       <motion.div
         className="space-y-2 w-full max-w-md"
         initial={{ opacity: 0, y: 10 }}

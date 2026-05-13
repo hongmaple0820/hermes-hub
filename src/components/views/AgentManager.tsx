@@ -132,7 +132,7 @@ export function AgentManager() {
         ...form,
         providerId: form.providerId || undefined,
         model: form.model || undefined,
-        temperature: form.temperature,
+        temperature: Math.round(form.temperature * 10) / 10,
         maxTokens: form.maxTokens,
       };
       if (form.mode === 'acrp') {
@@ -373,7 +373,7 @@ export function AgentManager() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>{t('agents.temperature')}: {form.temperature}</Label>
+              <Label>{t('agents.temperature')}: {Math.round(form.temperature * 10) / 10}</Label>
               <input type="range" min="0" max="2" step="0.1" value={form.temperature} onChange={(e) => setForm({ ...form, temperature: parseFloat(e.target.value) })} className="w-full" />
             </div>
             <div className="space-y-2">

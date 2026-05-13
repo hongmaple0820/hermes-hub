@@ -628,7 +628,7 @@ export function Dashboard() {
       bgColor: 'bg-violet-500/10',
       borderColor: 'border-l-violet-500',
       view: 'providers' as const,
-      detail: `${activeProviders.length} ${t('dashboard.active')}`,
+      detail: t('dashboard.providersConfigured', { count: providers.length }),
       sparkline: [1, 2, 2, 3, providers.length],
       sparklineColor: 'bg-violet-500/60',
       gradientFrom: 'from-violet-50/80 dark:from-violet-950/30',
@@ -667,7 +667,7 @@ export function Dashboard() {
     {
       title: t('dashboard.conversations'),
       value: conversations.length,
-      subtitle: t('dashboard.conversationsActive'),
+      subtitle: t('dashboard.conversationsActiveCount', { count: conversations.filter((c: any) => c.status === 'active' || !c.status).length }),
       icon: MessageSquare,
       color: 'text-rose-600',
       bgColor: 'bg-rose-500/10',
@@ -688,7 +688,7 @@ export function Dashboard() {
       bgColor: 'bg-orange-500/10',
       borderColor: 'border-l-orange-500',
       view: 'chat-rooms' as const,
-      detail: t('dashboard.multiAgent'),
+      detail: t('dashboard.chatRoomsCollaborative'),
       sparkline: [1, 2, 3, 2, chatRooms.length],
       sparklineColor: 'bg-orange-500/60',
       gradientFrom: 'from-orange-50/80 dark:from-orange-950/30',
@@ -1380,7 +1380,7 @@ export function Dashboard() {
                               {agent.mode === 'acrp' ? 'ACRP' : t('dashboard.builtinMode')}
                             </Badge>
                             <span className="text-[10px] text-muted-foreground">
-                              {agent.model || (agent.provider?.name) || '-'}
+                              {agent.mode === 'builtin' ? (agent.model ? `${agent.model}` : (agent.provider?.name || '')) : (agent.agentType || '')}
                             </span>
                           </div>
                         </div>

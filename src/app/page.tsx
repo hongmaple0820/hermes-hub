@@ -104,7 +104,7 @@ function AppContent() {
     const restoreSession = async () => {
       if (api.tryRestoreAuth()) {
         try {
-          // Validate the stored userId against the server
+          // Validate the stored JWT token against the server
           const { user: restoredUser } = await api.getAuthMe();
           setUser(restoredUser);
           // Also store user data for faster future loads
@@ -114,11 +114,25 @@ function AppContent() {
             setShowOnboarding(true);
           }
         } catch {
-          // Server validation failed — clear invalid auth
-          api.logout();
-          localStorage.removeItem('hermes_user');
-          // Also clean up legacy keys
-          localStorage.removeItem('hermes_token');
+          // Access token might be expired — try refreshing
+          try {
+            const refreshed = await api.refreshToken();
+            if (refreshed) {
+              const { user: restoredUser } = await api.getAuthMe();
+              setUser(restoredUser);
+              localStorage.setItem('hermes_user', JSON.stringify(restoredUser));
+              if (!isOnboardingCompleted()) {
+                setShowOnboarding(true);
+              }
+            } else {
+              throw new Error('Refresh failed');
+            }
+          } catch {
+            // Server validation failed — clear invalid auth
+            api.logout();
+            localStorage.removeItem('hermes_user');
+            localStorage.removeItem('hermes_token');
+          }
         }
       } else {
         // No persisted auth — try legacy keys for backward compatibility
@@ -126,7 +140,6 @@ function AppContent() {
         const legacyUser = localStorage.getItem('hermes_user');
         if (legacyToken && legacyUser) {
           try {
-            const parsed = JSON.parse(legacyUser);
             api.setUserId(legacyToken); // This will persist to new key
             // Validate via server
             const { user: restoredUser } = await api.getAuthMe();
@@ -244,7 +257,7 @@ function AppContent() {
         : await api.login(email, password);
 
       const { user: userData, token } = result;
-      api.setUserId(token); // Automatically persists to localStorage
+      api.setAuth(token, userData.id); // Store JWT token + userId, persists to localStorage
       setUser(userData);
       localStorage.setItem('hermes_user', JSON.stringify(userData));
       toast.success(isRegister ? 'Account created!' : 'Welcome back!');
@@ -259,7 +272,7 @@ function AppContent() {
   };
 
   const handleLogout = () => {
-    api.logout(); // Clears userId and persisted auth
+    api.logout(); // Clears JWT token, userId, persisted auth, and calls /api/auth/logout to clear cookies
     setUser(null);
     localStorage.removeItem('hermes_token');
     localStorage.removeItem('hermes_user');

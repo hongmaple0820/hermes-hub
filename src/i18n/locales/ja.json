@@ -28,6 +28,7 @@
     "required": "必須",
     "optional": "オプション",
     "copied": "コピーしました！",
+    "copy": "コピー",
     "noResults": "結果が見つかりません",
     "name": "名前",
     "description": "説明",
@@ -109,12 +110,14 @@
     "agentsOnline": "{count} オンライン",
     "providers": "LLMプロバイダー",
     "providersActive": "{count} アクティブ",
+    "providersConfigured": "{count} 設定済み",
     "skills": "スキル",
     "skillsEnabled": "{count} 有効",
     "gateways": "接続済みAgent",
     "gatewaysRunning": "{count} 接続中",
     "conversations": "会話",
     "conversationsActive": "アクティブなチャット",
+    "conversationsActiveCount": "{count} アクティブなチャット",
     "chatRooms": "チャットルーム",
     "chatRoomsMulti": "マルチエージェントルーム",
     "quickActions": "クイックアクション",
@@ -165,6 +168,7 @@
     "connected": "接続済み",
     "rooms": "ルーム",
     "multiAgent": "マルチエージェント",
+    "chatRoomsCollaborative": "コラボレーションスペース",
     "viewAll": "すべて表示",
     "justNow": "たった今",
     "minutesAgo": "{count}分前",
@@ -511,7 +515,7 @@
   },
   "chat": {
     "conversations": "会話一覧",
-    "startNewChat": "新しいチャットを開始",
+    "startNewChat": "新しいチャットを作成",
     "startNewChatTitle": "新しいチャットを開始",
     "noConversations": "会話がありません",
     "noMessages": "メッセージがありません",
@@ -562,7 +566,15 @@
     "quickStartSuggestions": "クイックスタート提案",
     "streamingError": "ストリーミングエラーが発生しました",
     "deleteConversationTitle": "会話を削除",
-    "deleteConversationDesc": "この会話を削除してもよろしいですか？すべてのメッセージが永久に失われます。この操作は取り消せません。"
+    "deleteConversationDesc": "この会話を削除してもよろしいですか？すべてのメッセージが永久に失われます。この操作は取り消せません。",
+    "emptyTitle": "会話がまだありません",
+    "emptyDescription": "AIエージェントとチャット、スキルを呼び出し、ACRPで外部エージェントと連携。会話を始めましょう。",
+    "firstMessage1": "試してみる：何を手伝えますか？",
+    "firstMessage2": "試してみる：配列をソートする関数を書いて",
+    "firstMessage3": "試してみる：WebSocketの仕組みを説明して",
+    "emptyCapSkills": "スキル呼び出し",
+    "emptyCapACRP": "ACRPプロトコル",
+    "emptyCapMulti": "マルチエージェントチャット"
   },
   "chatRooms": {
     "title": "チャットルーム",
@@ -791,7 +803,11 @@
     "exportData": "データをエクスポート",
     "deleteAccount": "アカウント削除",
     "deleteAccountConfirm": "この操作は取り消せません。すべてのデータが完全に削除されます。",
-    "privacyMode": "プライバシーモード"
+    "privacyMode": "プライバシーモード",
+    "serviceHealth": "サービスヘルス",
+    "serviceHealthDesc": "すべてのプラットフォームサービスのリアルタイム健全性状態",
+    "checkAllServices": "更新",
+    "responseTime": "応答"
   },
   "language": {
     "switch": "言語",
@@ -1474,7 +1490,8 @@
     "favorites": "お気に入り",
     "collapseAll": "すべてのセクションを折りたたむ",
     "expandAll": "すべてのセクションを展開",
-    "rightClickToRemove": "右クリックで削除"
+    "rightClickToRemove": "右クリックで削除",
+    "shortcut": "ショートカット"
   },
   "commandPalette": {
     "placeholder": "コマンド、ビュー、Agentを検索...",
@@ -1556,5 +1573,20 @@
       "capabilityResult": "機能結果"
     },
     "unread": "未読"
+  },
+  "agentControl": {
+    "step1Title": "エージェントを作成",
+    "step1Desc": "エージェントマネージャーに移動し、新しいエージェントを作成します。WebSocket接続にはACRPモードを選択してください。",
+    "step2Title": "ACRPトークンを生成",
+    "step2Desc": "エージェントを選択し、トークンを生成をクリックして接続トークンを取得します。",
+    "step2Code": "エージェントコントロールセンターでトークンを生成 - エージェント選択 - 生成",
+    "step3Title": "WebSocketに接続",
+    "step3Desc": "wsConnectUrlとエージェントトークンを使用してSocket.IO接続を確立します。",
+    "step4Title": "機能を登録",
+    "step4Desc": "agent:registerイベントをエージェント名、バージョン、機能と共に送信します。",
+    "step5Title": "使い始める",
+    "step5Desc": "エージェントが接続されました！Hubから機能を呼び出し、リモートでイベントを処理できます。",
+    "step5Cap": "リモート呼び出し",
+    "step5Bidirectional": "双方向イベント"
   }
 }
