@@ -30,7 +30,8 @@ import {
   Radio, Bell, Eye, EyeOff, MessageSquare, RotateCcw, Download,
   Upload, AlertTriangle, Trash2, Info, ExternalLink, CheckCircle2,
   XCircle, Wifi, WifiOff, Server, Database, Globe, Monitor, Heart,
-  RefreshCw, EyeIcon, Sun, Moon, MonitorSmartphone, Zap, Hexagon
+  RefreshCw, EyeIcon, Sun, Moon, MonitorSmartphone, Zap, Hexagon,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -100,6 +101,9 @@ export function Settings({ onLogout }: SettingsProps) {
   const [newPassword, setNewPassword] = useState('');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [savingUsername, setSavingUsername] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
 
   // Notification preferences (localStorage)
   const [emailNotifications, setEmailNotifications] = useState(() => {
@@ -224,17 +228,28 @@ export function Settings({ onLogout }: SettingsProps) {
       toast.error(t('common.required'));
       return;
     }
+    if (username.trim().length < 2 || username.trim().length > 30) {
+      toast.error(t('settingsPage.usernameChangeFailed'));
+      return;
+    }
+    setSavingUsername(true);
     try {
-      await api.updateSettings({ username });
-      toast.success(t('settingsPage.usernameSaved'));
+      const result = await api.changeUsername(username.trim());
+      // Update the user in the store
+      useAppStore.setState((state) => ({
+        user: state.user ? { ...state.user, name: result.user.name } : state.user,
+      }));
+      toast.success(t('settingsPage.usernameChanged'));
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Failed to save';
+      const msg = error instanceof Error ? error.message : t('settingsPage.usernameChangeFailed');
       toast.error(msg);
+    } finally {
+      setSavingUsername(false);
     }
   };
 
   const handlePasswordChange = async () => {
-    if (!currentPassword || !newPassword) {
+    if (!currentPassword || !newPassword || !confirmPassword) {
       toast.error(t('common.required'));
       return;
     }
@@ -242,14 +257,26 @@ export function Settings({ onLogout }: SettingsProps) {
       toast.error(t('auth.passwordMinLength'));
       return;
     }
+    if (newPassword !== confirmPassword) {
+      toast.error(t('settingsPage.passwordMismatch'));
+      return;
+    }
+    setSavingPassword(true);
     try {
-      await api.updateSettings({ currentPassword, newPassword });
+      await api.changePassword(currentPassword, newPassword);
       setCurrentPassword('');
       setNewPassword('');
+      setConfirmPassword('');
       toast.success(t('settingsPage.passwordChanged'));
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Failed to change password';
-      toast.error(msg);
+      const msg = error instanceof Error ? error.message : '';
+      if (msg.includes('incorrect') || msg.includes('Incorrect')) {
+        toast.error(t('settingsPage.wrongPassword'));
+      } else {
+        toast.error(t('settingsPage.passwordChangeFailed'));
+      }
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -939,8 +966,8 @@ export function Settings({ onLogout }: SettingsProps) {
                         onChange={(e) => setUsername(e.target.value)}
                         placeholder={t('auth.namePlaceholder')}
                       />
-                      <Button onClick={handleUsernameSave} size="sm" className="shrink-0">
-                        {t('common.save')}
+                      <Button onClick={handleUsernameSave} size="sm" className="shrink-0" disabled={savingUsername}>
+                        {savingUsername ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t('common.save')}
                       </Button>
                     </div>
                   </div>
@@ -1002,8 +1029,17 @@ export function Settings({ onLogout }: SettingsProps) {
                         </Button>
                       </div>
                     </div>
-                    <Button onClick={handlePasswordChange} className="w-full">
-                      {t('settingsPage.changePassword')}
+                    <div className="space-y-2">
+                      <Label className="text-xs">{t('settingsPage.confirmPassword')}</Label>
+                      <Input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    <Button onClick={handlePasswordChange} className="w-full" disabled={savingPassword}>
+                      {savingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : t('settingsPage.changePassword')}
                     </Button>
                   </div>
                 </div>

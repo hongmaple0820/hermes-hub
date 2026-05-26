@@ -42,7 +42,8 @@
     "refresh": "새로고침",
     "more": "더보기",
     "view": "보기",
-    "details": "상세"
+    "details": "상세",
+    "deleted": "삭제되었습니다"
   },
   "auth": {
     "title": "Hermes Hub",
@@ -575,7 +576,8 @@
     "searchPlaceholder": "방 검색...",
     "noSearchResults": "일치하는 방 없음",
     "tryDifferentSearch": "다른 검색어를 시도하세요",
-    "createRoomDesc": "새 멀티 에이전트 협업 방 만들기"
+    "createRoomDesc": "새 멀티 에이전트 협업 방 만들기",
+    "noRoomsHint": "팀원과 방 코드를 공유하여 협업하세요"
   },
   "settingsPage": {
     "title": "설정",
@@ -808,7 +810,9 @@
     "avgLatency": "평균 지연",
     "messageFlow": "메시지 흐름",
     "messageFlowDesc": "연결된 채널의 실시간 메시지 처리량",
-    "noActiveChannels": "활성 채널 없음"
+    "noActiveChannels": "활성 채널 없음",
+    "disconnect": "연결 해제",
+    "reconnect": "다시 연결"
   },
   "jobs": {
     "title": "스케줄 작업",
@@ -852,7 +856,9 @@
     "deleted": "작업이 삭제되었습니다",
     "editTitle": "작업 편집",
     "edit": "편집",
-    "saving": "저장 중..."
+    "saving": "저장 중...",
+    "resumed": "작업 재개됨",
+    "saved": "작업 저장됨"
   },
   "usage": {
     "title": "사용량 분석",
@@ -1530,5 +1536,7 @@
     "noAcrpAgents": "ACRP 에이전트 없음",
     "noAcrpAgentsDesc": "WebSocket으로 외부 에이전트를 연결하여 시작하세요",
     "connectAgent": "에이전트 연결"
-  }
+  },
+  "modelBreakdown": "모델 분포",
+  "modelBreakdownDesc": "다양한 모델의 사용량 분포"
 }

@@ -42,7 +42,8 @@
     "refresh": "更新",
     "more": "もっと",
     "view": "表示",
-    "details": "詳細"
+    "details": "詳細",
+    "deleted": "削除しました"
   },
   "auth": {
     "title": "Hermes Hub",
@@ -575,7 +576,8 @@
     "searchPlaceholder": "ルームを検索...",
     "noSearchResults": "一致するルームなし",
     "tryDifferentSearch": "別の検索語をお試しください",
-    "createRoomDesc": "新しいマルチエージェントコラボレーションルームを作成"
+    "createRoomDesc": "新しいマルチエージェントコラボレーションルームを作成",
+    "noRoomsHint": "チームメンバーとルームコードを共有してコラボレーション"
   },
   "settingsPage": {
     "title": "設定",
@@ -808,7 +810,9 @@
     "avgLatency": "平均遅延",
     "messageFlow": "メッセージフロー",
     "messageFlowDesc": "接続済みチャンネルのリアルタイムメッセージスループット",
-    "noActiveChannels": "アクティブなチャンネルなし"
+    "noActiveChannels": "アクティブなチャンネルなし",
+    "disconnect": "切断",
+    "reconnect": "再接続"
   },
   "jobs": {
     "title": "スケジュールジョブ",
@@ -852,7 +856,9 @@
     "deleted": "ジョブを削除しました",
     "editTitle": "ジョブを編集",
     "edit": "編集",
-    "saving": "保存中..."
+    "saving": "保存中...",
+    "resumed": "ジョブを再開しました",
+    "saved": "ジョブを保存しました"
   },
   "usage": {
     "title": "使用量分析",
@@ -1530,5 +1536,7 @@
     "noAcrpAgents": "ACRPエージェントがありません",
     "noAcrpAgentsDesc": "WebSocket経由で外部エージェントを接続して始めましょう",
     "connectAgent": "エージェントを接続"
-  }
+  },
+  "modelBreakdown": "モデル分布",
+  "modelBreakdownDesc": "各モデルの使用量分布"
 }

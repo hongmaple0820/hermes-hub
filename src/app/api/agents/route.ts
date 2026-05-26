@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { createAuditLog } from '@/lib/audit';
 
 export async function GET(request: NextRequest) {
   try {
@@ -102,6 +103,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Audit log
+    await logAgentCreate(user.id, agent.id, name, request);
+
     return NextResponse.json({ agent }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
@@ -113,4 +117,17 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Audit log helper for agent creation
+async function logAgentCreate(userId: string, agentId: string, agentName: string, request: NextRequest) {
+  await createAuditLog({
+    userId,
+    action: 'agent.create',
+    resource: 'agent',
+    resourceId: agentId,
+    details: { name: agentName },
+    ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+    userAgent: request.headers.get('user-agent') || undefined,
+  });
 }

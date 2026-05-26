@@ -13,12 +13,13 @@ import {
   Activity, ArrowUpRight, Zap, Wifi, WifiOff, TrendingUp,
   Clock, Cpu, Globe, Shield, Sparkles, BarChart3, Radio,
   CheckCircle, Eye, LogOut, Plus, Settings, Timer, Uptime,
-  ArrowDownRight, RefreshCw, AlertTriangle, ArrowRight
+  ArrowDownRight, RefreshCw, AlertTriangle, ArrowRight,
+  Terminal, Sun, MoonStar, HandMetal, Cable
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ActivityItem {
   id: string;
@@ -210,8 +211,23 @@ const animationStyles = `
 }
 `;
 
+// Format large numbers with K/M suffix
+function formatNumber(num: number): string {
+  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+  return num.toString();
+}
+
+// Get time-of-day greeting
+function getTimeGreeting(t: (key: string) => string): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return t('dashboard.goodMorning');
+  if (hour < 18) return t('dashboard.goodAfternoon');
+  return t('dashboard.goodEvening');
+}
+
 export function Dashboard() {
-  const { agents, providers, skills, conversations, chatRooms, setCurrentView, setSelectedAgentId, addNotification } = useAppStore();
+  const { agents, providers, skills, conversations, chatRooms, setCurrentView, setSelectedAgentId, addNotification, user } = useAppStore();
   const { t } = useI18n();
 
   // Last updated timestamp
@@ -653,17 +669,8 @@ export function Dashboard() {
     { label: t('dashboard.acrpConnected'), value: connectedAcrpAgents.length, icon: Radio, color: 'text-cyan-600', bgColor: 'bg-cyan-500/10', borderColor: 'border-l-cyan-500', gradientFrom: 'from-cyan-50/60 dark:from-cyan-950/20' },
   ];
 
-  // Quick Actions Grid data
+  // Quick Actions Grid data - 6 action buttons
   const quickActionItems = [
-    {
-      label: t('dashboard.newConversation'),
-      icon: MessageSquare,
-      color: 'text-emerald-600 dark:text-emerald-400',
-      bgColor: 'bg-emerald-500/10 dark:bg-emerald-500/15',
-      borderColor: 'border-emerald-200 dark:border-emerald-800',
-      hoverBorder: 'hover:border-emerald-400 dark:hover:border-emerald-600',
-      view: 'chat' as const,
-    },
     {
       label: t('dashboard.createAgent'),
       icon: Plus,
@@ -672,6 +679,15 @@ export function Dashboard() {
       borderColor: 'border-violet-200 dark:border-violet-800',
       hoverBorder: 'hover:border-violet-400 dark:hover:border-violet-600',
       view: 'agents' as const,
+    },
+    {
+      label: t('dashboard.addProvider'),
+      icon: Server,
+      color: 'text-rose-600 dark:text-rose-400',
+      bgColor: 'bg-rose-500/10 dark:bg-rose-500/15',
+      borderColor: 'border-rose-200 dark:border-rose-800',
+      hoverBorder: 'hover:border-rose-400 dark:hover:border-rose-600',
+      view: 'providers' as const,
     },
     {
       label: t('dashboard.browseSkills'),
@@ -683,12 +699,30 @@ export function Dashboard() {
       view: 'skills' as const,
     },
     {
-      label: t('dashboard.systemSettings'),
+      label: t('dashboard.startChat'),
+      icon: MessageSquare,
+      color: 'text-emerald-600 dark:text-emerald-400',
+      bgColor: 'bg-emerald-500/10 dark:bg-emerald-500/15',
+      borderColor: 'border-emerald-200 dark:border-emerald-800',
+      hoverBorder: 'hover:border-emerald-400 dark:hover:border-emerald-600',
+      view: 'chat' as const,
+    },
+    {
+      label: t('dashboard.viewTerminal'),
+      icon: Terminal,
+      color: 'text-cyan-600 dark:text-cyan-400',
+      bgColor: 'bg-cyan-500/10 dark:bg-cyan-500/15',
+      borderColor: 'border-cyan-200 dark:border-cyan-800',
+      hoverBorder: 'hover:border-cyan-400 dark:hover:border-cyan-600',
+      view: 'terminal' as const,
+    },
+    {
+      label: t('dashboard.openSettings'),
       icon: Settings,
-      color: 'text-amber-600 dark:text-amber-400',
-      bgColor: 'bg-amber-500/10 dark:bg-amber-500/15',
-      borderColor: 'border-amber-200 dark:border-amber-800',
-      hoverBorder: 'hover:border-amber-400 dark:hover:border-amber-600',
+      color: 'text-slate-600 dark:text-slate-400',
+      bgColor: 'bg-slate-500/10 dark:bg-slate-500/15',
+      borderColor: 'border-slate-200 dark:border-slate-800',
+      hoverBorder: 'hover:border-slate-400 dark:hover:border-slate-600',
       view: 'settings' as const,
     },
   ];
@@ -725,8 +759,11 @@ export function Dashboard() {
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">{t('dashboard.title')}</h1>
-              <p className="text-muted-foreground mt-1">{t('dashboard.subtitle')}</p>
+              <div className="flex items-center gap-2 mb-1">
+                {new Date().getHours() < 12 ? <Sun className="w-5 h-5 text-amber-500" /> : new Date().getHours() < 18 ? <Sparkles className="w-5 h-5 text-emerald-500" /> : <MoonStar className="w-5 h-5 text-indigo-400" />}
+                <h1 className="text-3xl font-bold tracking-tight">{getTimeGreeting(t)}, {user?.name || user?.email?.split('@')[0] || t('dashboard.title')}</h1>
+              </div>
+              <p className="text-muted-foreground">{t('dashboard.welcomeSubtitle')}</p>
             </div>
             <div className="flex items-center gap-3 flex-wrap justify-end">
               {/* Last Updated indicator */}
@@ -1083,33 +1120,59 @@ export function Dashboard() {
 
                 <Separator className="my-2" />
 
-                {/* System status indicators */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground dark:text-muted-foreground/90 flex items-center gap-1.5">
-                      <Server className="w-3 h-3" /> {t('dashboard.llmProviders')}
-                    </span>
-                    <span className="font-medium">{activeProviders.length}/{providers.length}</span>
+                {/* System status indicators with pulse dots and colored progress */}
+                <div className="space-y-2.5">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground dark:text-muted-foreground/90 flex items-center gap-1.5">
+                        <div className={cn('w-2 h-2 rounded-full', activeProviders.length > 0 ? 'bg-emerald-500' : 'bg-gray-400')}
+                          style={activeProviders.length > 0 ? { animation: 'gentlePulse 2s ease-in-out infinite' } : undefined}
+                        />
+                        {t('dashboard.llmProviders')}
+                      </span>
+                      <span className="font-medium">{formatNumber(activeProviders.length)}/{formatNumber(providers.length)}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted dark:bg-muted/80 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                        style={{ width: `${providers.length > 0 ? (activeProviders.length / providers.length) * 100 : 0}%` }}
+                      />
+                    </div>
                   </div>
-                  <Progress value={providers.length > 0 ? (activeProviders.length / providers.length) * 100 : 0} className="h-1.5" />
-                </div>
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground dark:text-muted-foreground/90 flex items-center gap-1.5">
-                      <Monitor className="w-3 h-3" /> {t('dashboard.acrpAgents')}
-                    </span>
-                    <span className="font-medium">{connectedAcrpAgents.length}/{acrpAgents.length}</span>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground dark:text-muted-foreground/90 flex items-center gap-1.5">
+                        <div className={cn('w-2 h-2 rounded-full', connectedAcrpAgents.length > 0 ? 'bg-cyan-500' : 'bg-gray-400')}
+                          style={connectedAcrpAgents.length > 0 ? { animation: 'gentlePulse 2s ease-in-out infinite 0.3s' } : undefined}
+                        />
+                        {t('dashboard.acrpAgents')}
+                      </span>
+                      <span className="font-medium">{formatNumber(connectedAcrpAgents.length)}/{formatNumber(acrpAgents.length)}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted dark:bg-muted/80 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-cyan-500 transition-all duration-500"
+                        style={{ width: `${acrpAgents.length > 0 ? (connectedAcrpAgents.length / acrpAgents.length) * 100 : 0}%` }}
+                      />
+                    </div>
                   </div>
-                  <Progress value={acrpAgents.length > 0 ? (connectedAcrpAgents.length / acrpAgents.length) * 100 : 0} className="h-1.5" />
-                </div>
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground dark:text-muted-foreground/90 flex items-center gap-1.5">
-                      <Puzzle className="w-3 h-3" /> {t('dashboard.skillsActive')}
-                    </span>
-                    <span className="font-medium">{enabledSkills.length}/{skills.length}</span>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground dark:text-muted-foreground/90 flex items-center gap-1.5">
+                        <div className={cn('w-2 h-2 rounded-full', enabledSkills.length > 0 ? 'bg-amber-500' : 'bg-gray-400')}
+                          style={enabledSkills.length > 0 ? { animation: 'gentlePulse 2s ease-in-out infinite 0.6s' } : undefined}
+                        />
+                        {t('dashboard.skillsActive')}
+                      </span>
+                      <span className="font-medium">{formatNumber(enabledSkills.length)}/{formatNumber(skills.length)}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted dark:bg-muted/80 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                        style={{ width: `${skills.length > 0 ? (enabledSkills.length / skills.length) * 100 : 0}%` }}
+                      />
+                    </div>
                   </div>
-                  <Progress value={skills.length > 0 ? (enabledSkills.length / skills.length) * 100 : 0} className="h-1.5" />
                 </div>
               </CardContent>
             </Card>
@@ -1540,6 +1603,91 @@ export function Dashboard() {
             </Card>
           </motion.div>
         </div>
+
+        {/* Conversation Templates Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+        >
+          <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    {t('templates.title')}
+                  </CardTitle>
+                  <CardDescription className="mt-1">{t('templates.subtitle')}</CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs gap-1"
+                  onClick={() => setCurrentView('chat')}
+                >
+                  {t('dashboard.viewAll')}
+                  <ArrowUpRight className="w-3 h-3" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                {[
+                  { icon: '🔍', nameKey: 'templates.codeReview', descKey: 'templates.codeReviewDesc', systemPrompt: 'You are a senior code reviewer. Analyze code for bugs, performance issues, security vulnerabilities, and best practices. Provide specific, actionable feedback with examples.', initialMessage: 'Please review this code and provide feedback on quality, performance, and potential issues.' },
+                  { icon: '🔬', nameKey: 'templates.researchAssistant', descKey: 'templates.researchAssistantDesc', systemPrompt: 'You are a research assistant with expertise in synthesizing information from multiple sources. Provide well-structured, evidence-based answers with citations where possible.', initialMessage: 'Help me research this topic thoroughly and provide a comprehensive summary.' },
+                  { icon: '📊', nameKey: 'templates.dataAnalysis', descKey: 'templates.dataAnalysisDesc', systemPrompt: 'You are a data analysis expert. Help with data interpretation, statistical analysis, visualization recommendations, and deriving actionable insights from data.', initialMessage: 'Help me analyze this data and extract meaningful insights.' },
+                  { icon: '✍️', nameKey: 'templates.creativeWriting', descKey: 'templates.creativeWritingDesc', systemPrompt: 'You are a creative writing assistant. Help with stories, copywriting, content creation, and creative brainstorming. Adapt your tone and style to match the desired genre or audience.', initialMessage: 'Help me write creative content with engaging style and compelling narrative.' },
+                  { icon: '🌐', nameKey: 'templates.translation', descKey: 'templates.translationDesc', systemPrompt: 'You are a professional translator with expertise in multiple languages. Provide accurate, natural-sounding translations that preserve cultural context and nuance.', initialMessage: 'Please translate the following text, preserving the tone and cultural context.' },
+                  { icon: '🐛', nameKey: 'templates.debugHelper', descKey: 'templates.debugHelperDesc', systemPrompt: 'You are a debugging expert. Help identify bugs, trace error logs, suggest fixes, and explain root causes. Think step-by-step through the debugging process.', initialMessage: 'Help me debug this issue. Here is the error and relevant code:' },
+                ].map((template, index) => (
+                  <motion.div
+                    key={template.nameKey}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.7 + index * 0.06 }}
+                  >
+                    <Card
+                      className="group cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 border-dashed"
+                      onClick={async () => {
+                        try {
+                          await api.createConversationTemplate({
+                            name: t(template.nameKey),
+                            description: t(template.descKey),
+                            icon: template.icon,
+                            systemPrompt: template.systemPrompt,
+                            initialMessage: template.initialMessage,
+                          });
+                        } catch {
+                          // Template might already exist, that's fine
+                        }
+                        setCurrentView('chat');
+                      }}
+                    >
+                      <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                        <span className="text-2xl">{template.icon}</span>
+                        <h4 className="text-sm font-medium leading-tight">{t(template.nameKey)}</h4>
+                        <p className="text-[11px] text-muted-foreground dark:text-muted-foreground/90 line-clamp-2">{t(template.descKey)}</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-1 text-[11px] h-7 px-2 gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentView('chat');
+                          }}
+                        >
+                          {t('templates.useTemplate')}
+                          <ArrowRight className="w-3 h-3" />
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     </>
   );

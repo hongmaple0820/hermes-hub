@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { createAuditLog } from '@/lib/audit';
 
 export async function GET(
   request: NextRequest,
@@ -110,6 +111,17 @@ export async function DELETE(
     }
 
     await db.agent.delete({ where: { id } });
+
+    // Audit log
+    await createAuditLog({
+      userId: user.id,
+      action: 'agent.delete',
+      resource: 'agent',
+      resourceId: id,
+      details: { name: existing.name },
+      ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+      userAgent: request.headers.get('user-agent') || undefined,
+    });
 
     return NextResponse.json({ message: 'Agent deleted successfully' });
   } catch (error) {

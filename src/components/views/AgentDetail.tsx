@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -20,12 +20,14 @@ import {
   Copy, ExternalLink, ChevronDown, ChevronUp, ArrowUp, ArrowDown,
   Settings, Zap, Activity, Shield, Key, Globe, Radio, Clock,
   CheckCircle2, XCircle, Loader2, BookOpen, Share2, Network,
+  Eye, TrendingUp, Timer, Wifi, WifiOff,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/i18n';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Helper: Copy to clipboard with toast
 function CopyButton({ value, label }: { value: string; label?: string }) {
@@ -121,6 +123,17 @@ export function AgentDetail() {
   // Callback URL edit state
   const [editingCallback, setEditingCallback] = useState<string | null>(null);
   const [callbackValue, setCallbackValue] = useState('');
+
+  // Track active tab for transitions
+  const [activeTab, setActiveTab] = useState('overview');
+
+  // Agent metrics for overview stats
+  const agentMetrics = useMemo(() => ({
+    messagesSent: (agent?.conversations || []).reduce((acc: number, c: any) => acc + (c.messageCount || 0), 0),
+    skillsInstalled: (agent?.skills || []).length,
+    uptime: agent?.status === 'online' ? t('agentDetail.activeNow') : t('agentDetail.offline'),
+    lastActive: agent?.updatedAt ? new Date(agent.updatedAt).toLocaleDateString() : '—',
+  }), [agent, t]);
 
   const refreshAgent = useCallback(async () => {
     try {
@@ -393,32 +406,70 @@ export function AgentDetail() {
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" onClick={() => setCurrentView('agents')}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-          <Bot className="w-6 h-6 text-primary" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold truncate">{agent.name}</h1>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <Badge variant="outline" className="text-xs">{agent.mode}</Badge>
-            <div className={cn('w-2 h-2 rounded-full', agent.status === 'online' ? 'bg-emerald-500' : agent.status === 'error' ? 'bg-red-500' : 'bg-gray-300')} />
-            <span className="text-xs text-muted-foreground capitalize">{agent.status}</span>
-            <Separator orientation="vertical" className="h-3" />
-            <span className="text-xs text-muted-foreground">{t('agentDetail.skillsRegistered', { count: enabledSkills })}</span>
-            <span className="text-xs text-muted-foreground">{t('agentDetail.connectionsActive', { count: activeConnections })}</span>
+      {/* Header with gradient banner */}
+      <div
+        className="relative overflow-hidden rounded-2xl mb-6"
+        style={{
+          background: agent.mode === 'acrp'
+            ? 'linear-gradient(135deg, rgba(6,182,212,0.12) 0%, rgba(139,92,246,0.06) 50%, rgba(6,182,212,0.08) 100%)'
+            : 'linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(139,92,246,0.06) 50%, rgba(16,185,129,0.08) 100%)',
+        }}
+      >
+        {/* Pattern overlay */}
+        <div className="absolute inset-0 bg-grid-slate-100/30 dark:bg-grid-slate-800/15 [mask-image:radial-gradient(ellipse_at_center,white,transparent)] -z-10" />
+
+        <div className="p-5 flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => setCurrentView('agents')} className="shrink-0">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className={cn(
+            'w-14 h-14 rounded-2xl flex items-center justify-center shrink-0',
+            agent.mode === 'acrp'
+              ? 'bg-cyan-500/20 dark:bg-cyan-500/15'
+              : 'bg-emerald-500/20 dark:bg-emerald-500/15'
+          )}>
+            <Bot className={cn('w-7 h-7', agent.mode === 'acrp' ? 'text-cyan-600 dark:text-cyan-400' : 'text-emerald-600 dark:text-emerald-400')} />
           </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold truncate">{agent.name}</h1>
+              <Badge className={cn(
+                'text-[10px] px-2 py-0.5 h-5 shrink-0',
+                agent.mode === 'acrp'
+                  ? 'bg-cyan-500/15 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800'
+                  : 'bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+              )} variant="outline">
+                {agent.mode === 'acrp' ? 'ACRP' : t('agentDetail.builtinBadge')}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              {/* Status indicator with pulse */}
+              <div className="relative flex items-center gap-1.5">
+                <div className="relative flex h-2.5 w-2.5">
+                  {agent.status === 'online' && (
+                    <span className={cn('animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75')} />
+                  )}
+                  <span className={cn('relative inline-flex rounded-full h-2.5 w-2.5',
+                    agent.status === 'online' ? 'bg-emerald-500' :
+                    agent.status === 'error' ? 'bg-red-500' :
+                    agent.status === 'busy' ? 'bg-amber-500' : 'bg-gray-400'
+                  )} />
+                </div>
+                <span className="text-xs text-muted-foreground capitalize">{agent.status}</span>
+              </div>
+              <Separator orientation="vertical" className="h-3" />
+              <span className="text-xs text-muted-foreground">{t('agentDetail.skillsRegistered', { count: enabledSkills })}</span>
+              <span className="text-xs text-muted-foreground">{t('agentDetail.connectionsActive', { count: activeConnections })}</span>
+            </div>
+          </div>
+          <Button className="gap-2 shrink-0" onClick={handleStartChat}>
+            <MessageSquare className="w-4 h-4" /> Chat
+          </Button>
         </div>
-        <Button className="gap-2" onClick={handleStartChat}>
-          <MessageSquare className="w-4 h-4" /> Chat
-        </Button>
       </div>
 
-      {/* Content Tabs */}
-      <Tabs defaultValue="overview" className="w-full">
+      {/* Content Tabs with transition */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="skills">{t('agentDetail.installedSkills')} ({(agent.skills || []).length})</TabsTrigger>
@@ -429,6 +480,62 @@ export function AgentDetail() {
 
         {/* ==================== OVERVIEW TAB ==================== */}
         <TabsContent value="overview">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`tab-overview-${activeTab}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+          {/* Overview Stats Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            <Card className={cn('p-3 rounded-xl', 'bg-gradient-to-br from-emerald-50/80 dark:from-emerald-950/30 to-card')}>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <MessageSquare className="w-4 h-4 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground dark:text-muted-foreground/90">{t('agentDetail.messagesSent')}</p>
+                  <p className="text-lg font-bold">{agentMetrics.messagesSent}</p>
+                </div>
+              </div>
+            </Card>
+            <Card className={cn('p-3 rounded-xl', 'bg-gradient-to-br from-amber-50/80 dark:from-amber-950/30 to-card')}>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                  <Puzzle className="w-4 h-4 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground dark:text-muted-foreground/90">{t('agentDetail.skillsInstalledLabel')}</p>
+                  <p className="text-lg font-bold">{agentMetrics.skillsInstalled}</p>
+                </div>
+              </div>
+            </Card>
+            <Card className={cn('p-3 rounded-xl', 'bg-gradient-to-br from-violet-50/80 dark:from-violet-950/30 to-card')}>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                  <Timer className="w-4 h-4 text-violet-500" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground dark:text-muted-foreground/90">{t('agentDetail.uptimeLabel')}</p>
+                  <p className="text-lg font-bold">{agentMetrics.uptime}</p>
+                </div>
+              </div>
+            </Card>
+            <Card className={cn('p-3 rounded-xl', 'bg-gradient-to-br from-rose-50/80 dark:from-rose-950/30 to-card')}>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-rose-500/10 flex items-center justify-center">
+                  <Clock className="w-4 h-4 text-rose-500" />
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground dark:text-muted-foreground/90">{t('agentDetail.lastActiveLabel')}</p>
+                  <p className="text-lg font-bold">{agentMetrics.lastActive}</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader><CardTitle className="text-base">{t('agentDetail.configuration')}</CardTitle></CardHeader>
@@ -499,7 +606,7 @@ export function AgentDetail() {
             {/* ACRP Connection Info */}
             {agent.mode === 'acrp' && (
               <Card className="md:col-span-2">
-                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Radio className="w-4 h-4" /> ACRP Connection</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-base flex items-center gap-2"><Radio className="w-4 h-4 text-cyan-500" /> ACRP Connection</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
                     <p className="text-xs text-cyan-700 dark:text-cyan-400">
@@ -552,10 +659,20 @@ export function AgentDetail() {
               </Card>
             )}
           </div>
+            </motion.div>
+          </AnimatePresence>
         </TabsContent>
 
         {/* ==================== SKILLS TAB ==================== */}
         <TabsContent value="skills">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`tab-skills-${activeTab}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -590,9 +707,20 @@ export function AgentDetail() {
             </CardHeader>
             <CardContent>
               {(agent.skills || []).length === 0 ? (
-                <div className="text-center py-8">
-                  <Puzzle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">{t('agentDetail.noSkills')}</p>
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-500/10 to-amber-600/5 flex items-center justify-center mb-4">
+                    <Puzzle className="w-10 h-10 text-amber-400/60" />
+                  </div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">{t('agentDetail.noSkills')}</p>
+                  <p className="text-xs text-muted-foreground/70 mb-4">{t('agentDetail.noSkillsHint')}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setShowAddSkill(true)}
+                  >
+                    <Plus className="w-4 h-4" /> {t('agentDetail.addSkill')}
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -604,7 +732,13 @@ export function AgentDetail() {
                     const isTesting = testLoading.has(testKey);
 
                     return (
-                      <Card key={as.id} className="overflow-hidden">
+                      <motion.div
+                        key={as.id}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, delay: idx * 0.05 }}
+                      >
+                      <Card key={as.id} className="overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 rounded-xl">
                         <div className="p-4">
                           <div className="flex items-center gap-3">
                             {/* Icon */}
@@ -764,16 +898,25 @@ export function AgentDetail() {
                           </Collapsible>
                         </div>
                       </Card>
+                      </motion.div>
                     );
                   })}
                 </div>
               )}
             </CardContent>
           </Card>
+            </motion.div>
+          </AnimatePresence>
         </TabsContent>
-
-        {/* ==================== CONNECTIONS TAB ==================== */}
         <TabsContent value="connections">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`tab-connections-${activeTab}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -807,9 +950,20 @@ export function AgentDetail() {
             </CardHeader>
             <CardContent>
               {(agent.connections || []).length === 0 ? (
-                <div className="text-center py-8">
-                  <Cable className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">{t('agentDetail.noConnections')}</p>
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500/10 to-purple-600/5 flex items-center justify-center mb-4">
+                    <Cable className="w-10 h-10 text-purple-400/60" />
+                  </div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">{t('agentDetail.noConnections')}</p>
+                  <p className="text-xs text-muted-foreground/70 mb-4">{t('agentDetail.noConnectionsHint')}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setShowAddConnection(true)}
+                  >
+                    <Plus className="w-4 h-4" /> {t('agentDetail.addConnection')}
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -904,10 +1058,20 @@ export function AgentDetail() {
               )}
             </CardContent>
           </Card>
+            </motion.div>
+          </AnimatePresence>
         </TabsContent>
 
         {/* ==================== PLUGINS TAB ==================== */}
         <TabsContent value="plugins">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`tab-plugins-${activeTab}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -969,10 +1133,20 @@ export function AgentDetail() {
             </CardHeader>
             <CardContent>
               {(agent.plugins || []).length === 0 ? (
-                <div className="text-center py-8">
-                  <Settings className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">{t('agentDetail.noPlugins')}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{t('agentDetail.noPluginsHint')}</p>
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-slate-500/10 to-slate-600/5 flex items-center justify-center mb-4">
+                    <Settings className="w-10 h-10 text-slate-400/60" />
+                  </div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">{t('agentDetail.noPlugins')}</p>
+                  <p className="text-xs text-muted-foreground/70 mb-4">{t('agentDetail.noPluginsHint')}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setShowAddPlugin(true)}
+                  >
+                    <Plus className="w-4 h-4" /> {t('agentDetail.addPlugin')}
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -1107,10 +1281,20 @@ export function AgentDetail() {
               )}
             </CardContent>
           </Card>
+            </motion.div>
+          </AnimatePresence>
         </TabsContent>
 
         {/* ==================== INTEGRATION TAB ==================== */}
         <TabsContent value="integration">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`tab-integration-${activeTab}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
           <div className="space-y-6">
             {/* Quick Start Guide */}
             <Card>
@@ -1229,6 +1413,8 @@ export function AgentDetail() {
               </CardContent>
             </Card>
           </div>
+            </motion.div>
+          </AnimatePresence>
         </TabsContent>
       </Tabs>
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { createAuditLog } from '@/lib/audit';
 
 export async function GET(request: NextRequest) {
   try {
@@ -62,6 +63,17 @@ export async function POST(request: NextRequest) {
         defaultModel: defaultModel || null,
         config: JSON.stringify(config || {}),
       },
+    });
+
+    // Audit log
+    await createAuditLog({
+      userId: user.id,
+      action: 'provider.create',
+      resource: 'provider',
+      resourceId: newProvider.id,
+      details: { name, provider },
+      ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+      userAgent: request.headers.get('user-agent') || undefined,
     });
 
     return NextResponse.json({ provider: newProvider }, { status: 201 });

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface MemoryData {
   memory?: string;
@@ -68,17 +69,17 @@ const SECTIONS = [
 type SectionKey = typeof SECTIONS[number]['key'];
 
 const CATEGORY_COLORS: Record<string, string> = {
-  fact: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
-  preference: 'bg-amber-500/10 text-amber-600 border-amber-200',
-  instruction: 'bg-rose-500/10 text-rose-600 border-rose-200',
-  context: 'bg-cyan-500/10 text-cyan-600 border-cyan-200',
-  note: 'bg-violet-500/10 text-violet-600 border-violet-200',
+  fact: 'bg-blue-500/10 text-blue-600 border-blue-200 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-800',
+  preference: 'bg-purple-500/10 text-purple-600 border-purple-200 dark:bg-purple-500/15 dark:text-purple-400 dark:border-purple-800',
+  instruction: 'bg-orange-500/10 text-orange-600 border-orange-200 dark:bg-orange-500/15 dark:text-orange-400 dark:border-orange-800',
+  context: 'bg-cyan-500/10 text-cyan-600 border-cyan-200 dark:bg-cyan-500/15 dark:text-cyan-400 dark:border-cyan-800',
+  note: 'bg-violet-500/10 text-violet-600 border-violet-200 dark:bg-violet-500/15 dark:text-violet-400 dark:border-violet-800',
 };
 
 const CATEGORY_DOT_COLORS: Record<string, string> = {
-  fact: 'bg-emerald-500',
-  preference: 'bg-amber-500',
-  instruction: 'bg-rose-500',
+  fact: 'bg-blue-500',
+  preference: 'bg-purple-500',
+  instruction: 'bg-orange-500',
   context: 'bg-cyan-500',
   note: 'bg-violet-500',
 };
@@ -381,6 +382,22 @@ export function MemoryView() {
     return translated === key ? cat : translated;
   };
 
+  // Helper: format relative time
+  const formatRelativeTime = useCallback((timestamp: string) => {
+    if (!timestamp) return '';
+    const now = new Date().getTime();
+    const then = new Date(timestamp).getTime();
+    const diff = now - then;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (seconds < 60) return t('memory.justNow');
+    if (minutes < 60) return t('memory.minutesAgo', { count: minutes });
+    if (hours < 24) return t('memory.hoursAgo', { count: hours });
+    return t('memory.daysAgo', { count: days });
+  }, [t]);
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -549,6 +566,36 @@ export function MemoryView() {
                     </Card>
                   )}
 
+                  {/* Category filter buttons */}
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      className={cn(
+                        'px-2.5 py-1 rounded-full text-[11px] font-medium transition-all',
+                        filterCategory === 'all'
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                      )}
+                      onClick={() => setFilterCategory('all')}
+                    >
+                      {t('memory.allCategories')}
+                    </button>
+                    {['fact', 'preference', 'instruction', 'context', 'note'].map(cat => (
+                      <button
+                        key={cat}
+                        className={cn(
+                          'px-2.5 py-1 rounded-full text-[11px] font-medium transition-all flex items-center gap-1',
+                          filterCategory === cat
+                            ? cn(CATEGORY_COLORS[cat], 'shadow-sm ring-1 ring-current/20')
+                            : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                        )}
+                        onClick={() => setFilterCategory(filterCategory === cat ? 'all' : cat)}
+                      >
+                        <span className={cn('w-1.5 h-1.5 rounded-full', CATEGORY_DOT_COLORS[cat])} />
+                        {getCategoryLabel(cat)}
+                      </button>
+                    ))}
+                  </div>
+
                   {/* Search and Filter Bar */}
                   <div className="flex flex-col sm:flex-row gap-3">
                     <div className="relative flex-1">
@@ -560,18 +607,6 @@ export function MemoryView() {
                         className="pl-9"
                       />
                     </div>
-                    <Select value={filterCategory} onValueChange={setFilterCategory}>
-                      <SelectTrigger className="w-[160px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map(cat => (
-                          <SelectItem key={cat} value={cat}>
-                            {cat === 'all' ? t('memory.allCategories') : getCategoryLabel(cat)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                     <Button className="gap-2" onClick={() => { resetForm(); setShowCreateDialog(true); }}>
                       <Plus className="w-4 h-4" /> {t('memory.createEntry')}
                     </Button>
@@ -660,6 +695,7 @@ export function MemoryView() {
                                     </Badge>
                                   </div>
                                   <p className="text-sm text-muted-foreground line-clamp-2">{entry.content}</p>
+                                  <span className="text-[10px] text-muted-foreground/60 mt-1">{formatRelativeTime(entry.createdAt)}</span>
                                 </div>
                                 <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <Button
@@ -724,6 +760,81 @@ export function MemoryView() {
                   </Card>
                 </div>
               ) : (
+                <div className="space-y-4">
+                  {section.key === 'userProfile' && editedContent[section.key] && (
+                    <Card className="p-4">
+                      <p className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5" /> {t('memory.profileCardTitle')}
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {editedContent[section.key].split('\n').filter((l: string) => l.trim()).map((line: string, idx: number) => {
+                          const colonIdx = line.indexOf(':');
+                          const key = colonIdx > 0 ? line.slice(0, colonIdx).trim() : `Line ${idx + 1}`;
+                          const value = colonIdx > 0 ? line.slice(colonIdx + 1).trim() : line.trim();
+                          return (
+                            <div key={idx} className="p-2.5 rounded-lg bg-muted/30 dark:bg-muted/20">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{key}</p>
+                              <p className="text-sm font-medium mt-0.5">{value}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </Card>
+                  )}
+                  {section.key === 'soul' && editedContent[section.key] && (
+                    <div className="space-y-4">
+                      <Card className="p-4">
+                        <p className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-1.5">
+                          <Heart className="w-3.5 h-3.5 text-rose-500" /> {t('memory.soulHealthTitle')}
+                        </p>
+                        <div className="relative h-3 rounded-full overflow-hidden bg-muted dark:bg-muted/80">
+                          <div
+                            className="absolute inset-y-0 left-0 rounded-full"
+                            style={{
+                              width: '85%',
+                              background: 'linear-gradient(90deg, #10b981, #06b6d4, #8b5cf6)',
+                              backgroundSize: '200% 100%',
+                              animation: 'soulHealthGlow 3s ease infinite',
+                            }}
+                          />
+                        </div>
+                        <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
+                          <span>{t('memory.soulStable')}</span>
+                          <span>85%</span>
+                        </div>
+                      </Card>
+                      {editedContent[section.key].split('\n').filter((l: string) => l.trim()).length > 0 && (
+                        <Card className="p-4">
+                          <p className="text-xs font-medium text-muted-foreground mb-3">{t('memory.personalityTraits')}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {editedContent[section.key].split('\n').filter((l: string) => l.trim()).slice(0, 8).map((line: string, idx: number) => {
+                              const colors = ['bg-emerald-500/10 text-emerald-600 border-emerald-200 dark:text-emerald-400 dark:border-emerald-800', 'bg-blue-500/10 text-blue-600 border-blue-200 dark:text-blue-400 dark:border-blue-800', 'bg-purple-500/10 text-purple-600 border-purple-200 dark:text-purple-400 dark:border-purple-800', 'bg-amber-500/10 text-amber-600 border-amber-200 dark:text-amber-400 dark:border-amber-800', 'bg-rose-500/10 text-rose-600 border-rose-200 dark:text-rose-400 dark:border-rose-800', 'bg-cyan-500/10 text-cyan-600 border-cyan-200 dark:text-cyan-400 dark:border-cyan-800', 'bg-orange-500/10 text-orange-600 border-orange-200 dark:text-orange-400 dark:border-orange-800', 'bg-indigo-500/10 text-indigo-600 border-indigo-200 dark:text-indigo-400 dark:border-indigo-800'];
+                              const cleanLine = line.replace(/^[-*•]\s*/, '').trim();
+                              return (
+                                <Badge key={idx} variant="outline" className={cn('text-[11px] gap-1', colors[idx % colors.length])}>
+                                  {cleanLine.length > 20 ? cleanLine.slice(0, 20) + '…' : cleanLine}
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        </Card>
+                      )}
+                    </div>
+                  )}
+                  {section.key !== 'memory' && !editedContent[section.key] && (
+                    <div className="flex flex-col items-center py-12 text-muted-foreground">
+                      <div className="relative mb-4">
+                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-500/10 to-cyan-500/10 flex items-center justify-center">
+                          <section.icon className="w-10 h-10 text-amber-400/60" />
+                        </div>
+                        <div className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                          <Plus className="w-3.5 h-3.5 text-emerald-500" />
+                        </div>
+                      </div>
+                      <p className="text-sm font-medium mb-1">{t('memory.emptyTitle', { tab: t(section.labelKey) })}</p>
+                      <p className="text-xs text-muted-foreground/70 max-w-xs text-center">{t('memory.emptyDesc', { tab: t(section.labelKey) })}</p>
+                    </div>
+                  )}
                 <Card>
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -775,6 +886,7 @@ export function MemoryView() {
                     </div>
                   </CardContent>
                 </Card>
+                </div>
               )}
             </TabsContent>
           ))}

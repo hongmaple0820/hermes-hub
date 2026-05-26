@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { createAuditLog } from '@/lib/audit';
 
 // AgentSkills spec name validation: ^[a-z0-9]+(-[a-z0-9]+)*$
 const SKILL_NAME_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -194,6 +195,17 @@ export async function DELETE(
     }
 
     await db.skill.delete({ where: { id } });
+
+    // Audit log
+    await createAuditLog({
+      userId: user.id,
+      action: 'skill.delete',
+      resource: 'skill',
+      resourceId: id,
+      details: { name: existing.name },
+      ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+      userAgent: request.headers.get('user-agent') || undefined,
+    });
 
     return NextResponse.json({ message: 'Skill deleted successfully' });
   } catch (error) {

@@ -42,7 +42,8 @@
     "refresh": "Refresh",
     "more": "More",
     "view": "View",
-    "details": "Details"
+    "details": "Details",
+    "deleted": "Deleted successfully"
   },
   "auth": {
     "title": "Hermes Hub",
@@ -200,7 +201,15 @@
     "noProviderTitle": "No LLM Provider Configured",
     "noProviderDesc": "Add an LLM provider to start using AI agents. You'll need an API key from OpenAI, Anthropic, Google, or another provider.",
     "setUpProvider": "Set Up Provider",
-    "learnMore": "Learn More"
+    "learnMore": "Learn More",
+    "goodMorning": "Good morning",
+    "goodAfternoon": "Good afternoon",
+    "goodEvening": "Good evening",
+    "welcomeSubtitle": "Welcome to Hermes Hub — your multi-agent collaboration platform",
+    "addProvider": "Add Provider",
+    "startChat": "Start Chat",
+    "viewTerminal": "View Terminal",
+    "openSettings": "Open Settings"
   },
   "agents": {
     "title": "Agents",
@@ -381,7 +390,16 @@
     "protocolV1": "Protocol v1",
     "agentToSkills": "Agent ↔ Skills",
     "skillsToExternal": "Skills ↔ External Agents",
-    "registrationLinkDesc": "Share this link with external agents to register with this agent."
+    "registrationLinkDesc": "Share this link with external agents to register with this agent.",
+    "builtinBadge": "Builtin",
+    "activeNow": "Active",
+    "offline": "Offline",
+    "messagesSent": "Messages Sent",
+    "skillsInstalledLabel": "Skills Installed",
+    "uptimeLabel": "Uptime",
+    "lastActiveLabel": "Last Active",
+    "noSkillsHint": "Add skills to extend your agent's capabilities",
+    "noConnectionsHint": "Connect your agent to external services and protocols"
   },
   "providers": {
     "title": "LLM Providers",
@@ -590,7 +608,8 @@
     "searchPlaceholder": "Search rooms...",
     "noSearchResults": "No matching rooms",
     "tryDifferentSearch": "Try a different search term",
-    "createRoomDesc": "Create a new multi-agent collaboration room"
+    "createRoomDesc": "Create a new multi-agent collaboration room",
+    "noRoomsHint": "Share room codes with team members to collaborate"
   },
   "settingsPage": {
     "title": "Settings",
@@ -673,10 +692,16 @@
     "accountTab": "Account",
     "username": "Username",
     "usernameSaved": "Username saved",
+    "usernameChanged": "Username updated",
+    "usernameChangeFailed": "Username update failed",
     "currentPassword": "Current Password",
     "newPassword": "New Password",
     "changePassword": "Change Password",
     "passwordChanged": "Password changed successfully",
+    "passwordChangeFailed": "Password change failed",
+    "confirmPassword": "Confirm Password",
+    "passwordMismatch": "Passwords do not match",
+    "wrongPassword": "Current password is incorrect",
     "acrpTab": "ACRP",
     "acrp": "ACRP Settings",
     "acrpHeartbeat": "Heartbeat Interval",
@@ -826,7 +851,9 @@
     "noActiveChannels": "No active channels",
     "refreshMetrics": "Refresh Metrics",
     "noData": "No data available",
-    "metricsUnavailable": "Metrics unavailable"
+    "metricsUnavailable": "Metrics unavailable",
+    "disconnect": "Disconnect",
+    "reconnect": "Reconnect"
   },
   "jobs": {
     "title": "Scheduled Jobs",
@@ -868,7 +895,9 @@
     "deleted": "Job deleted",
     "editTitle": "Edit Job",
     "edit": "Edit",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "resumed": "Job resumed",
+    "saved": "Job saved"
   },
   "usage": {
     "title": "Usage Analytics",
@@ -1025,7 +1054,17 @@
     "noEntriesTitle": "No Memory Entries",
     "noEntriesDesc": "Create your first memory entry or edit the raw memory below to get started.",
     "pinned": "Memory pinned",
-    "unpinned": "Memory unpinned"
+    "unpinned": "Memory unpinned",
+    "justNow": "Just now",
+    "minutesAgo": "{count}m ago",
+    "hoursAgo": "{count}h ago",
+    "daysAgo": "{count}d ago",
+    "profileCardTitle": "Profile Overview",
+    "soulHealthTitle": "Soul Health",
+    "soulStable": "Stable",
+    "personalityTraits": "Personality Traits",
+    "emptyTitle": "No {tab} Data",
+    "emptyDesc": "Start writing in the {tab} tab to see visualizations here"
   },
   "logs": {
     "title": "Log Viewer",
@@ -1549,5 +1588,33 @@
       "skillInvoked": "Skill Invoked",
       "capabilityResult": "Capability Result"
     }
+  },
+  "modelBreakdown": "Model Breakdown",
+  "modelBreakdownDesc": "Usage distribution across different models",
+  "templates": {
+    "title": "Conversation Templates",
+    "subtitle": "Quick start preset conversation scenarios",
+    "useTemplate": "Use Template",
+    "createTemplate": "Create Template",
+    "codeReview": "Code Review",
+    "codeReviewDesc": "AI-powered code review and quality checks",
+    "researchAssistant": "Research Assistant",
+    "researchAssistantDesc": "Deep research and information synthesis",
+    "dataAnalysis": "Data Analysis",
+    "dataAnalysisDesc": "Data visualization and insight extraction",
+    "creativeWriting": "Creative Writing",
+    "creativeWritingDesc": "Story, copywriting, and creative content generation",
+    "translation": "Translation",
+    "translationDesc": "Professional multilingual translation service",
+    "debugHelper": "Debug Helper",
+    "debugHelperDesc": "Code debugging and troubleshooting"
+  },
+  "audit": {
+    "title": "Audit Logs",
+    "subtitle": "View system operation records",
+    "action": "Action",
+    "resource": "Resource",
+    "time": "Time",
+    "noLogs": "No audit logs yet"
   }
 }

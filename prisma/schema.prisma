@@ -40,6 +40,8 @@ model User {
   appSettings     AppSettings[]
   oAuthTokens     OAuthToken[]
   skills          Skill[]
+  auditLogs              AuditLog[]
+  conversationTemplates  ConversationTemplate[]
 }
 
 model Friendship {
@@ -647,4 +649,46 @@ model CapabilityInvocation {
   @@index([agentId, createdAt])
   @@index([capabilityId])
   @@index([status])
+}
+
+// ==================== Audit Logging ====================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String   // e.g., "agent.create", "skill.delete", "provider.update", "user.login"
+  resource  String   // e.g., "agent", "skill", "provider"
+  resourceId String? // ID of the affected resource
+  details   String?  // JSON string with additional details
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ==================== Conversation Templates ====================
+
+model ConversationTemplate {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  icon        String?  // emoji icon
+  systemPrompt String?
+  initialMessage String?
+  agentIds    String?  // JSON array of agent IDs to include
+  isPublic    Boolean  @default(false)
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([isPublic])
+  @@map("conversation_templates")
 }

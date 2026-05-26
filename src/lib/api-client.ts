@@ -81,6 +81,14 @@ class ApiClient {
     return this.del<{ message: string }>('/auth/delete-account');
   }
 
+  async changeUsername(username: string) {
+    return this.post<{ user: any }>('/auth/change-username', { username });
+  }
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.post<{ message: string }>('/auth/change-password', { currentPassword, newPassword });
+  }
+
   // Providers
   async getProviders() {
     return this.get<{ providers: any[] }>('/providers');
@@ -618,6 +626,36 @@ class ApiClient {
 
   async continueConversation(conversationId: string, agentId?: string) {
     return this.post<{ conversationId: string; carriedContext: string }>(`/conversations/${conversationId}/continue`, { agentId });
+  }
+
+  // Conversation Templates
+  async getConversationTemplates() {
+    return this.get<{ templates: any[] }>('/conversation-templates');
+  }
+
+  async createConversationTemplate(data: any) {
+    return this.post<{ template: any }>('/conversation-templates', data);
+  }
+
+  async updateConversationTemplate(id: string, data: any) {
+    return this.patch<{ template: any }>(`/conversation-templates/${id}`, data);
+  }
+
+  async deleteConversationTemplate(id: string) {
+    return this.del(`/conversation-templates/${id}`);
+  }
+
+  // Audit Logs
+  async getAuditLogs(params?: { page?: number; limit?: number; action?: string; resource?: string; startDate?: string; endDate?: string }) {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.action) searchParams.set('action', params.action);
+    if (params?.resource) searchParams.set('resource', params.resource);
+    if (params?.startDate) searchParams.set('startDate', params.startDate);
+    if (params?.endDate) searchParams.set('endDate', params.endDate);
+    const query = searchParams.toString();
+    return this.get<{ logs: any[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(`/audit-logs${query ? `?${query}` : ''}`);
   }
 }
 

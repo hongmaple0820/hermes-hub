@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { createAuditLog } from '@/lib/audit';
 
 export async function GET(
   request: NextRequest,
@@ -104,6 +105,17 @@ export async function DELETE(
     }
 
     await db.lLMProvider.delete({ where: { id } });
+
+    // Audit log
+    await createAuditLog({
+      userId: user.id,
+      action: 'provider.delete',
+      resource: 'provider',
+      resourceId: id,
+      details: { name: existing.name, provider: existing.provider },
+      ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+      userAgent: request.headers.get('user-agent') || undefined,
+    });
 
     return NextResponse.json({ message: 'Provider deleted successfully' });
   } catch (error) {

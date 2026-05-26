@@ -42,7 +42,8 @@
     "refresh": "Actualiser",
     "more": "Plus",
     "view": "Voir",
-    "details": "Détails"
+    "details": "Détails",
+    "deleted": "Supprimé avec succès"
   },
   "auth": {
     "title": "Hermes Hub",
@@ -575,7 +576,8 @@
     "searchPlaceholder": "Rechercher des salons...",
     "noSearchResults": "Aucun salon correspondant",
     "tryDifferentSearch": "Essayez un autre terme de recherche",
-    "createRoomDesc": "Creer un nouveau salon de collaboration multi-agent"
+    "createRoomDesc": "Creer un nouveau salon de collaboration multi-agent",
+    "noRoomsHint": "Partagez les codes de salon avec les membres de l'équipe pour collaborer"
   },
   "settingsPage": {
     "title": "Paramètres",
@@ -808,7 +810,9 @@
     "avgLatency": "Latence moyenne",
     "messageFlow": "Flux de messages",
     "messageFlowDesc": "Débit de messages en temps réel sur les canaux connectés",
-    "noActiveChannels": "Aucun canal actif"
+    "noActiveChannels": "Aucun canal actif",
+    "disconnect": "Déconnecter",
+    "reconnect": "Reconnecter"
   },
   "jobs": {
     "title": "Tâches Planifiées",
@@ -852,7 +856,9 @@
     "deleted": "Tâche supprimée",
     "editTitle": "Modifier la Tâche",
     "edit": "Modifier",
-    "saving": "Enregistrement..."
+    "saving": "Enregistrement...",
+    "resumed": "Tâche reprise",
+    "saved": "Tâche enregistrée"
   },
   "usage": {
     "title": "Analyse d'Utilisation",
@@ -1530,5 +1536,7 @@
     "noAcrpAgents": "Aucun Agent ACRP",
     "noAcrpAgentsDesc": "Connectez un agent externe via WebSocket pour commencer",
     "connectAgent": "Connecter un Agent"
-  }
+  },
+  "modelBreakdown": "Répartition des modèles",
+  "modelBreakdownDesc": "Distribution de l'utilisation entre les différents modèles"
 }

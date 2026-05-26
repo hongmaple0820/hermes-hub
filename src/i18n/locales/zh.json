@@ -42,7 +42,8 @@
     "refresh": "刷新",
     "more": "更多",
     "view": "查看",
-    "details": "详情"
+    "details": "详情",
+    "deleted": "删除成功"
   },
   "auth": {
     "title": "Hermes Hub",
@@ -200,7 +201,15 @@
     "noProviderTitle": "未配置 LLM 供应商",
     "noProviderDesc": "添加 LLM 供应商以开始使用 AI 智能体。您需要从 OpenAI、Anthropic、Google 或其他供应商获取 API 密钥。",
     "setUpProvider": "设置供应商",
-    "learnMore": "了解更多"
+    "learnMore": "了解更多",
+    "goodMorning": "早上好",
+    "goodAfternoon": "下午好",
+    "goodEvening": "晚上好",
+    "welcomeSubtitle": "欢迎来到 Hermes Hub — 您的多智能体协作平台",
+    "addProvider": "添加供应商",
+    "startChat": "开始对话",
+    "viewTerminal": "查看终端",
+    "openSettings": "打开设置"
   },
   "agents": {
     "title": "智能体",
@@ -381,7 +390,16 @@
     "protocolV1": "协议 v1",
     "agentToSkills": "智能体 ↔ 技能",
     "skillsToExternal": "技能 ↔ 外部智能体",
-    "registrationLinkDesc": "将此链接分享给外部智能体以注册到此智能体。"
+    "registrationLinkDesc": "将此链接分享给外部智能体以注册到此智能体。",
+    "builtinBadge": "内置",
+    "activeNow": "活跃",
+    "offline": "离线",
+    "messagesSent": "已发送消息",
+    "skillsInstalledLabel": "已安装技能",
+    "uptimeLabel": "运行时间",
+    "lastActiveLabel": "最后活跃",
+    "noSkillsHint": "添加技能以扩展智能体的能力",
+    "noConnectionsHint": "将智能体连接到外部服务和协议"
   },
   "providers": {
     "title": "LLM 供应商",
@@ -590,7 +608,8 @@
     "searchPlaceholder": "搜索房间...",
     "noSearchResults": "没有匹配的房间",
     "tryDifferentSearch": "请尝试不同的搜索词",
-    "createRoomDesc": "创建一个新的多智能体协作房间"
+    "createRoomDesc": "创建一个新的多智能体协作房间",
+    "noRoomsHint": "与团队成员分享房间代码以进行协作"
   },
   "settingsPage": {
     "title": "设置",
@@ -673,10 +692,16 @@
     "accountTab": "账号",
     "username": "用户名",
     "usernameSaved": "用户名已保存",
+    "usernameChanged": "用户名已更新",
+    "usernameChangeFailed": "用户名更新失败",
     "currentPassword": "当前密码",
     "newPassword": "新密码",
     "changePassword": "修改密码",
     "passwordChanged": "密码修改成功",
+    "passwordChangeFailed": "密码修改失败",
+    "confirmPassword": "确认密码",
+    "passwordMismatch": "两次输入的密码不一致",
+    "wrongPassword": "当前密码不正确",
     "acrpTab": "ACRP",
     "acrp": "ACRP 设置",
     "acrpHeartbeat": "心跳间隔",
@@ -826,7 +851,9 @@
     "noActiveChannels": "无活跃渠道",
     "refreshMetrics": "刷新指标",
     "noData": "暂无数据",
-    "metricsUnavailable": "指标不可用"
+    "metricsUnavailable": "指标不可用",
+    "disconnect": "断开连接",
+    "reconnect": "重新连接"
   },
   "jobs": {
     "title": "定时任务",
@@ -868,7 +895,9 @@
     "deleted": "任务已删除",
     "editTitle": "编辑任务",
     "edit": "编辑",
-    "saving": "保存中..."
+    "saving": "保存中...",
+    "resumed": "任务已恢复",
+    "saved": "任务已保存"
   },
   "usage": {
     "title": "用量分析",
@@ -1025,7 +1054,17 @@
     "noEntriesTitle": "暂无记忆条目",
     "noEntriesDesc": "创建您的第一个记忆条目，或编辑下方的原始记忆以开始。",
     "pinned": "记忆已置顶",
-    "unpinned": "记忆已取消置顶"
+    "unpinned": "记忆已取消置顶",
+    "justNow": "刚刚",
+    "minutesAgo": "{count}分钟前",
+    "hoursAgo": "{count}小时前",
+    "daysAgo": "{count}天前",
+    "profileCardTitle": "画像概览",
+    "soulHealthTitle": "灵魂健康度",
+    "soulStable": "稳定",
+    "personalityTraits": "个性特征",
+    "emptyTitle": "无{tab}数据",
+    "emptyDesc": "在{tab}标签中开始编写，以在此处查看可视化效果"
   },
   "logs": {
     "title": "日志查看",
@@ -1549,5 +1588,33 @@
       "skillInvoked": "技能已调用",
       "capabilityResult": "能力结果"
     }
+  },
+  "modelBreakdown": "模型分布",
+  "modelBreakdownDesc": "不同模型的使用量分布",
+  "templates": {
+    "title": "对话模板",
+    "subtitle": "快速启动预设对话场景",
+    "useTemplate": "使用模板",
+    "createTemplate": "创建模板",
+    "codeReview": "代码审查",
+    "codeReviewDesc": "AI 驱动的代码审查和质量检查",
+    "researchAssistant": "研究助手",
+    "researchAssistantDesc": "深度研究和信息综合",
+    "dataAnalysis": "数据分析",
+    "dataAnalysisDesc": "数据可视化和洞察提取",
+    "creativeWriting": "创意写作",
+    "creativeWritingDesc": "故事、文案和创意内容生成",
+    "translation": "语言翻译",
+    "translationDesc": "专业多语言翻译服务",
+    "debugHelper": "调试助手",
+    "debugHelperDesc": "代码调试和问题排查"
+  },
+  "audit": {
+    "title": "审计日志",
+    "subtitle": "查看系统操作记录",
+    "action": "操作",
+    "resource": "资源",
+    "time": "时间",
+    "noLogs": "暂无审计日志"
   }
 }

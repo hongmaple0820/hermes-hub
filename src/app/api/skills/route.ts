@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { createAuditLog } from '@/lib/audit';
 
 // AgentSkills spec name validation: ^[a-z0-9]+(-[a-z0-9]+)*$
 const SKILL_NAME_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -137,6 +138,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Audit log
+    await logSkillCreate(user.id, skill.id, name, request);
+
     return NextResponse.json({
       skill: {
         ...skill,
@@ -158,4 +162,17 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Audit log helper for skill creation
+async function logSkillCreate(userId: string, skillId: string, skillName: string, request: NextRequest) {
+  await createAuditLog({
+    userId,
+    action: 'skill.create',
+    resource: 'skill',
+    resourceId: skillId,
+    details: { name: skillName },
+    ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+    userAgent: request.headers.get('user-agent') || undefined,
+  });
 }
