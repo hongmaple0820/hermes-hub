@@ -87,13 +87,20 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth(request);
+    const user = await requireAuth(request);
     const { id } = await params;
     const body = await request.json();
 
     const existing = await db.skill.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Skill not found' }, { status: 404 });
+    }
+
+    // Ownership check: only the creator or system skills (userId is null) can be modified by the user
+    // System skills (userId is null) can be modified by any authenticated user
+    // User-created skills can only be modified by their owner
+    if (existing.userId !== null && existing.userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden: You do not own this skill' }, { status: 403 });
     }
 
     // If name is being updated, validate it matches AgentSkills spec
@@ -172,12 +179,18 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth(request);
+    const user = await requireAuth(request);
     const { id } = await params;
 
     const existing = await db.skill.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: 'Skill not found' }, { status: 404 });
+    }
+
+    // Ownership check: only the creator can delete their own skills
+    // System skills (userId is null) cannot be deleted by regular users
+    if (existing.userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden: You do not own this skill' }, { status: 403 });
     }
 
     await db.skill.delete({ where: { id } });

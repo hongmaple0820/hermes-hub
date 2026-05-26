@@ -1,26 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 // GET /api/acrp/invocations — List invocation history
 export async function GET(request: NextRequest) {
   try {
+    const user = await requireAuth(request)
     const searchParams = request.nextUrl.searchParams
     const agentId = searchParams.get('agentId')
     const capabilityId = searchParams.get('capabilityId')
     const status = searchParams.get('status')
     const limitParam = searchParams.get('limit')
-    const userId = searchParams.get('userId')
 
     const limit = Math.min(parseInt(limitParam || '50', 10), 200)
 
-    // Build where clause
+    // Build where clause — always scope to user's agents
     const where: Record<string, unknown> = {}
 
     if (agentId) {
       where.agentId = agentId
-    } else if (userId) {
+      // Ensure the agent belongs to the user
+      where.agent = { userId: user.id }
+    } else {
       // If no specific agentId, filter by agents belonging to the user
-      where.agent = { userId }
+      where.agent = { userId: user.id }
     }
 
     if (capabilityId) {
@@ -48,6 +51,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ invocations })
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.error('[ACRP] invocations list error:', error)
     return NextResponse.json(
       { error: 'Failed to list invocations' },

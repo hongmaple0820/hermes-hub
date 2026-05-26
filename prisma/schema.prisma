@@ -39,6 +39,7 @@ model User {
   fileEntries     FileEntry[]
   appSettings     AppSettings[]
   oAuthTokens     OAuthToken[]
+  skills          Skill[]
 }
 
 model Friendship {
@@ -133,6 +134,7 @@ model Agent {
 
 model Skill {
   id            String   @id @default(cuid())
+  userId        String?             // Owner of the skill (null = system/built-in skill)
   name          String   @unique  // Must match ^[a-z0-9]+(-[a-z0-9]+)*$
   displayName   String              // Human-friendly name
   description   String              // 1-1024 chars, required per spec
@@ -178,7 +180,10 @@ model Skill {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  user   User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   agents AgentSkill[]
+
+  @@index([userId])
 }
 
 model AgentSkill {

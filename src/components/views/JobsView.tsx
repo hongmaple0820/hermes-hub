@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -58,6 +58,8 @@ export function JobsView() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
+  const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const [form, setForm] = useState({
@@ -158,6 +160,31 @@ export function JobsView() {
     }
   };
 
+  const handleEdit = async () => {
+    if (!editingJob) return;
+    if (!form.name.trim() || !form.schedule.trim()) {
+      toast.error(t('common.required'));
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await api.updateJob(editingJob.id, {
+        ...form,
+        agentId: form.agentId || undefined,
+        modelOverride: form.modelOverride || undefined,
+        repeatLimit: form.repeatLimit || undefined,
+      });
+      setJobs(jobs.map((j) => j.id === editingJob.id ? result.job : j));
+      setEditingJob(null);
+      setForm({ name: '', description: '', prompt: '', schedule: '0 9 * * *', agentId: '', modelOverride: '', repeatLimit: 0 });
+      toast.success(t('jobs.saved'));
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
@@ -188,6 +215,7 @@ export function JobsView() {
             <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{t('jobs.createTitle')}</DialogTitle>
+                <DialogDescription>{t('jobs.createTitle')}</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 mt-4">
                 <div className="space-y-2">
@@ -377,7 +405,7 @@ export function JobsView() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setEditingJob(job); setForm({ name: job.name, description: job.description || '', prompt: job.prompt, schedule: job.schedule, agentId: job.agentId || '', modelOverride: job.modelOverride || '', repeatLimit: job.repeatLimit || 0 }); }}>
                             <Pencil className="w-4 h-4 mr-2" /> {t('common.edit')}
                           </DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(job.id)}>
@@ -393,6 +421,106 @@ export function JobsView() {
           })}
         </div>
       )}
+
+      {/* Edit Job Dialog */}
+      <Dialog open={!!editingJob} onOpenChange={(open) => { if (!open) setEditingJob(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('jobs.editTitle')}</DialogTitle>
+            <DialogDescription>{t('jobs.editTitle')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>{t('jobs.nameLabel')} *</Label>
+              <Input
+                placeholder={t('jobs.namePlaceholder')}
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('jobs.descriptionLabel')}</Label>
+              <Textarea
+                placeholder={t('jobs.descriptionPlaceholder')}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                rows={2}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('jobs.promptLabel')} *</Label>
+              <Textarea
+                placeholder={t('jobs.promptPlaceholder')}
+                value={form.prompt}
+                onChange={(e) => setForm({ ...form, prompt: e.target.value })}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('jobs.scheduleLabel')} *</Label>
+              <Input
+                placeholder="0 9 * * *"
+                value={form.schedule}
+                onChange={(e) => setForm({ ...form, schedule: e.target.value })}
+                className="font-mono"
+              />
+              <div className="flex flex-wrap gap-2">
+                {SCHEDULE_PRESETS.map((preset) => (
+                  <Button
+                    key={preset.value}
+                    variant={form.schedule === preset.value ? 'default' : 'outline'}
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => setForm({ ...form, schedule: preset.value })}
+                  >
+                    {t(preset.labelKey)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>{t('jobs.agentLabel')}</Label>
+              <Select value={form.agentId} onValueChange={(v) => setForm({ ...form, agentId: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('jobs.agentPlaceholder')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {agents.length === 0 ? (
+                    <SelectItem value="none" disabled>{t('jobs.noAgents')}</SelectItem>
+                  ) : (
+                    agents.map((a: any) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{t('jobs.modelOverride')}</Label>
+                <Input
+                  placeholder={t('jobs.modelOverridePlaceholder')}
+                  value={form.modelOverride}
+                  onChange={(e) => setForm({ ...form, modelOverride: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('jobs.repeatLimit')}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={form.repeatLimit}
+                  onChange={(e) => setForm({ ...form, repeatLimit: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+            <Button onClick={handleEdit} className="w-full" disabled={saving}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              {saving ? t('jobs.saving') : t('common.save')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

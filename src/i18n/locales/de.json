@@ -196,7 +196,11 @@
     "agentResponseTime": "Agent-Antwortzeit",
     "avgResponse": "Durchschnittliche Antwort",
     "normal": "Normal",
-    "activeConnections": "Aktive Verbindungen"
+    "activeConnections": "Aktive Verbindungen",
+    "noProviderTitle": "Kein LLM-Anbieter konfiguriert",
+    "noProviderDesc": "Fügen Sie einen LLM-Anbieter hinzu, um KI-Agenten zu nutzen. Sie benötigen einen API-Schlüssel von OpenAI, Anthropic, Google oder einem anderen Anbieter.",
+    "setUpProvider": "Anbieter einrichten",
+    "learnMore": "Mehr erfahren"
   },
   "agents": {
     "title": "Agenten",
@@ -408,7 +412,11 @@
     "updated": "Anbieter aktualisiert!",
     "saving": "Wird gespeichert...",
     "save": "Änderungen speichern",
-    "isActive": "Aktiv"
+    "isActive": "Aktiv",
+    "addTitleDesc": "Konfigurieren Sie einen neuen LLM-Anbieter mit Ihren API-Zugangsdaten.",
+    "editTitleDesc": "Ändern Sie die Anbieterkonfiguration und API-Einstellungen.",
+    "quickAdd": "Schnell hinzufügen",
+    "quickAddDesc": "Wählen Sie einen beliebten Anbieter für einen schnellen Start"
   },
   "skills": {
     "title": "Skills-Marktplatz",
@@ -723,7 +731,9 @@
     "links": "Links",
     "documentation": "Dokumentation",
     "support": "Support",
-    "accentCyan": "Cyan"
+    "accentCyan": "Cyan",
+    "deleteAccountConfirm": "Geben Sie DELETE zur Bestätigung ein",
+    "deleteAccountWarning": "Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre Daten werden dauerhaft gelöscht."
   },
   "settings": {
     "accountInfo": "Kontoinformationen",
@@ -839,7 +849,10 @@
     "pause": "Pausieren",
     "resume": "Fortsetzen",
     "runStarted": "Aufgabenausführung gestartet",
-    "deleted": "Aufgabe gelöscht"
+    "deleted": "Aufgabe gelöscht",
+    "editTitle": "Aufgabe bearbeiten",
+    "edit": "Bearbeiten",
+    "saving": "Wird gespeichert..."
   },
   "usage": {
     "title": "Nutzungsanalysen",
@@ -859,7 +872,10 @@
     "dailyTrend": "Täglicher Kostentrend",
     "dailyTrendDesc": "Kostentrend über den ausgewählten Zeitraum",
     "cacheHitRate": "Cache-Trefferrate",
-    "cacheHitRateDesc": "Anteil der aus dem Cache bedienten Anfragen"
+    "cacheHitRateDesc": "Anteil der aus dem Cache bedienten Anfragen",
+    "errorTitle": "Nutzungsdaten können nicht geladen werden",
+    "errorDesc": "Die Nutzungsanalysen-API ist derzeit nicht verfügbar. Bitte versuchen Sie es später erneut.",
+    "retry": "Erneut versuchen"
   },
   "analytics": {
     "skillAnalytics": "Skill-Analytik",
@@ -1476,5 +1492,43 @@
       "skillInvoked": "Skill aufgerufen",
       "capabilityResult": "Fähigkeitsergebnis"
     }
+  },
+  "onboarding": {
+    "welcome": "Willkommen bei Hermes Hub!",
+    "welcomeDesc": "Ihre Multi-Agenten-Kollaborationsplattform. Verbinden Sie KI-Agenten, konfigurieren Sie LLM-Anbieter, installieren Sie Skills und starten Sie Chats.",
+    "step1Title": "Willkommen",
+    "step1Desc": "Hermes Hub ist Ihr Kontrollzentrum zur Verwaltung von KI-Agenten. Lassen Sie uns Ihnen alles zeigen!",
+    "step2Title": "Ersten Agenten erstellen",
+    "step2Desc": "Agenten sind Ihre KI-Assistenten. Wählen Sie den integrierten Modus für einen LLM-Anbieter oder den ACRP-Modus, um einen externen Agenten per WebSocket zu verbinden.",
+    "step3Title": "LLM-Anbieter hinzufügen",
+    "step3Desc": "Integrierte Agenten benötigen einen LLM-Anbieter für ihre Antworten. Fügen Sie Ihre OpenAI-, Anthropic-, Google- oder lokalen Ollama-Zugangsdaten hinzu.",
+    "step4Title": "Skills entdecken",
+    "step4Desc": "Der Skill-Marktplatz bietet standardisierte Aktionen für Ihre Agenten. Installieren Sie Skills, um Ihren Agenten Superkräfte zu verleihen!",
+    "getStarted": "Loslegen",
+    "next": "Weiter",
+    "back": "Zurück",
+    "skip": "Überspringen",
+    "finish": "Abschließen",
+    "createAgent": "Agent erstellen",
+    "addProvider": "Anbieter hinzufügen",
+    "browseSkills": "Skills durchsuchen",
+    "builtinMode": "Integrierter Modus",
+    "builtinModeDesc": "Hub führt das LLM direkt über Ihren konfigurierten Anbieter aus",
+    "acrpMode": "ACRP-Modus",
+    "acrpModeDesc": "Externer Agent verbindet sich per WebSocket und registriert Fähigkeiten selbst"
+  },
+  "emptyState": {
+    "noAgents": "Noch keine Agenten",
+    "noAgentsDesc": "Erstellen Sie Ihren ersten KI-Agenten, um zu beginnen",
+    "createFirstAgent": "Ersten Agenten erstellen",
+    "noProviders": "Keine LLM-Anbieter",
+    "noProvidersDesc": "Fügen Sie einen LLM-Anbieter hinzu, um Ihre integrierten Agenten zu betreiben",
+    "addFirstProvider": "Ersten Anbieter hinzufügen",
+    "noConversations": "Keine Konversationen",
+    "noConversationsDesc": "Starten Sie eine Konversation mit einem Ihrer Agenten",
+    "startConversation": "Konversation starten",
+    "noAcrpAgents": "Keine ACRP-Agenten",
+    "noAcrpAgentsDesc": "Verbinden Sie einen externen Agenten per WebSocket, um zu beginnen",
+    "connectAgent": "Agent verbinden"
   }
 }

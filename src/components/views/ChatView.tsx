@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api-client';
@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 import { ContextIndicator } from '@/components/shared/ContextIndicator';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -107,6 +108,14 @@ function MessageBubble({
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const formatFullTimestamp = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleString([], {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+  };
+
   if (isSystem) {
     return (
       <div className="flex justify-center animate-in fade-in duration-200">
@@ -158,7 +167,7 @@ function MessageBubble({
           )}
         </div>
 
-        {/* Timestamp & Status - shown on hover */}
+        {/* Timestamp & Status - shown on hover with full timestamp tooltip */}
         <div
           className={cn(
             'flex items-center gap-1.5 mt-1 transition-opacity duration-150',
@@ -166,9 +175,18 @@ function MessageBubble({
             isUser ? 'justify-end' : 'justify-start'
           )}
         >
-          <span className="text-[10px] text-muted-foreground">
-            {formatTime(msg.createdAt)}
-          </span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-[10px] text-muted-foreground cursor-default">
+                  {formatTime(msg.createdAt)}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                {formatFullTimestamp(msg.createdAt)}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           {isUser && status && (
             <span className="text-muted-foreground">
               {status === 'sent' && <Clock className="w-3 h-3" />}
@@ -311,10 +329,15 @@ function EmptyChatState({ onStartChat }: { onStartChat: () => void }) {
       {/* Agent Cards */}
       {agents.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg mb-6">
-          {agents.slice(0, 4).map((agent: any) => (
-            <Card
+          {agents.slice(0, 4).map((agent: any, index: number) => (
+            <motion.div
               key={agent.id}
-              className="cursor-pointer hover:border-primary/50 transition-colors"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.08, duration: 0.3 }}
+            >
+            <Card
+              className="cursor-pointer hover:border-primary/50 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 rounded-xl"
               onClick={onStartChat}
             >
               <CardContent className="p-4 flex items-center gap-3">
@@ -338,6 +361,7 @@ function EmptyChatState({ onStartChat }: { onStartChat: () => void }) {
                 </div>
               </CardContent>
             </Card>
+            </motion.div>
           ))}
         </div>
       )}
@@ -346,14 +370,17 @@ function EmptyChatState({ onStartChat }: { onStartChat: () => void }) {
       <div className="space-y-2 w-full max-w-md">
         <p className="text-xs text-muted-foreground text-center mb-3">Quick start suggestions</p>
         {suggestions.map((s, i) => (
-          <button
+          <motion.button
             key={i}
-            className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors text-left"
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 + i * 0.06, duration: 0.25 }}
+            className="w-full flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-accent/50 hover:border-primary/30 hover:shadow-sm transition-all duration-200 text-left"
             onClick={onStartChat}
           >
             <span className="text-muted-foreground">{s.icon}</span>
             <span className="text-sm text-muted-foreground">{s.text}</span>
-          </button>
+          </motion.button>
         ))}
       </div>
     </div>
@@ -669,10 +696,10 @@ function ConversationsPanel() {
                 <button
                   onClick={() => setSelectedConversationId(conv.id)}
                   className={cn(
-                    'w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors',
+                    'w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all duration-200',
                     selectedConversationId === conv.id
-                      ? 'bg-accent'
-                      : 'hover:bg-accent/50'
+                      ? 'bg-accent shadow-sm'
+                      : 'hover:bg-accent/50 hover:shadow-sm hover:scale-[1.01]'
                   )}
                 >
                   <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -803,8 +830,16 @@ function ConversationsPanel() {
             <ScrollArea className="flex-1 p-4 md:p-6" ref={scrollAreaRef}>
               <div className="max-w-3xl mx-auto space-y-3">
                 {loadingMessages ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  <div className="space-y-4 py-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className={cn('flex gap-3', i % 2 === 0 ? 'flex-row-reverse' : '')}>
+                        <div className="w-8 h-8 rounded-full bg-muted animate-pulse shrink-0" />
+                        <div className="max-w-[60%] space-y-2">
+                          <div className="h-4 bg-muted rounded-lg animate-pulse" style={{ width: `${60 + i * 15}%` }} />
+                          <div className="h-4 bg-muted rounded-lg animate-pulse" style={{ width: `${40 + i * 10}%` }} />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : messages.length === 0 && !sending ? (
                   <div className="flex flex-col items-center justify-center py-12">

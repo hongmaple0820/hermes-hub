@@ -196,7 +196,11 @@
     "agentResponseTime": "Tempo de resposta do Agent",
     "avgResponse": "Resposta media",
     "normal": "Normal",
-    "activeConnections": "Conexoes ativas"
+    "activeConnections": "Conexoes ativas",
+    "noProviderTitle": "Nenhum Fornecedor LLM Configurado",
+    "noProviderDesc": "Adicione um fornecedor LLM para começar a usar agentes de IA. Você precisará de uma chave API do OpenAI, Anthropic, Google ou outro fornecedor.",
+    "setUpProvider": "Configurar Fornecedor",
+    "learnMore": "Saiba Mais"
   },
   "agents": {
     "title": "Agentes",
@@ -408,7 +412,11 @@
     "updated": "Fornecedor atualizado!",
     "saving": "Salvando...",
     "save": "Salvar Alterações",
-    "isActive": "Ativo"
+    "isActive": "Ativo",
+    "addTitleDesc": "Configure um novo fornecedor LLM com suas credenciais de API.",
+    "editTitleDesc": "Modifique a configuração do fornecedor e as configurações de API.",
+    "quickAdd": "Adição Rápida",
+    "quickAddDesc": "Escolha um fornecedor popular para começar rapidamente"
   },
   "skills": {
     "title": "Mercado de Skills",
@@ -723,7 +731,9 @@
     "links": "Links",
     "documentation": "Documentacao",
     "support": "Suporte",
-    "accentCyan": "Ciano"
+    "accentCyan": "Ciano",
+    "deleteAccountConfirm": "Digite DELETE para confirmar",
+    "deleteAccountWarning": "Esta ação não pode ser desfeita. Todos os seus dados serão excluídos permanentemente."
   },
   "settings": {
     "accountInfo": "Informações da conta",
@@ -839,7 +849,10 @@
     "pause": "Pausar",
     "resume": "Retomar",
     "runStarted": "Execução da tarefa iniciada",
-    "deleted": "Tarefa excluída"
+    "deleted": "Tarefa excluída",
+    "editTitle": "Editar Tarefa",
+    "edit": "Editar",
+    "saving": "Salvando..."
   },
   "usage": {
     "title": "Análise de Uso",
@@ -859,7 +872,10 @@
     "dailyTrend": "Tendência Diária de Custos",
     "dailyTrendDesc": "Tendência de custos no período selecionado",
     "cacheHitRate": "Taxa de Acerto do Cache",
-    "cacheHitRateDesc": "Porcentagem de requisições atendidas pelo cache"
+    "cacheHitRateDesc": "Porcentagem de requisições atendidas pelo cache",
+    "errorTitle": "Não foi Possível Carregar os Dados de Uso",
+    "errorDesc": "A API de análise de uso está atualmente indisponível. Por favor, tente novamente mais tarde.",
+    "retry": "Tentar Novamente"
   },
   "analytics": {
     "skillAnalytics": "Análise de Habilidades",
@@ -1476,5 +1492,43 @@
       "skillInvoked": "Skill invocada",
       "capabilityResult": "Resultado de capacidade"
     }
+  },
+  "onboarding": {
+    "welcome": "Bem-vindo ao Hermes Hub!",
+    "welcomeDesc": "Sua plataforma de colaboração multi-agente. Conecte agentes de IA, configure fornecedores LLM, instale skills e comece a conversar.",
+    "step1Title": "Bem-vindo",
+    "step1Desc": "Hermes Hub é seu centro de comando para gerenciar agentes de IA. Deixe-nos mostrar!",
+    "step2Title": "Crie Seu Primeiro Agente",
+    "step2Desc": "Agentes são seus assistentes de IA. Escolha o modo Integrado para usar um fornecedor LLM, ou o modo ACRP para conectar um agente externo via WebSocket.",
+    "step3Title": "Adicionar Fornecedor LLM",
+    "step3Desc": "Agentes integrados precisam de um fornecedor LLM para gerar respostas. Adicione suas credenciais do OpenAI, Anthropic, Google ou Ollama local.",
+    "step4Title": "Explorar Skills",
+    "step4Desc": "O Mercado de Skills oferece ações padronizadas que seus agentes podem usar. Instale skills para dar superpoderes aos seus agentes!",
+    "getStarted": "Começar",
+    "next": "Próximo",
+    "back": "Voltar",
+    "skip": "Pular",
+    "finish": "Concluir",
+    "createAgent": "Criar Agente",
+    "addProvider": "Adicionar Fornecedor",
+    "browseSkills": "Explorar Skills",
+    "builtinMode": "Modo Integrado",
+    "builtinModeDesc": "O Hub executa o LLM diretamente via seu fornecedor configurado",
+    "acrpMode": "Modo ACRP",
+    "acrpModeDesc": "O agente externo se conecta via WebSocket e registra capacidades automaticamente"
+  },
+  "emptyState": {
+    "noAgents": "Nenhum Agente Ainda",
+    "noAgentsDesc": "Crie seu primeiro agente de IA para começar a colaborar",
+    "createFirstAgent": "Criar Primeiro Agente",
+    "noProviders": "Nenhum Fornecedor LLM",
+    "noProvidersDesc": "Adicione um fornecedor LLM para alimentar seus agentes integrados",
+    "addFirstProvider": "Adicionar Primeiro Fornecedor",
+    "noConversations": "Nenhuma Conversa",
+    "noConversationsDesc": "Inicie uma conversa com um dos seus agentes",
+    "startConversation": "Iniciar Conversa",
+    "noAcrpAgents": "Nenhum Agente ACRP",
+    "noAcrpAgentsDesc": "Conecte um agente externo via WebSocket para começar",
+    "connectAgent": "Conectar Agente"
   }
 }

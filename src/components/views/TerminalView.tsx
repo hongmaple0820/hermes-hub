@@ -12,6 +12,7 @@ import {
   Circle, CheckCircle2, XCircle, AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAppStore } from '@/lib/store';
 import { toast } from 'sonner';
 
 // xterm.js imports
@@ -83,6 +84,7 @@ const QUICK_COMMAND_CATEGORIES = [
 
 export function TerminalView() {
   const { t } = useI18n();
+  const { user } = useAppStore();
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [sessions, setSessions] = useState<TerminalSession[]>([]);
@@ -183,7 +185,8 @@ export function TerminalView() {
 
     try {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/?XTransformPort=3004&token=hermes-user`;
+      const userId = user?.id || '';
+      const wsUrl = `${protocol}//${window.location.host}/?XTransformPort=3004&token=${encodeURIComponent(userId)}`;
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -192,8 +195,8 @@ export function TerminalView() {
         wsRef.current = ws;
         toast.success(t('terminal.connected'));
 
-        // Send auth message
-        ws.send(JSON.stringify({ type: 'auth', userId: 'hermes-user' }));
+        // Send auth message with actual user ID
+        ws.send(JSON.stringify({ type: 'auth', userId }));
       };
 
       ws.onmessage = (event) => {
@@ -218,7 +221,7 @@ export function TerminalView() {
       setConnecting(false);
       toast.error(t('terminal.connectionFailed'));
     }
-  }, [handleWsMessage, t]);
+  }, [handleWsMessage, t, user]);
 
   const disconnectWebSocket = useCallback(() => {
     if (wsRef.current) {

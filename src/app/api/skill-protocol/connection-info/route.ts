@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 /**
@@ -9,16 +10,21 @@ import { db } from '@/lib/db'
  */
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id')
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const user = await requireAuth(request)
 
     const agentId = request.nextUrl.searchParams.get('agentId')
     const skillId = request.nextUrl.searchParams.get('skillId')
 
     if (!agentId || !skillId) {
       return NextResponse.json({ error: 'Missing agentId or skillId' }, { status: 400 })
+    }
+
+    // Verify the agent belongs to the authenticated user
+    const agent = await db.agent.findFirst({
+      where: { id: agentId, userId: user.id },
+    })
+    if (!agent) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 })
     }
 
     const agentSkill = await db.agentSkill.findUnique({
@@ -54,6 +60,9 @@ export async function GET(request: NextRequest) {
       connectionMode: 'websocket',
     })
   } catch (error: any) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.error('[SkillProtocol:ConnectionInfo] Error:', error)
     return NextResponse.json(
       { error: error.message || 'Failed to get connection info' },

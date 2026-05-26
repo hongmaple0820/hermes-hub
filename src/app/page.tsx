@@ -34,6 +34,7 @@ import { NotificationPanel } from '@/components/shared/NotificationPanel';
 // Error boundary - must be a class component to catch render errors
 // Using React.Component pattern to avoid naming conflicts with named imports
 import React from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 
 class ViewErrorBoundary extends React.Component<{
   children: React.ReactNode;
@@ -366,7 +367,18 @@ function AppContent() {
           </div>
         ) : (
           <ViewErrorBoundary viewName={currentView}>
-            <div key={currentView} className="animate-in fade-in">{renderView()}</div>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentView}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                className="h-full"
+              >
+                {renderView()}
+              </motion.div>
+            </AnimatePresence>
           </ViewErrorBoundary>
         )}
       </main>

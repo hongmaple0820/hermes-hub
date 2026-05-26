@@ -196,7 +196,11 @@
     "agentResponseTime": "Agent 응답 시간",
     "avgResponse": "평균 응답",
     "normal": "정상",
-    "activeConnections": "활성 연결"
+    "activeConnections": "활성 연결",
+    "noProviderTitle": "LLM 프로바이더 미구성",
+    "noProviderDesc": "AI 에이전트를 사용하려면 LLM 프로바이더를 추가하세요. OpenAI, Anthropic, Google 또는 다른 프로바이더의 API 키가 필요합니다.",
+    "setUpProvider": "프로바이더 설정",
+    "learnMore": "자세히 보기"
   },
   "agents": {
     "title": "에이전트",
@@ -408,7 +412,11 @@
     "updated": "프로바이더 업데이트됨!",
     "saving": "저장 중...",
     "save": "변경 저장",
-    "isActive": "활성"
+    "isActive": "활성",
+    "addTitleDesc": "API 자격 증명으로 새 LLM 프로바이더를 구성합니다.",
+    "editTitleDesc": "프로바이더 구성 및 API 설정을 수정합니다.",
+    "quickAdd": "빠른 추가",
+    "quickAddDesc": "인기 프로바이더를 선택하여 빠르게 시작하세요"
   },
   "skills": {
     "title": "스킬 마켓",
@@ -723,7 +731,9 @@
     "links": "링크",
     "documentation": "문서",
     "support": "지원",
-    "accentCyan": "시안"
+    "accentCyan": "시안",
+    "deleteAccountConfirm": "확인하려면 DELETE를 입력하세요",
+    "deleteAccountWarning": "이 작업은 되돌릴 수 없습니다. 모든 데이터가 영구적으로 삭제됩니다."
   },
   "settings": {
     "accountInfo": "계정 정보",
@@ -839,7 +849,10 @@
     "pause": "일시정지",
     "resume": "재개",
     "runStarted": "작업 실행이 시작되었습니다",
-    "deleted": "작업이 삭제되었습니다"
+    "deleted": "작업이 삭제되었습니다",
+    "editTitle": "작업 편집",
+    "edit": "편집",
+    "saving": "저장 중..."
   },
   "usage": {
     "title": "사용량 분석",
@@ -859,7 +872,10 @@
     "dailyTrend": "일일 비용 추이",
     "dailyTrendDesc": "선택 기간의 비용 추이",
     "cacheHitRate": "캐시 적중률",
-    "cacheHitRateDesc": "캐시에서 제공된 요청 비율"
+    "cacheHitRateDesc": "캐시에서 제공된 요청 비율",
+    "errorTitle": "사용량 데이터를 불러올 수 없습니다",
+    "errorDesc": "사용량 분석 API를 현재 사용할 수 없습니다. 나중에 다시 시도해 주세요.",
+    "retry": "다시 시도"
   },
   "analytics": {
     "skillAnalytics": "스킬 분석",
@@ -1476,5 +1492,43 @@
       "skillInvoked": "스킬 호출",
       "capabilityResult": "기능 결과"
     }
+  },
+  "onboarding": {
+    "welcome": "Hermes Hub에 오신 것을 환영합니다!",
+    "welcomeDesc": "멀티 에이전트 협업 플랫폼입니다. AI 에이전트 연결, LLM 프로바이더 구성, 스킬 설치 및 채팅을 시작할 수 있습니다.",
+    "step1Title": "환영합니다",
+    "step1Desc": "Hermes Hub는 AI 에이전트를 관리하는 명령 센터입니다. 둘러보겠습니다!",
+    "step2Title": "첫 에이전트 생성",
+    "step2Desc": "에이전트는 AI 어시스턴트입니다. 내장 모드로 LLM 프로바이더를 사용하거나 ACRP 모드로 WebSocket을 통해 외부 에이전트를 연결할 수 있습니다.",
+    "step3Title": "LLM 프로바이더 추가",
+    "step3Desc": "내장 에이전트는 응답을 생성하기 위해 LLM 프로바이더가 필요합니다. OpenAI, Anthropic, Google 또는 로컬 Ollama 자격 증명을 추가하세요.",
+    "step4Title": "스킬 탐색",
+    "step4Desc": "스킬 마켓플레이스는 에이전트가 사용할 수 있는 표준화된 액션을 제공합니다. 스킬을 설치하여 에이전트에 강력한 기능을 부여하세요!",
+    "getStarted": "시작하기",
+    "next": "다음",
+    "back": "이전",
+    "skip": "건너뛰기",
+    "finish": "완료",
+    "createAgent": "에이전트 생성",
+    "addProvider": "프로바이더 추가",
+    "browseSkills": "스킬 둘러보기",
+    "builtinMode": "내장 모드",
+    "builtinModeDesc": "Hub가 구성된 프로바이더를 통해 LLM을 직접 실행합니다",
+    "acrpMode": "ACRP 모드",
+    "acrpModeDesc": "외부 에이전트가 WebSocket으로 연결하고 능력을 자체 등록합니다"
+  },
+  "emptyState": {
+    "noAgents": "에이전트 없음",
+    "noAgentsDesc": "첫 AI 에이전트를 만들어 협업을 시작하세요",
+    "createFirstAgent": "첫 에이전트 생성",
+    "noProviders": "LLM 프로바이더 없음",
+    "noProvidersDesc": "내장 에이전트를 구동하려면 LLM 프로바이더를 추가하세요",
+    "addFirstProvider": "첫 프로바이더 추가",
+    "noConversations": "대화 없음",
+    "noConversationsDesc": "에이전트와 대화를 시작하세요",
+    "startConversation": "대화 시작",
+    "noAcrpAgents": "ACRP 에이전트 없음",
+    "noAcrpAgentsDesc": "WebSocket으로 외부 에이전트를 연결하여 시작하세요",
+    "connectAgent": "에이전트 연결"
   }
 }

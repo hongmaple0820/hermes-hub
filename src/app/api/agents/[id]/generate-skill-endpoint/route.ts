@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { generateEndpointToken, generateCallbackSecret } from '@/lib/skill-protocol'
 
@@ -13,15 +14,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireAuth(request)
     const { id: agentId } = await params
-    const userId = request.headers.get('x-user-id')
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
 
     // Verify agent belongs to user
     const agent = await db.agent.findFirst({
-      where: { id: agentId, userId },
+      where: { id: agentId, userId: user.id },
     })
     if (!agent) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 })
@@ -94,6 +92,9 @@ export async function POST(
 
     return NextResponse.json({ error: 'Must specify skillId or pluginId' }, { status: 400 })
   } catch (error: any) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.error('[Agent:GenerateSkillEndpoint] Error:', error)
     return NextResponse.json({ error: error.message || 'Endpoint generation failed' }, { status: 500 })
   }

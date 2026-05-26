@@ -731,7 +731,9 @@
     "links": "链接",
     "documentation": "文档",
     "support": "支持",
-    "accentCyan": "青色"
+    "accentCyan": "青色",
+    "deleteAccountConfirm": "输入 DELETE 确认",
+    "deleteAccountWarning": "此操作无法撤销，您的所有数据将被永久删除。"
   },
   "settings": {
     "accountInfo": "账户信息",
@@ -845,7 +847,10 @@
     "pause": "暂停",
     "resume": "恢复",
     "runStarted": "任务执行已开始",
-    "deleted": "任务已删除"
+    "deleted": "任务已删除",
+    "editTitle": "编辑任务",
+    "edit": "编辑",
+    "saving": "保存中..."
   },
   "usage": {
     "title": "用量分析",
@@ -865,7 +870,10 @@
     "dailyTrend": "每日费用趋势",
     "dailyTrendDesc": "所选时间段的费用趋势",
     "cacheHitRate": "缓存命中率",
-    "cacheHitRateDesc": "从缓存中响应的请求占比"
+    "cacheHitRateDesc": "从缓存中响应的请求占比",
+    "errorTitle": "无法加载使用量数据",
+    "errorDesc": "使用量分析 API 当前不可用，请稍后重试。",
+    "retry": "重试"
   },
   "analytics": {
     "skillAnalytics": "技能分析",

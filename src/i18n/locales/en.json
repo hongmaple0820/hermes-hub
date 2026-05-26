@@ -731,7 +731,9 @@
     "links": "Links",
     "documentation": "Documentation",
     "support": "Support",
-    "accentCyan": "Cyan"
+    "accentCyan": "Cyan",
+    "deleteAccountConfirm": "Type DELETE to confirm",
+    "deleteAccountWarning": "This action cannot be undone. All your data will be permanently deleted."
   },
   "settings": {
     "accountInfo": "Account Information",
@@ -845,7 +847,10 @@
     "pause": "Pause",
     "resume": "Resume",
     "runStarted": "Job execution started",
-    "deleted": "Job deleted"
+    "deleted": "Job deleted",
+    "editTitle": "Edit Job",
+    "edit": "Edit",
+    "saving": "Saving..."
   },
   "usage": {
     "title": "Usage Analytics",
@@ -865,7 +870,10 @@
     "dailyTrend": "Daily Cost Trend",
     "dailyTrendDesc": "Cost trend over selected period",
     "cacheHitRate": "Cache Hit Rate",
-    "cacheHitRateDesc": "Percentage of requests served from cache"
+    "cacheHitRateDesc": "Percentage of requests served from cache",
+    "errorTitle": "Unable to Load Usage Data",
+    "errorDesc": "The usage analytics API is currently unavailable. Please try again later.",
+    "retry": "Retry"
   },
   "analytics": {
     "skillAnalytics": "Skill Analytics",

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api-client';
 import { useI18n } from '@/i18n';
@@ -13,8 +13,9 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Bot, Plus, Trash2, Eye, MoreHorizontal, Pencil, Search, Wifi, WifiOff, Clock, Sparkles, AlertTriangle } from 'lucide-react';
+import { Bot, Plus, Trash2, Eye, MoreHorizontal, Pencil, Search, Wifi, WifiOff, Clock, Sparkles, AlertTriangle, LayoutGrid, List } from 'lucide-react';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { motion, AnimatePresence } from 'framer-motion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -59,6 +60,7 @@ const AGENT_EMOJIS: Record<string, string> = {
 };
 
 type FilterMode = 'all' | 'builtin' | 'acrp';
+type ViewLayout = 'grid' | 'list';
 
 export function AgentManager() {
   const { agents, setAgents, providers, setCurrentView, setSelectedAgentId } = useAppStore();
@@ -72,7 +74,17 @@ export function AgentManager() {
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const [viewLayout, setViewLayout] = useState<ViewLayout>('grid');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Search debounce (300ms)
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [searchQuery]);
 
   // Delete confirmation
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -234,9 +246,9 @@ export function AgentManager() {
     }
   };
 
-  // Filter & search agents
+  // Filter & search agents (using debounced search)
   const filteredAgents = agents.filter((agent: any) => {
-    const matchesSearch = !searchQuery || agent.name.toLowerCase().includes(searchQuery.toLowerCase()) || (agent.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = !debouncedSearch || agent.name.toLowerCase().includes(debouncedSearch.toLowerCase()) || (agent.description || '').toLowerCase().includes(debouncedSearch.toLowerCase());
     const matchesFilter = filterMode === 'all' || agent.mode === filterMode;
     return matchesSearch && matchesFilter;
   });
@@ -271,10 +283,10 @@ export function AgentManager() {
     return 'offline';
   };
 
-  const statusDotColors: Record<string, string> = {
+  const statusDotClasses: Record<string, string> = {
     online: 'bg-emerald-500',
-    busy: 'bg-amber-500',
-    error: 'bg-red-500',
+    busy: 'bg-amber-500 animate-pulse',
+    error: 'bg-red-500 animate-pulse',
     offline: 'bg-gray-300',
   };
 
@@ -461,6 +473,25 @@ export function AgentManager() {
         <span className="text-xs text-muted-foreground">
           {filteredAgents.length} {filteredAgents.length === 1 ? 'agent' : 'agents'}
         </span>
+        {/* Grid/List toggle */}
+        <div className="flex items-center gap-1 ml-auto">
+          <Button
+            variant={viewLayout === 'grid' ? 'default' : 'outline'}
+            size="icon"
+            className="w-8 h-8"
+            onClick={() => setViewLayout('grid')}
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </Button>
+          <Button
+            variant={viewLayout === 'list' ? 'default' : 'outline'}
+            size="icon"
+            className="w-8 h-8"
+            onClick={() => setViewLayout('list')}
+          >
+            <List className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Edit Dialog */}
@@ -573,8 +604,13 @@ export function AgentManager() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredAgents.map((agent: any) => {
+        <div className={cn(
+          viewLayout === 'grid'
+            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
+            : 'flex flex-col gap-3'
+        )}>
+          <AnimatePresence mode="popLayout">
+          {filteredAgents.map((agent: any, index: number) => {
             const statusKey = getStatusDot(agent);
             const lastActive = formatLastActive(agent);
             const isAcrp = agent.mode === 'acrp';
@@ -583,9 +619,22 @@ export function AgentManager() {
             const agentEmoji = isAcrp ? (AGENT_EMOJIS[agent.agentType] || AGENT_EMOJIS['custom']) : null;
 
             return (
-              <Card
+              <motion.div
                 key={agent.id}
-                className="group relative overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-1 hover:scale-[1.01]"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ delay: index * 0.04, duration: 0.25 }}
+                layout
+              >
+              <Card
+                className={cn(
+                  'group relative overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-1 hover:scale-[1.01] rounded-xl',
+                  viewLayout === 'list' && 'hover:-translate-y-0 hover:scale-[1.003]',
+                  isAcrp
+                    ? 'bg-gradient-to-br from-card to-cyan-500/5'
+                    : 'bg-gradient-to-br from-card to-emerald-500/5'
+                )}
               >
                 {/* Gradient top border */}
                 <div className={cn('h-1 w-full', modeGradients[agent.mode] || 'bg-gradient-to-r from-gray-400 to-gray-300')} />
@@ -620,9 +669,14 @@ export function AgentManager() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      {/* Status indicator */}
+                      {/* Status indicator with pulse */}
                       <div className="flex items-center gap-1.5">
-                        <div className={cn('w-2 h-2 rounded-full', statusDotColors[statusKey])} />
+                        <span className="relative flex h-2.5 w-2.5">
+                          {statusKey === 'online' && (
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                          )}
+                          <span className={cn('relative inline-flex rounded-full h-2.5 w-2.5 shrink-0', statusDotClasses[statusKey])} />
+                        </span>
                         {isAcrp && (
                           <Badge
                             variant="outline"
@@ -702,8 +756,10 @@ export function AgentManager() {
                   </div>
                 </CardContent>
               </Card>
+              </motion.div>
             );
           })}
+          </AnimatePresence>
         </div>
       )}
     </div>

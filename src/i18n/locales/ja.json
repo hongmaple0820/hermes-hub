@@ -196,7 +196,11 @@
     "agentResponseTime": "Agent応答時間",
     "avgResponse": "平均応答",
     "normal": "正常",
-    "activeConnections": "アクティブ接続"
+    "activeConnections": "アクティブ接続",
+    "noProviderTitle": "LLMプロバイダー未設定",
+    "noProviderDesc": "AIエージェントを使用するにはLLMプロバイダーを追加してください。OpenAI、Anthropic、Google、または他のプロバイダーのAPIキーが必要です。",
+    "setUpProvider": "プロバイダーを設定",
+    "learnMore": "詳しく見る"
   },
   "agents": {
     "title": "エージェント",
@@ -408,7 +412,11 @@
     "updated": "プロバイダーを更新しました！",
     "saving": "保存中...",
     "save": "変更を保存",
-    "isActive": "アクティブ"
+    "isActive": "アクティブ",
+    "addTitleDesc": "API認証情報で新しいLLMプロバイダーを設定します。",
+    "editTitleDesc": "プロバイダーの設定とAPI設定を変更します。",
+    "quickAdd": "クイック追加",
+    "quickAddDesc": "人気のプロバイダーを選んですぐに始めましょう"
   },
   "skills": {
     "title": "スキルマーケット",
@@ -723,7 +731,9 @@
     "links": "リンク",
     "documentation": "ドキュメント",
     "support": "サポート",
-    "accentCyan": "シアン"
+    "accentCyan": "シアン",
+    "deleteAccountConfirm": "確認のために DELETE と入力してください",
+    "deleteAccountWarning": "この操作は取り消せません。すべてのデータが完全に削除されます。"
   },
   "settings": {
     "accountInfo": "アカウント情報",
@@ -839,7 +849,10 @@
     "pause": "一時停止",
     "resume": "再開",
     "runStarted": "ジョブ実行を開始しました",
-    "deleted": "ジョブを削除しました"
+    "deleted": "ジョブを削除しました",
+    "editTitle": "ジョブを編集",
+    "edit": "編集",
+    "saving": "保存中..."
   },
   "usage": {
     "title": "使用量分析",
@@ -859,7 +872,10 @@
     "dailyTrend": "日次コスト推移",
     "dailyTrendDesc": "選択期間のコスト推移",
     "cacheHitRate": "キャッシュヒット率",
-    "cacheHitRateDesc": "キャッシュから提供されたリクエストの割合"
+    "cacheHitRateDesc": "キャッシュから提供されたリクエストの割合",
+    "errorTitle": "使用量データを読み込めません",
+    "errorDesc": "使用量分析APIは現在利用できません。後でもう一度お試しください。",
+    "retry": "再試行"
   },
   "analytics": {
     "skillAnalytics": "スキル分析",
@@ -1476,5 +1492,43 @@
       "skillInvoked": "スキル実行",
       "capabilityResult": "機能結果"
     }
+  },
+  "onboarding": {
+    "welcome": "Hermes Hubへようこそ！",
+    "welcomeDesc": "マルチエージェントコラボレーションプラットフォーム。AIエージェントの接続、LLMプロバイダーの設定、スキルのインストール、チャットの開始ができます。",
+    "step1Title": "ようこそ",
+    "step1Desc": "Hermes HubはAIエージェントを管理するコマンドセンターです。ご案内しましょう！",
+    "step2Title": "最初のエージェントを作成",
+    "step2Desc": "エージェントはあなたのAIアシスタントです。内蔵モードでLLMプロバイダーを使用するか、ACRPモードでWebSocket経由で外部エージェントを接続できます。",
+    "step3Title": "LLMプロバイダーを追加",
+    "step3Desc": "内蔵エージェントは応答の生成にLLMプロバイダーが必要です。OpenAI、Anthropic、Google、またはローカルのOllamaの認証情報を追加してください。",
+    "step4Title": "スキルを探索",
+    "step4Desc": "スキルマーケットプレイスではエージェントが使用できる標準化されたアクションを提供しています。スキルをインストールしてエージェントを強化しましょう！",
+    "getStarted": "始めましょう",
+    "next": "次へ",
+    "back": "戻る",
+    "skip": "スキップ",
+    "finish": "完了",
+    "createAgent": "エージェントを作成",
+    "addProvider": "プロバイダーを追加",
+    "browseSkills": "スキルを閲覧",
+    "builtinMode": "内蔵モード",
+    "builtinModeDesc": "Hubが設定済みプロバイダー経由でLLMを直接実行します",
+    "acrpMode": "ACRPモード",
+    "acrpModeDesc": "外部エージェントがWebSocketで接続し、能力を自己登録します"
+  },
+  "emptyState": {
+    "noAgents": "エージェントがありません",
+    "noAgentsDesc": "最初のAIエージェントを作成してコラボレーションを始めましょう",
+    "createFirstAgent": "最初のエージェントを作成",
+    "noProviders": "LLMプロバイダーがありません",
+    "noProvidersDesc": "内蔵エージェントを動かすにはLLMプロバイダーを追加してください",
+    "addFirstProvider": "最初のプロバイダーを追加",
+    "noConversations": "会話がありません",
+    "noConversationsDesc": "エージェントとの会話を始めましょう",
+    "startConversation": "会話を開始",
+    "noAcrpAgents": "ACRPエージェントがありません",
+    "noAcrpAgentsDesc": "WebSocket経由で外部エージェントを接続して始めましょう",
+    "connectAgent": "エージェントを接続"
   }
 }

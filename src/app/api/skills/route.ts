@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
 
     const skill = await db.skill.create({
       data: {
+        userId: user.id,
         name,
         displayName,
         description,

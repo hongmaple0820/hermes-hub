@@ -196,7 +196,11 @@
     "agentResponseTime": "Temps de reponse de l Agent",
     "avgResponse": "Reponse moyenne",
     "normal": "Normal",
-    "activeConnections": "Connexions actives"
+    "activeConnections": "Connexions actives",
+    "noProviderTitle": "Aucun Fournisseur LLM Configuré",
+    "noProviderDesc": "Ajoutez un fournisseur LLM pour commencer à utiliser les agents IA. Vous aurez besoin d'une clé API d'OpenAI, Anthropic, Google ou d'un autre fournisseur.",
+    "setUpProvider": "Configurer le Fournisseur",
+    "learnMore": "En Savoir Plus"
   },
   "agents": {
     "title": "Agents",
@@ -408,7 +412,11 @@
     "updated": "Fournisseur mis à jour !",
     "saving": "Enregistrement...",
     "save": "Enregistrer les Modifications",
-    "isActive": "Actif"
+    "isActive": "Actif",
+    "addTitleDesc": "Configurez un nouveau fournisseur LLM avec vos identifiants API.",
+    "editTitleDesc": "Modifiez la configuration du fournisseur et les paramètres API.",
+    "quickAdd": "Ajout Rapide",
+    "quickAddDesc": "Choisissez un fournisseur populaire pour démarrer rapidement"
   },
   "skills": {
     "title": "Marché des Skills",
@@ -723,7 +731,9 @@
     "links": "Liens",
     "documentation": "Documentation",
     "support": "Support",
-    "accentCyan": "Cyan"
+    "accentCyan": "Cyan",
+    "deleteAccountConfirm": "Tapez DELETE pour confirmer",
+    "deleteAccountWarning": "Cette action est irréversible. Toutes vos données seront définitivement supprimées."
   },
   "settings": {
     "accountInfo": "Informations du compte",
@@ -839,7 +849,10 @@
     "pause": "Pause",
     "resume": "Reprendre",
     "runStarted": "Exécution de la tâche démarrée",
-    "deleted": "Tâche supprimée"
+    "deleted": "Tâche supprimée",
+    "editTitle": "Modifier la Tâche",
+    "edit": "Modifier",
+    "saving": "Enregistrement..."
   },
   "usage": {
     "title": "Analyse d'Utilisation",
@@ -859,7 +872,10 @@
     "dailyTrend": "Tendance Quotidienne des Coûts",
     "dailyTrendDesc": "Tendance des coûts sur la période sélectionnée",
     "cacheHitRate": "Taux de Succès du Cache",
-    "cacheHitRateDesc": "Pourcentage de requêtes servies depuis le cache"
+    "cacheHitRateDesc": "Pourcentage de requêtes servies depuis le cache",
+    "errorTitle": "Impossible de Charger les Données d'Utilisation",
+    "errorDesc": "L'API d'analyse d'utilisation est actuellement indisponible. Veuillez réessayer plus tard.",
+    "retry": "Réessayer"
   },
   "analytics": {
     "skillAnalytics": "Analyse des Compétences",
@@ -1476,5 +1492,43 @@
       "skillInvoked": "Compétence invoquée",
       "capabilityResult": "Résultat de capacité"
     }
+  },
+  "onboarding": {
+    "welcome": "Bienvenue sur Hermes Hub !",
+    "welcomeDesc": "Votre plateforme de collaboration multi-agents. Connectez des agents IA, configurez des fournisseurs LLM, installez des skills et commencez à discuter.",
+    "step1Title": "Bienvenue",
+    "step1Desc": "Hermes Hub est votre centre de commande pour gérer les agents IA. Laissez-nous vous faire visiter !",
+    "step2Title": "Créez Votre Premier Agent",
+    "step2Desc": "Les agents sont vos assistants IA. Choisissez le mode Intégré pour utiliser un fournisseur LLM, ou le mode ACRP pour connecter un agent externe via WebSocket.",
+    "step3Title": "Ajouter un Fournisseur LLM",
+    "step3Desc": "Les agents intégrés nécessitent un fournisseur LLM pour générer des réponses. Ajoutez vos identifiants OpenAI, Anthropic, Google ou Ollama local.",
+    "step4Title": "Explorer les Skills",
+    "step4Desc": "Le Marché des Skills offre des actions standardisées que vos agents peuvent utiliser. Installez des skills pour donner des super-pouvoirs à vos agents !",
+    "getStarted": "Commencer",
+    "next": "Suivant",
+    "back": "Précédent",
+    "skip": "Passer",
+    "finish": "Terminer",
+    "createAgent": "Créer un Agent",
+    "addProvider": "Ajouter un Fournisseur",
+    "browseSkills": "Parcourir les Skills",
+    "builtinMode": "Mode Intégré",
+    "builtinModeDesc": "Le Hub exécute le LLM directement via votre fournisseur configuré",
+    "acrpMode": "Mode ACRP",
+    "acrpModeDesc": "L'agent externe se connecte via WebSocket et enregistre ses capacités automatiquement"
+  },
+  "emptyState": {
+    "noAgents": "Aucun Agent",
+    "noAgentsDesc": "Créez votre premier agent IA pour commencer à collaborer",
+    "createFirstAgent": "Créer le Premier Agent",
+    "noProviders": "Aucun Fournisseur LLM",
+    "noProvidersDesc": "Ajoutez un fournisseur LLM pour alimenter vos agents intégrés",
+    "addFirstProvider": "Ajouter le Premier Fournisseur",
+    "noConversations": "Aucune Conversation",
+    "noConversationsDesc": "Démarrez une conversation avec l'un de vos agents",
+    "startConversation": "Démarrer une Conversation",
+    "noAcrpAgents": "Aucun Agent ACRP",
+    "noAcrpAgentsDesc": "Connectez un agent externe via WebSocket pour commencer",
+    "connectAgent": "Connecter un Agent"
   }
 }

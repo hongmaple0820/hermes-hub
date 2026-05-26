@@ -77,6 +77,10 @@ class ApiClient {
     return this.get<{ user: any }>('/auth/me');
   }
 
+  async deleteAccount() {
+    return this.del<{ message: string }>('/auth/delete-account');
+  }
+
   // Providers
   async getProviders() {
     return this.get<{ providers: any[] }>('/providers');

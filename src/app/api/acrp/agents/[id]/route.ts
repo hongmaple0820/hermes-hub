@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 // GET /api/acrp/agents/[id] — Get single agent details with capabilities
@@ -7,6 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireAuth(request)
     const { id } = await params
 
     const agent = await db.agent.findUnique({
@@ -20,6 +22,11 @@ export async function GET(
 
     if (!agent) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 })
+    }
+
+    // Verify agent belongs to the authenticated user
+    if (agent.userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     if (!agent.agentToken) {
@@ -57,6 +64,9 @@ export async function GET(
       liveStatus,
     })
   } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.error('[ACRP] agent detail error:', error)
     return NextResponse.json(
       { error: 'Failed to get agent details' },

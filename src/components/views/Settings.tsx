@@ -126,6 +126,12 @@ export function Settings({ onLogout }: SettingsProps) {
 
   // Delete account dialog
   const [deleteAccountDialogOpen, setDeleteAccountDialogOpen] = useState(false);
+  const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  // Refs for scrolling
+  const usernameSectionRef = useRef<HTMLDivElement>(null);
+  const passwordSectionRef = useRef<HTMLDivElement>(null);
 
   // Import state
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -913,10 +919,10 @@ export function Settings({ onLogout }: SettingsProps) {
                     </div>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.info(t('auth.comingSoon'))}>
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => usernameSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
                       <User className="w-3.5 h-3.5" /> {t('settings.editProfile')}
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.info(t('auth.comingSoon'))}>
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => passwordSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
                       <Lock className="w-3.5 h-3.5" /> {t('settings.changePassword')}
                     </Button>
                   </div>
@@ -924,7 +930,7 @@ export function Settings({ onLogout }: SettingsProps) {
 
                 <Separator />
 
-                <div className="space-y-3">
+                <div className="space-y-3" ref={usernameSectionRef}>
                   <div className="space-y-2">
                     <Label>{t('settingsPage.username')}</Label>
                     <div className="flex items-center gap-2">
@@ -953,7 +959,7 @@ export function Settings({ onLogout }: SettingsProps) {
                 <Separator />
 
                 {/* Password Change */}
-                <div>
+                <div ref={passwordSectionRef}>
                   <Label className="text-sm font-semibold mb-3 block flex items-center gap-2">
                     <Lock className="w-4 h-4" /> {t('settingsPage.changePassword')}
                   </Label>
@@ -1511,15 +1517,36 @@ export function Settings({ onLogout }: SettingsProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                setDeleteAccountDialogOpen(false);
-                toast.info(t('auth.comingSoon'));
-              }}
-            >
-              {t('settings.deleteAccount')}
-            </AlertDialogAction>
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">{t('settingsPage.deleteAccountConfirm')}</p>
+              <Input
+                placeholder="DELETE"
+                value={deleteAccountConfirmText}
+                onChange={(e) => setDeleteAccountConfirmText(e.target.value)}
+                className="text-sm"
+              />
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={deleteAccountConfirmText !== 'DELETE' || deletingAccount}
+                onClick={async () => {
+                  if (deleteAccountConfirmText !== 'DELETE') return;
+                  setDeletingAccount(true);
+                  try {
+                    await api.deleteAccount();
+                    setDeleteAccountDialogOpen(false);
+                    toast.success(t('settingsPage.saved'));
+                    onLogout();
+                  } catch (error: unknown) {
+                    const msg = error instanceof Error ? error.message : 'Failed to delete account';
+                    toast.error(msg);
+                  } finally {
+                    setDeletingAccount(false);
+                  }
+                }}
+              >
+                {deletingAccount ? t('jobs.saving') : t('settings.deleteAccount')}
+              </AlertDialogAction>
+            </div>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

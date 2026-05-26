@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // ─── Icon & Category Maps ──────────────────────────────────────
 
@@ -228,6 +229,61 @@ function CodeBlock({ code, language, filename }: { code: string; language: strin
         {code}
       </pre>
     </div>
+  );
+}
+
+function SkillRating({ rating }: { rating: number }) {
+  const fullStars = Math.floor(rating);
+  const hasHalf = rating - fullStars >= 0.5;
+  const emptyStars = 5 - fullStars - (hasHalf ? 1 : 0);
+  return (
+    <div className="flex items-center gap-0.5">
+      {Array.from({ length: fullStars }).map((_, i) => (
+        <Star key={`full-${i}`} className="w-3 h-3 fill-amber-400 text-amber-400" />
+      ))}
+      {hasHalf && (
+        <div className="relative w-3 h-3">
+          <Star className="w-3 h-3 text-amber-400" />
+          <div className="absolute inset-0 overflow-hidden w-1.5">
+            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+          </div>
+        </div>
+      )}
+      {Array.from({ length: emptyStars }).map((_, i) => (
+        <Star key={`empty-${i}`} className="w-3 h-3 text-muted-foreground/30" />
+      ))}
+      <span className="text-[10px] text-muted-foreground ml-1">{rating.toFixed(1)}</span>
+    </div>
+  );
+}
+
+function SkillCardSkeleton() {
+  return (
+    <Card className="flex flex-col overflow-hidden rounded-xl">
+      <div className="h-1 w-full bg-muted animate-pulse" />
+      <CardHeader className="pb-3">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-lg bg-muted animate-pulse shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 bg-muted rounded animate-pulse w-2/3" />
+            <div className="flex gap-2">
+              <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-12 bg-muted rounded animate-pulse" />
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="flex-1 flex flex-col">
+        <div className="space-y-2 mb-4 flex-1">
+          <div className="h-3 bg-muted rounded animate-pulse w-full" />
+          <div className="h-3 bg-muted rounded animate-pulse w-4/5" />
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="h-3 w-10 bg-muted rounded animate-pulse" />
+          <div className="h-7 w-16 bg-muted rounded animate-pulse" />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -588,14 +644,17 @@ export function SkillMarketplace() {
           </Select>
         </div>
 
-        {/* Category Filter Pills - horizontally scrollable on mobile */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+        {/* Category Filter Chips - horizontally scrollable on mobile */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thin">
           {categories.map((cat) => (
             <Button
               key={cat}
               variant={selectedCategory === cat ? 'default' : 'outline'}
               size="sm"
-              className="text-xs shrink-0"
+              className={cn(
+                'text-xs shrink-0 rounded-full transition-all duration-200',
+                selectedCategory === cat && 'shadow-sm'
+              )}
               onClick={() => setSelectedCategory(cat)}
             >
               {CATEGORY_KEYS[cat] ? t(CATEGORY_KEYS[cat]) : cat}
@@ -642,8 +701,9 @@ export function SkillMarketplace() {
               <Card
                 key={skill.id}
                 className={cn(
-                  'flex flex-col cursor-pointer group relative overflow-hidden',
+                  'flex flex-col cursor-pointer group relative overflow-hidden rounded-xl',
                   'hover:-translate-y-1 hover:shadow-lg transition-all duration-200',
+                  'hover:border-primary/20'
                 )}
                 onClick={() => setShowDetail(skill.id)}
               >
@@ -701,6 +761,9 @@ export function SkillMarketplace() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-muted-foreground">v{skill.metadata?.version || '1.0'}</span>
+                      {skill.metadata?.rating != null && (
+                        <SkillRating rating={skill.metadata.rating} />
+                      )}
                     </div>
                     {installedCount > 0 ? (
                       <Badge
@@ -848,8 +911,10 @@ export function SkillMarketplace() {
       </div>
 
       {loadingSkills ? (
-        <div className="flex items-center justify-center py-16">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkillCardSkeleton key={i} />
+          ))}
         </div>
       ) : agentSkills.length === 0 ? (
         <Card className="border-dashed">
@@ -2235,9 +2300,9 @@ socket.on('skill:heartbeat-ack', (data) => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="store">{renderSkillStore()}</TabsContent>
-        <TabsContent value="mySkills">{renderMySkills()}</TabsContent>
-        <TabsContent value="protocolDocs">{renderProtocolDocs()}</TabsContent>
+        <TabsContent value="store" className="animate-in fade-in slide-in-from-bottom-2 duration-300">{renderSkillStore()}</TabsContent>
+        <TabsContent value="mySkills" className="animate-in fade-in slide-in-from-bottom-2 duration-300">{renderMySkills()}</TabsContent>
+        <TabsContent value="protocolDocs" className="animate-in fade-in slide-in-from-bottom-2 duration-300">{renderProtocolDocs()}</TabsContent>
       </Tabs>
 
       {renderSkillDetail()}

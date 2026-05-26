@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   BarChart3, DollarSign, Zap, Hash, Users, Loader2, TrendingUp, Database,
   Activity, CheckCircle2, XCircle, Clock, AlertTriangle, RefreshCw,
+  WifiOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -184,8 +185,10 @@ export function UsageView() {
   const [period, setPeriod] = useState('30d');
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [skillAnalytics, setSkillAnalytics] = useState<SkillAnalyticsData | null>(null);
   const [skillLoading, setSkillLoading] = useState(true);
+  const [skillError, setSkillError] = useState<string | null>(null);
 
   useEffect(() => {
     loadUsage();
@@ -197,30 +200,13 @@ export function UsageView() {
 
   const loadUsage = async () => {
     setLoading(true);
+    setError(null);
     try {
       const result = await api.getUsage(period);
       setUsage(result.usage || result || null);
-    } catch {
-      // Provide mock data for UI display
-      setUsage({
-        totalInputTokens: 2450000,
-        totalOutputTokens: 890000,
-        estimatedCost: 12.35,
-        sessionCount: 156,
-        cacheHitRate: 0.34,
-        modelBreakdown: [
-          { model: 'gpt-4o', inputTokens: 1200000, outputTokens: 450000, cost: 8.2 },
-          { model: 'claude-3.5', inputTokens: 800000, outputTokens: 300000, cost: 3.1 },
-          { model: 'gpt-4o-mini', inputTokens: 350000, outputTokens: 120000, cost: 0.85 },
-          { model: 'gemini-pro', inputTokens: 100000, outputTokens: 20000, cost: 0.2 },
-        ],
-        dailyTrend: Array.from({ length: 30 }, (_, i) => ({
-          date: new Date(Date.now() - (29 - i) * 86400000).toISOString().slice(5, 10),
-          inputTokens: Math.floor(Math.random() * 100000 + 50000),
-          outputTokens: Math.floor(Math.random() * 40000 + 15000),
-          cost: Math.random() * 0.8 + 0.2,
-        })),
-      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load usage data');
+      setUsage(null);
     } finally {
       setLoading(false);
     }
@@ -228,18 +214,13 @@ export function UsageView() {
 
   const loadSkillAnalytics = async () => {
     setSkillLoading(true);
+    setSkillError(null);
     try {
       const result = await api.getSkillAnalytics();
       setSkillAnalytics(result);
-    } catch {
-      // Return empty/zero data on error
-      setSkillAnalytics({
-        totalInvocations: 0,
-        invocationsBySkill: [],
-        invocationsByStatus: { success: 0, failed: 0, timeout: 0, pending: 0, sent: 0, executing: 0 },
-        recentInvocations: [],
-        topSkills: [],
-      });
+    } catch (err) {
+      setSkillError(err instanceof Error ? err.message : 'Failed to load skill analytics');
+      setSkillAnalytics(null);
     } finally {
       setSkillLoading(false);
     }
@@ -254,12 +235,36 @@ export function UsageView() {
         : { color: 'text-emerald-600', bgColor: 'bg-emerald-500/10', labelKey: 'usage.costLow' }
     : null;
 
-  if (loading || !usage) {
+  if (loading) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
+      </div>
+    );
+  }
+
+  // Error state for usage data
+  if (error && !usage) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">{t('usage.title')}</h1>
+            <p className="text-muted-foreground text-sm">{t('usage.subtitle')}</p>
+          </div>
+        </div>
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <WifiOff className="w-12 h-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-1">{t('usage.errorTitle')}</h3>
+            <p className="text-muted-foreground text-sm mb-4">{t('usage.errorDesc')}</p>
+            <Button onClick={loadUsage} className="gap-2">
+              <RefreshCw className="w-4 h-4" /> {t('usage.retry')}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }

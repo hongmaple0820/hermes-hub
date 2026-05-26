@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
 
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const userId = req.headers.get('x-user-id');
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const user = await requireAuth(request);
+    const userId = user.id;
 
     // Get user's agent IDs first for related queries
     const userAgents = await db.agent.findMany({
@@ -48,6 +47,9 @@ export async function GET(req: NextRequest) {
       recentActivityCount: recentMessages + recentInvocations,
     });
   } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const message = error instanceof Error ? error.message : 'Internal server error';
     console.error('[Analytics/Overview] Error:', error);
     return NextResponse.json({ error: message }, { status: 500 });
