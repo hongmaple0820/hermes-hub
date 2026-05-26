@@ -196,7 +196,11 @@
     "agentResponseTime": "Agent响应时间",
     "avgResponse": "平均响应",
     "normal": "正常",
-    "activeConnections": "活跃连接"
+    "activeConnections": "活跃连接",
+    "noProviderTitle": "未配置 LLM 供应商",
+    "noProviderDesc": "添加 LLM 供应商以开始使用 AI 智能体。您需要从 OpenAI、Anthropic、Google 或其他供应商获取 API 密钥。",
+    "setUpProvider": "设置供应商",
+    "learnMore": "了解更多"
   },
   "agents": {
     "title": "智能体",
@@ -384,6 +388,8 @@
     "subtitle": "配置多个 AI 模型供应商 — OpenAI、Anthropic、Google、Ollama 等",
     "add": "添加供应商",
     "addTitle": "添加 LLM 供应商",
+    "addTitleDesc": "配置新的LLM供应商的API凭据。",
+    "editTitleDesc": "修改供应商配置和API设置。",
     "providerName": "供应商名称",
     "providerNamePlaceholder": "例如：我的 OpenAI 账号",
     "providerType": "供应商类型",
@@ -408,7 +414,9 @@
     "updated": "供应商已更新！",
     "saving": "保存中...",
     "save": "保存修改",
-    "isActive": "激活"
+    "isActive": "激活",
+    "quickAdd": "快速添加",
+    "quickAddDesc": "选择热门供应商快速开始"
   },
   "skills": {
     "title": "技能市场",

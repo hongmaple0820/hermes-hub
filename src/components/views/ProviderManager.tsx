@@ -9,10 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Server, Plus, Trash2, CheckCircle2, XCircle, Loader2, Eye, EyeOff, TestTube, Pencil, Link2, Unlink } from 'lucide-react';
+import { Server, Plus, Trash2, CheckCircle2, XCircle, Loader2, Eye, EyeOff, TestTube, Pencil, Link2, Unlink, Zap } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
@@ -325,7 +325,7 @@ export function ProviderManager() {
             <Button className="gap-2"><Plus className="w-4 h-4" /> {t('providers.add')}</Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
-            <DialogHeader><DialogTitle>{t('providers.addTitle')}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t('providers.addTitle')}</DialogTitle><DialogDescription>{t('providers.addTitleDesc')}</DialogDescription></DialogHeader>
             {renderFormFields(false)}
           </DialogContent>
         </Dialog>
@@ -334,7 +334,7 @@ export function ProviderManager() {
       {/* Edit Dialog */}
       <Dialog open={showEdit} onOpenChange={(open) => { setShowEdit(open); if (!open) { setEditingProvider(null); setForm({ ...defaultForm }); } }}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{t('providers.editTitle')}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('providers.editTitle')}</DialogTitle><DialogDescription>{t('providers.editTitleDesc')}</DialogDescription></DialogHeader>
           {renderFormFields(true)}
         </DialogContent>
       </Dialog>
@@ -362,15 +362,47 @@ export function ProviderManager() {
 
       {/* Provider Cards */}
       {providers.length === 0 ? (
-        <Card className="border-dashed">
-          <EmptyState
-            icon={Server}
-            title={t('emptyState.noProviders')}
-            description={t('emptyState.noProvidersDesc')}
-            actionLabel={t('emptyState.addFirstProvider')}
-            onAction={() => setShowCreate(true)}
-          />
-        </Card>
+        <div className="space-y-6">
+          <Card className="border-dashed">
+            <EmptyState
+              icon={Server}
+              title={t('emptyState.noProviders')}
+              description={t('emptyState.noProvidersDesc')}
+              actionLabel={t('emptyState.addFirstProvider')}
+              onAction={() => setShowCreate(true)}
+            />
+          </Card>
+
+          {/* Quick Add Section */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Zap className="w-4 h-4 text-amber-500" />
+              <h3 className="text-sm font-semibold">{t('providers.quickAdd')}</h3>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">{t('providers.quickAddDesc')}</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {PROVIDER_TYPES.filter((pt) => ['openai', 'anthropic', 'google', 'ollama'].includes(pt.value)).map((pt) => (
+                <button
+                  key={pt.value}
+                  className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border/60 bg-card hover:bg-accent/50 hover:border-amber-300 dark:hover:border-amber-700 hover:shadow-md transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]"
+                  onClick={() => {
+                    setForm({
+                      ...defaultForm,
+                      provider: pt.value,
+                      baseUrl: pt.defaultUrl || '',
+                      defaultModel: pt.defaultModel || '',
+                      name: t(pt.labelKey),
+                    });
+                    setShowCreate(true);
+                  }}
+                >
+                  <span className="text-2xl">{pt.icon}</span>
+                  <span className="text-xs font-medium">{t(pt.labelKey)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {providers.map((provider: any) => {

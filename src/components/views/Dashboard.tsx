@@ -12,7 +12,7 @@ import {
   Activity, ArrowUpRight, Zap, Wifi, WifiOff, TrendingUp,
   Clock, Cpu, Globe, Shield, Sparkles, BarChart3, Radio,
   CheckCircle, Eye, LogOut, Plus, Settings, Timer, Uptime,
-  ArrowDownRight, RefreshCw
+  ArrowDownRight, RefreshCw, AlertTriangle, ArrowRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -202,6 +202,10 @@ const animationStyles = `
 @keyframes refreshSpin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+@keyframes borderGlow {
+  0%, 100% { border-color: rgba(245, 158, 11, 0.3); }
+  50% { border-color: rgba(245, 158, 11, 0.7); }
 }
 `;
 
@@ -732,6 +736,74 @@ export function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Provider Setup Card - shown only when no providers are configured */}
+        {activeProviders.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.05, ease: 'easeOut' }}
+          >
+            <div
+              className="relative overflow-hidden rounded-2xl border-2 p-6 shadow-lg"
+              style={{
+                background: 'linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(251,146,60,0.08) 40%, rgba(245,158,11,0.10) 70%, rgba(251,146,60,0.06) 100%)',
+                animation: 'borderGlow 3s ease-in-out infinite',
+                borderColor: 'rgba(245, 158, 11, 0.4)',
+              }}
+            >
+              {/* Shimmer accent line at top */}
+              <div
+                className="absolute top-0 left-0 right-0 h-[2px]"
+                style={{
+                  background: 'linear-gradient(90deg, transparent, rgba(245,158,11,0.7), rgba(251,146,60,0.6), transparent)',
+                  backgroundSize: '200% 100%',
+                  animation: 'shimmer 3s ease infinite',
+                }}
+              />
+              {/* Subtle decorative circles */}
+              <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
+
+              <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                {/* Icon */}
+                <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-semibold text-amber-900 dark:text-amber-200">
+                    {t('dashboard.noProviderTitle')}
+                  </h3>
+                  <p className="text-sm text-amber-800/70 dark:text-amber-300/60 mt-1">
+                    {t('dashboard.noProviderDesc')}
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-3 shrink-0">
+                  <Button
+                    onClick={() => setCurrentView('providers')}
+                    className="gap-2 bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-200/40 dark:shadow-amber-900/30"
+                  >
+                    {t('dashboard.setUpProvider')}
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-amber-700/60 dark:text-amber-400/50 hover:text-amber-700 dark:hover:text-amber-300"
+                    onClick={() => {}}
+                    disabled
+                  >
+                    {t('dashboard.learnMore')}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Quick Stats Grid - Enhanced with gradient backgrounds and animated counters */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Bot, Server, Puzzle, MessageSquare, Users, Settings,
   LogOut, ChevronLeft, ChevronRight, Zap, Languages,
   Radio, Clock, BarChart3, UserCircle, Brain, ScrollText, Folder, Terminal,
-  Monitor, ChevronDown,
+  Monitor, ChevronDown, Menu,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -15,8 +15,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 interface SidebarProps {
   onLogout: () => void;
@@ -87,11 +88,25 @@ function saveCollapsedSections(sections: Record<string, boolean>) {
   }
 }
 
-export function Sidebar({ onLogout }: SidebarProps) {
-  const { currentView, setCurrentView, sidebarCollapsed, setSidebarCollapsed, user, agents, conversations } = useAppStore();
+// ========================
+// Inner sidebar content (shared between desktop & mobile sheet)
+// ========================
+function SidebarContent({
+  effectivelyCollapsed,
+  onToggleCollapse,
+  isMobile,
+  onNavClick,
+  onLogout,
+}: {
+  effectivelyCollapsed: boolean;
+  onToggleCollapse: () => void;
+  isMobile: boolean;
+  onNavClick?: () => void;
+  onLogout: () => void;
+}) {
+  const { currentView, setCurrentView, user, agents, conversations } = useAppStore();
   const { locale, setLocale, t, locales } = useI18n();
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() => getCollapsedSections());
-  const [isMobile, setIsMobile] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
@@ -99,14 +114,6 @@ export function Sidebar({ onLogout }: SidebarProps) {
   const onlineAgents = agents.filter((a: any) => a.status === 'online').length;
   const connectedAcrp = agents.filter((a: any) => a.mode === 'acrp' && a.wsConnected).length;
   const unreadConvs = conversations.length;
-
-  // Detect mobile viewport
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   // Scroll shadow detection
   const checkScrollShadows = useCallback(() => {
@@ -137,8 +144,10 @@ export function Sidebar({ onLogout }: SidebarProps) {
     });
   }, []);
 
-  // Effective collapsed state: on mobile, always show icons only
-  const effectivelyCollapsed = isMobile || sidebarCollapsed;
+  const handleNavClick = useCallback((view: ViewMode) => {
+    setCurrentView(view);
+    onNavClick?.();
+  }, [setCurrentView, onNavClick]);
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -148,35 +157,49 @@ export function Sidebar({ onLogout }: SidebarProps) {
           effectivelyCollapsed ? 'w-16' : 'w-64'
         )}
       >
-        {/* Header with gradient background */}
+        {/* ====== LOGO SECTION (fixed top) ====== */}
         <div className={cn(
-          'relative flex items-center gap-3 p-4 border-b border-border overflow-hidden',
-          effectivelyCollapsed && 'justify-center p-3'
+          'relative flex items-center gap-3 px-4 py-3 border-b border-border overflow-hidden shrink-0',
+          effectivelyCollapsed && 'justify-center px-3'
         )}>
           {/* Subtle gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.04] via-transparent to-primary/[0.02] dark:from-primary/[0.08] dark:via-transparent dark:to-primary/[0.04]" />
+
           <div className="relative flex items-center justify-center w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shrink-0 shadow-sm shadow-primary/20">
             <Zap className="w-5 h-5" />
           </div>
           {!effectivelyCollapsed && (
             <div className="relative flex flex-col min-w-0">
               <span className="font-bold text-sm truncate">Hermes Hub</span>
-              <span className="text-[10px] text-muted-foreground">{t('auth.subtitle')}</span>
+              {/* Version badge */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted-foreground">{t('auth.subtitle')}</span>
+                <Badge
+                  variant="outline"
+                  className="h-3.5 px-1 text-[8px] font-mono leading-none border-primary/20 text-primary/60"
+                >
+                  v1.0
+                </Badge>
+              </div>
             </div>
+          )}
+          {/* Gradient underline accent */}
+          {!effectivelyCollapsed && (
+            <div className="absolute bottom-0 left-4 right-4 h-[2px] bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
           )}
         </div>
 
         {/* Toggle Button - hidden on mobile */}
         {!isMobile && (
           <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            onClick={onToggleCollapse}
             className="absolute -right-3 top-14 z-10 w-6 h-6 rounded-full bg-background border border-border flex items-center justify-center hover:bg-accent hover:scale-110 transition-all duration-200 shadow-sm"
           >
-            {sidebarCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+            {effectivelyCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
           </button>
         )}
 
-        {/* Navigation with scroll shadows */}
+        {/* ====== NAVIGATION (scrollable middle) ====== */}
         <div className="flex-1 relative overflow-hidden">
           {/* Top scroll shadow */}
           <div className={cn(
@@ -202,20 +225,17 @@ export function Sidebar({ onLogout }: SidebarProps) {
 
                 return (
                   <div key={section.label}>
-                    {/* Gradient divider between sections */}
+                    {/* Separator line between groups */}
                     {sectionIndex > 0 && (
                       <div className="px-3 py-2">
                         <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
                       </div>
                     )}
 
-                    {/* Section Header */}
+                    {/* Section Header - non-clickable label */}
                     {navSections.length > 1 && !effectivelyCollapsed && (
-                      <button
-                        onClick={() => toggleSection(section.label)}
-                        className="w-full flex items-center gap-1.5 px-3 pt-2 pb-1.5 group cursor-pointer"
-                      >
-                        <span className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.12em] flex-1 text-left group-hover:text-muted-foreground transition-colors duration-200">
+                      <div className="flex items-center gap-1.5 px-3 pt-2 pb-1.5 group cursor-pointer" onClick={() => toggleSection(section.label)}>
+                        <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-[0.12em] flex-1 select-none">
                           {t(sectionLabelKey)}
                         </span>
                         <ChevronDown
@@ -224,7 +244,7 @@ export function Sidebar({ onLogout }: SidebarProps) {
                             isSectionCollapsed && '-rotate-90'
                           )}
                         />
-                      </button>
+                      </div>
                     )}
 
                     {/* Collapsed section separator for icon-only mode */}
@@ -246,29 +266,29 @@ export function Sidebar({ onLogout }: SidebarProps) {
                         const button = (
                           <button
                             key={item.id}
-                            onClick={() => setCurrentView(item.id)}
+                            onClick={() => handleNavClick(item.id)}
                             className={cn(
                               'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm relative group/item',
-                              'transition-all duration-300 ease-out',
+                              'transition-all duration-200 ease-out',
                               // Hover effects
-                              'hover:scale-[1.02] hover:bg-accent/80 hover:text-accent-foreground',
+                              'hover:bg-accent/80 hover:text-accent-foreground',
                               // Active vs inactive styling
                               isActive
-                                ? 'text-primary font-medium'
+                                ? 'text-primary font-semibold'
                                 : 'text-muted-foreground',
                               effectivelyCollapsed && 'justify-center px-0',
                             )}
                           >
-                            {/* Active indicator background with animated presence */}
+                            {/* Active background with gradient */}
                             {isActive && (
                               <motion.div
                                 layoutId="sidebar-active-bg"
-                                className="absolute inset-0 rounded-lg bg-primary/[0.08] dark:bg-primary/[0.12]"
+                                className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/10 via-primary/[0.06] to-primary/[0.02] dark:from-primary/[0.15] dark:via-primary/[0.08] dark:to-primary/[0.03]"
                                 transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                               />
                             )}
 
-                            {/* Active left border with gradient */}
+                            {/* Active left border accent (3px) */}
                             {isActive && !effectivelyCollapsed && (
                               <motion.div
                                 layoutId="sidebar-active-border"
@@ -281,7 +301,7 @@ export function Sidebar({ onLogout }: SidebarProps) {
                             {isActive && effectivelyCollapsed && (
                               <motion.div
                                 layoutId="sidebar-active-bg-collapsed"
-                                className="absolute inset-0 rounded-lg bg-primary/[0.08] dark:bg-primary/[0.12] border border-primary/20"
+                                className="absolute inset-0 rounded-lg bg-primary/[0.10] dark:bg-primary/[0.15] border border-primary/30"
                                 transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                               />
                             )}
@@ -292,7 +312,7 @@ export function Sidebar({ onLogout }: SidebarProps) {
                             )}
 
                             <Icon className={cn(
-                              'w-[18px] h-[18px] shrink-0 relative z-10 transition-all duration-300',
+                              'w-[18px] h-[18px] shrink-0 relative z-10 transition-all duration-200',
                               isActive
                                 ? 'text-primary drop-shadow-[0_0_4px] drop-shadow-primary/20'
                                 : 'group-hover/item:text-foreground'
@@ -313,11 +333,21 @@ export function Sidebar({ onLogout }: SidebarProps) {
                                     {onlineAgents}
                                   </span>
                                 )}
-                                {/* ACRP connection count badge with gradient */}
-                                {item.id === 'agent-control' && connectedAcrp > 0 && (
-                                  <span className="flex items-center gap-1 text-[10px] bg-gradient-to-r from-cyan-500/15 to-blue-500/15 text-cyan-600 dark:text-cyan-400 px-1.5 py-0.5 rounded-full font-medium relative z-10 border border-cyan-500/20">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
-                                    {connectedAcrp}
+                                {/* ACRP connection count badge with pulsing cyan dot */}
+                                {item.id === 'agent-control' && (
+                                  <span className={cn(
+                                    'flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium relative z-10',
+                                    connectedAcrp > 0
+                                      ? 'bg-gradient-to-r from-cyan-500/15 to-blue-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20'
+                                      : 'bg-muted/50 text-muted-foreground/40'
+                                  )}>
+                                    {connectedAcrp > 0 && (
+                                      <span className="relative flex h-2 w-2">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
+                                      </span>
+                                    )}
+                                    {connectedAcrp > 0 ? connectedAcrp : ''}
                                   </span>
                                 )}
                                 {item.id === 'chat' && unreadConvs > 0 && (
@@ -325,9 +355,9 @@ export function Sidebar({ onLogout }: SidebarProps) {
                                     {unreadConvs}
                                   </span>
                                 )}
-                                {/* Keyboard Shortcut */}
+                                {/* Keyboard Shortcut - only visible on hover */}
                                 {item.shortcut && (
-                                  <span className="text-[9px] text-muted-foreground/40 font-mono ml-1 hidden lg:inline relative z-10 group-hover/item:text-muted-foreground/60 transition-colors">
+                                  <span className="text-[9px] text-muted-foreground/50 font-mono ml-1 relative z-10 opacity-0 group-hover/item:opacity-100 transition-opacity duration-200 hidden lg:inline">
                                     {item.shortcut}
                                   </span>
                                 )}
@@ -369,15 +399,14 @@ export function Sidebar({ onLogout }: SidebarProps) {
           </nav>
         </div>
 
+        {/* ====== LANGUAGE SWITCHER ====== */}
         <Separator />
-
-        {/* Language Switcher */}
-        <div className={cn('px-3 py-2', effectivelyCollapsed && 'flex justify-center')}>
+        <div className={cn('px-3 py-2 shrink-0', effectivelyCollapsed && 'flex justify-center')}>
           <Popover>
             <PopoverTrigger asChild>
               <button
                 className={cn(
-                  'flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-all duration-200 rounded-lg px-2 py-1.5 hover:bg-accent hover:scale-[1.02] w-full',
+                  'flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-all duration-200 rounded-lg px-2 py-1.5 hover:bg-accent w-full',
                   effectivelyCollapsed && 'justify-center px-0'
                 )}
               >
@@ -393,7 +422,7 @@ export function Sidebar({ onLogout }: SidebarProps) {
                   key={l.code}
                   onClick={() => setLocale(l.code)}
                   className={cn(
-                    'w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-all duration-200 hover:scale-[1.01]',
+                    'w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-all duration-200',
                     locale === l.code
                       ? 'bg-primary/10 text-primary font-medium'
                       : 'text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -409,10 +438,9 @@ export function Sidebar({ onLogout }: SidebarProps) {
           </Popover>
         </div>
 
+        {/* ====== USER PROFILE SECTION (fixed bottom) ====== */}
         <Separator />
-
-        {/* User section */}
-        <div className={cn('p-3', effectivelyCollapsed && 'flex justify-center')}>
+        <div className={cn('p-3 shrink-0', effectivelyCollapsed && 'flex justify-center')}>
           {effectivelyCollapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -439,8 +467,8 @@ export function Sidebar({ onLogout }: SidebarProps) {
               </TooltipContent>
             </Tooltip>
           ) : (
-            <div className="flex items-center gap-3">
-              <div className="relative group/avatar">
+            <div className="flex items-center gap-3 group/profile rounded-lg px-1 py-1 -mx-1 hover:bg-accent/50 transition-colors duration-200 cursor-pointer">
+              <div className="relative group/avatar shrink-0">
                 {/* Gradient ring around avatar */}
                 <div className="rounded-full p-[2px] bg-gradient-to-br from-primary via-primary/60 to-primary/30 transition-all duration-300 group-hover/avatar:from-primary group-hover/avatar:via-primary group-hover/avatar:to-primary/80">
                   <Avatar className="w-9 h-9">
@@ -455,14 +483,22 @@ export function Sidebar({ onLogout }: SidebarProps) {
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user?.name || 'User'}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium truncate">{user?.name || 'User'}</p>
+                  <Badge variant="outline" className="h-4 px-1 text-[8px] font-medium leading-none border-primary/20 text-primary/70 shrink-0">
+                    Admin
+                  </Badge>
+                </div>
                 <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 className="w-7 h-7 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 hover:scale-110 transition-all duration-200"
-                onClick={onLogout}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onLogout();
+                }}
               >
                 <LogOut className="w-3.5 h-3.5" />
               </Button>
@@ -471,5 +507,67 @@ export function Sidebar({ onLogout }: SidebarProps) {
         </div>
       </aside>
     </TooltipProvider>
+  );
+}
+
+// ========================
+// Main export with mobile sheet support
+// ========================
+export function Sidebar({ onLogout }: SidebarProps) {
+  const { sidebarCollapsed, setSidebarCollapsed } = useAppStore();
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Detect mobile viewport
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (!mobile) setMobileOpen(false);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const effectivelyCollapsed = isMobile || sidebarCollapsed;
+
+  // Mobile: Sheet/drawer
+  if (isMobile) {
+    return (
+      <>
+        {/* Hamburger button in main content */}
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="fixed top-4 left-4 z-40 md:hidden w-10 h-10 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-accent transition-colors shadow-sm"
+          aria-label="Open navigation menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetContent side="left" className="p-0 w-64 bg-card border-r border-border">
+            <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+            <SidebarContent
+              effectivelyCollapsed={false}
+              onToggleCollapse={() => {}}
+              isMobile={true}
+              onNavClick={() => setMobileOpen(false)}
+              onLogout={onLogout}
+            />
+          </SheetContent>
+        </Sheet>
+      </>
+    );
+  }
+
+  // Desktop
+  return (
+    <SidebarContent
+      effectivelyCollapsed={effectivelyCollapsed}
+      onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+      isMobile={false}
+      onLogout={onLogout}
+    />
   );
 }

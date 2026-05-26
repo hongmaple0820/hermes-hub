@@ -196,7 +196,11 @@
     "agentResponseTime": "Agent Response Time",
     "avgResponse": "Average response",
     "normal": "Normal",
-    "activeConnections": "Active Connections"
+    "activeConnections": "Active Connections",
+    "noProviderTitle": "No LLM Provider Configured",
+    "noProviderDesc": "Add an LLM provider to start using AI agents. You'll need an API key from OpenAI, Anthropic, Google, or another provider.",
+    "setUpProvider": "Set Up Provider",
+    "learnMore": "Learn More"
   },
   "agents": {
     "title": "Agents",
@@ -384,6 +388,8 @@
     "subtitle": "Configure multiple AI model providers — OpenAI, Anthropic, Google, Ollama, and more",
     "add": "Add Provider",
     "addTitle": "Add LLM Provider",
+    "addTitleDesc": "Configure a new LLM provider with your API credentials.",
+    "editTitleDesc": "Modify the provider configuration and API settings.",
     "providerName": "Provider Name",
     "providerNamePlaceholder": "e.g., My OpenAI Account",
     "providerType": "Provider Type",
@@ -408,7 +414,9 @@
     "updated": "Provider updated!",
     "saving": "Saving...",
     "save": "Save Changes",
-    "isActive": "Active"
+    "isActive": "Active",
+    "quickAdd": "Quick Add",
+    "quickAddDesc": "Choose a popular provider to get started quickly"
   },
   "skills": {
     "title": "Skills Marketplace",
