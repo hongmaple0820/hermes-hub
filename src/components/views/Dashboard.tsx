@@ -107,7 +107,7 @@ function MiniBarChart({ data, labels, maxValue }: { data: number[]; labels: stri
               style={{ height: `${maxValue > 0 ? (value / maxValue) * 100 : 0}%` }}
             />
           </div>
-          <span className="text-[9px] text-muted-foreground">{labels[i]}</span>
+          <span className="text-[9px] text-muted-foreground dark:text-muted-foreground/90">{labels[i]}</span>
         </div>
       ))}
     </div>
@@ -133,12 +133,12 @@ function SkillRanking({ skills }: { skills: any[] }) {
         <div key={skill.id} className="space-y-1">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-muted-foreground w-3">{idx + 1}</span>
+              <span className="text-[10px] font-bold text-muted-foreground dark:text-muted-foreground/90 w-3">{idx + 1}</span>
               <span className="text-xs font-medium truncate">{skill.name}</span>
             </div>
-            <span className="text-[10px] text-muted-foreground">{skill.invokeCount || 0}</span>
+            <span className="text-[10px] text-muted-foreground dark:text-muted-foreground/90">{skill.invokeCount || 0}</span>
           </div>
-          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+          <div className="h-1.5 rounded-full bg-muted dark:bg-muted/80 overflow-hidden">
             <div
               className={cn(
                 'h-full rounded-full transition-all duration-500',
@@ -169,10 +169,10 @@ function HealthBar({ value, label, unit }: { value: number; label: string; unit:
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs">
-        <span className="text-muted-foreground">{label}</span>
+        <span className="text-muted-foreground dark:text-muted-foreground/90">{label}</span>
         <span className={cn('font-medium', getTextColor(value))}>{value}{unit}</span>
       </div>
-      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+      <div className="h-1.5 rounded-full bg-muted dark:bg-muted/80 overflow-hidden">
         <div
           className={cn('h-full rounded-full transition-all duration-500', getColor(value))}
           style={{ width: `${Math.min(value, 100)}%` }}
@@ -698,7 +698,7 @@ export function Dashboard() {
       {/* Inject CSS animations */}
       <style dangerouslySetInnerHTML={{ __html: animationStyles }} />
 
-      <div className="p-6 max-w-7xl mx-auto space-y-6 scroll-smooth" style={{ scrollBehavior: 'smooth' }}>
+      <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6 scroll-smooth" style={{ scrollBehavior: 'smooth' }}>
         {/* Header with animated gradient background */}
         <div
           className="relative overflow-hidden rounded-2xl p-6 border border-border/50 shadow-sm"
@@ -819,7 +819,7 @@ export function Dashboard() {
                   <h3 className="text-base font-semibold text-amber-900 dark:text-amber-200">
                     {t('dashboard.noProviderTitle')}
                   </h3>
-                  <p className="text-sm text-amber-800/70 dark:text-amber-300/60 mt-1">
+                  <p className="text-sm text-amber-800/70 dark:text-amber-300/80 mt-1">
                     {t('dashboard.noProviderDesc')}
                   </p>
                 </div>
@@ -836,7 +836,7 @@ export function Dashboard() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-xs text-amber-700/60 dark:text-amber-400/50 hover:text-amber-700 dark:hover:text-amber-300"
+                    className="text-xs text-amber-700/60 dark:text-amber-400/70 hover:text-amber-700 dark:hover:text-amber-300"
                     onClick={() => {}}
                     disabled
                   >
@@ -849,7 +849,7 @@ export function Dashboard() {
         )}
 
         {/* Quick Stats Grid - Enhanced with gradient backgrounds and animated counters */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
           {quickStats.map((stat, index) => (
             <motion.div
               key={stat.label}
@@ -874,7 +874,7 @@ export function Dashboard() {
                   <div className="text-2xl font-bold tracking-tight">
                     <AnimatedCounter target={stat.value} duration={800 + index * 100} />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
+                  <p className="text-xs text-muted-foreground dark:text-muted-foreground/90 mt-0.5">{stat.label}</p>
                 </CardContent>
               </Card>
             </motion.div>
@@ -900,7 +900,7 @@ export function Dashboard() {
                 onClick={() => setCurrentView(stat.view)}
               >
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
+                  <CardTitle className="text-sm font-medium text-muted-foreground dark:text-muted-foreground/90">{stat.title}</CardTitle>
                   <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:rotate-3', stat.bgColor)}>
                     <stat.icon className={cn('w-4 h-4', stat.color)} />
                   </div>
@@ -915,10 +915,10 @@ export function Dashboard() {
                         <TrendIndicator values={stat.sparkline} />
                       </div>
                       <div className="flex items-center justify-between mt-2">
-                        <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
-                        <ArrowUpRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <p className="text-xs text-muted-foreground dark:text-muted-foreground/90">{stat.subtitle}</p>
+                        <ArrowUpRight className="w-4 h-4 text-muted-foreground dark:text-muted-foreground/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 opacity-80">{stat.detail}</p>
+                      <p className="text-xs text-muted-foreground dark:text-muted-foreground/90 mt-1 opacity-80">{stat.detail}</p>
                     </div>
                     <Sparkline values={stat.sparkline} color={stat.sparklineColor} />
                   </div>
@@ -929,7 +929,7 @@ export function Dashboard() {
         </div>
 
         {/* Middle Row: Quick Actions Grid + Agent Activity Timeline + System Health */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Quick Actions Grid - 4-card grid */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -1032,10 +1032,10 @@ export function Dashboard() {
                               </Badge>
                             </div>
                             {item.detail && (
-                              <p className="text-[10px] text-muted-foreground mt-0.5">{item.detail}</p>
+                              <p className="text-[10px] text-muted-foreground dark:text-muted-foreground/90 mt-0.5">{item.detail}</p>
                             )}
                           </div>
-                          <span className="text-[10px] text-muted-foreground shrink-0 ml-1">
+                          <span className="text-[10px] text-muted-foreground dark:text-muted-foreground/90 shrink-0 ml-1">
                             {formatTimeAgo(item.timestamp)}
                           </span>
                         </motion.div>
@@ -1086,7 +1086,7 @@ export function Dashboard() {
                 {/* System status indicators */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground flex items-center gap-1.5">
+                    <span className="text-muted-foreground dark:text-muted-foreground/90 flex items-center gap-1.5">
                       <Server className="w-3 h-3" /> {t('dashboard.llmProviders')}
                     </span>
                     <span className="font-medium">{activeProviders.length}/{providers.length}</span>
@@ -1095,7 +1095,7 @@ export function Dashboard() {
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground flex items-center gap-1.5">
+                    <span className="text-muted-foreground dark:text-muted-foreground/90 flex items-center gap-1.5">
                       <Monitor className="w-3 h-3" /> {t('dashboard.acrpAgents')}
                     </span>
                     <span className="font-medium">{connectedAcrpAgents.length}/{acrpAgents.length}</span>
@@ -1104,7 +1104,7 @@ export function Dashboard() {
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground flex items-center gap-1.5">
+                    <span className="text-muted-foreground dark:text-muted-foreground/90 flex items-center gap-1.5">
                       <Puzzle className="w-3 h-3" /> {t('dashboard.skillsActive')}
                     </span>
                     <span className="font-medium">{enabledSkills.length}/{skills.length}</span>
@@ -1117,7 +1117,7 @@ export function Dashboard() {
         </div>
 
         {/* Analytics Row: Conversations Chart + Skill Ranking + System Indicators */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Conversations per Day Bar Chart */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}

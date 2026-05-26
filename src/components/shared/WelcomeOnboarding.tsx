@@ -206,7 +206,7 @@ export function WelcomeOnboarding({ open, onComplete }: WelcomeOnboardingProps) 
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleSkip()}>
-      <DialogContent className="max-w-lg p-0 overflow-hidden" onPointerDownOutside={(e) => e.preventDefault()}>
+      <DialogContent className="max-w-lg p-0 overflow-hidden">
         {/* Step indicator */}
         <div className="flex items-center justify-center gap-2 pt-6 pb-2">
           {steps.map((_, i) => (
@@ -295,7 +295,7 @@ export function WelcomeOnboarding({ open, onComplete }: WelcomeOnboardingProps) 
         </div>
 
         {/* Footer with navigation */}
-        <div className="flex items-center justify-between px-6 pb-6 pt-2 border-t border-border/50">
+        <div className="relative z-10 flex items-center justify-between px-6 pb-6 pt-2 border-t border-border/50">
           {/* Skip button */}
           <Button
             variant="ghost"

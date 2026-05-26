@@ -105,6 +105,11 @@ export function TerminalView() {
   // Quick commands panel
   const [showQuickPanel, setShowQuickPanel] = useState(true);
 
+  // Auto-reconnect state
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
+  const [reconnectCountdown, setReconnectCountdown] = useState(0);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+
   const termContainerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -115,11 +120,54 @@ export function TerminalView() {
   const currentLineRef = useRef<string>('');
   const outputBufferRef = useRef<string[]>([]);
 
+  // Auto-reconnect refs
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  const userDisconnectedRef = useRef(false);
+  const MAX_RECONNECT_ATTEMPTS = 10;
+  const INITIAL_RECONNECT_DELAY = 1000; // 1 second
+  const MAX_RECONNECT_DELAY = 30000; // 30 seconds
+
   // Keep refs in sync with state
   useEffect(() => { sessionsRef.current = sessions; }, [sessions]);
   useEffect(() => { activeSessionRef.current = activeSessionId; }, [activeSessionId]);
   useEffect(() => { commandHistoryRef.current = commandHistory; }, [commandHistory]);
   useEffect(() => { outputBufferRef.current = outputBuffer; }, [outputBuffer]);
+
+  // -------------------------------------------------------------------------
+  // Auto-reconnect cleanup
+  // -------------------------------------------------------------------------
+
+  const clearReconnectTimers = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    setIsReconnecting(false);
+    setReconnectCountdown(0);
+  }, []);
+
+  const cancelReconnect = useCallback(() => {
+    userDisconnectedRef.current = true;
+    clearReconnectTimers();
+    reconnectAttemptRef.current = 0;
+    setReconnectAttempt(0);
+  }, [clearReconnectTimers]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      clearReconnectTimers();
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [clearReconnectTimers]);
 
   // -------------------------------------------------------------------------
   // WebSocket message handler
@@ -182,6 +230,7 @@ export function TerminalView() {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
 
     setConnecting(true);
+    userDisconnectedRef.current = false;
 
     try {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -193,7 +242,19 @@ export function TerminalView() {
         setConnected(true);
         setConnecting(false);
         wsRef.current = ws;
-        toast.success(t('terminal.connected'));
+
+        // Reset reconnect state on successful connection
+        clearReconnectTimers();
+        reconnectAttemptRef.current = 0;
+        setReconnectAttempt(0);
+
+        // Show toast if this was a reconnection
+        if (isReconnecting) {
+          toast.success(t('terminal.reconnectSuccess'));
+        } else {
+          toast.success(t('terminal.connected'));
+        }
+        setIsReconnecting(false);
 
         // Send auth message with actual user ID
         ws.send(JSON.stringify({ type: 'auth', userId }));
@@ -211,19 +272,75 @@ export function TerminalView() {
       ws.onclose = () => {
         setConnected(false);
         wsRef.current = null;
+
+        // Only auto-reconnect if the user didn't explicitly disconnect
+        if (!userDisconnectedRef.current) {
+          scheduleReconnect();
+        }
       };
 
       ws.onerror = () => {
         setConnecting(false);
-        toast.error(t('terminal.disconnected'));
+        // Don't show error toast here - onclose will handle reconnect
       };
     } catch {
       setConnecting(false);
       toast.error(t('terminal.connectionFailed'));
+
+      // Try to reconnect on connection failure
+      if (!userDisconnectedRef.current) {
+        scheduleReconnect();
+      }
     }
-  }, [handleWsMessage, t, user]);
+  }, [handleWsMessage, t, user, clearReconnectTimers, isReconnecting]);
+
+  // -------------------------------------------------------------------------
+  // Auto-reconnect with exponential backoff
+  // -------------------------------------------------------------------------
+
+  const scheduleReconnect = useCallback(() => {
+    const attempt = reconnectAttemptRef.current + 1;
+
+    if (attempt > MAX_RECONNECT_ATTEMPTS) {
+      setIsReconnecting(false);
+      toast.error(t('terminal.reconnectFailed'));
+      return;
+    }
+
+    reconnectAttemptRef.current = attempt;
+    setReconnectAttempt(attempt);
+    setIsReconnecting(true);
+
+    // Calculate delay with exponential backoff
+    const delay = Math.min(INITIAL_RECONNECT_DELAY * Math.pow(2, attempt - 1), MAX_RECONNECT_DELAY);
+    const delaySeconds = Math.ceil(delay / 1000);
+
+    // Start countdown
+    setReconnectCountdown(delaySeconds);
+    let remainingSeconds = delaySeconds;
+
+    countdownTimerRef.current = setInterval(() => {
+      remainingSeconds--;
+      setReconnectCountdown(remainingSeconds);
+      if (remainingSeconds <= 0 && countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+    }, 1000);
+
+    // Schedule the actual reconnect
+    reconnectTimerRef.current = setTimeout(() => {
+      if (!userDisconnectedRef.current) {
+        connectWebSocket();
+      }
+    }, delay);
+  }, [connectWebSocket, t]);
 
   const disconnectWebSocket = useCallback(() => {
+    // Mark as user-initiated disconnect to prevent auto-reconnect
+    userDisconnectedRef.current = true;
+    cancelReconnect();
+
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
@@ -232,7 +349,7 @@ export function TerminalView() {
     setSessions([]);
     setActiveSessionId(null);
     toast.info(t('terminal.disconnected'));
-  }, [t]);
+  }, [t, cancelReconnect]);
 
   // -------------------------------------------------------------------------
   // Terminal initialization
@@ -518,6 +635,35 @@ export function TerminalView() {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          {/* Reconnection status */}
+          {isReconnecting && !connected && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium bg-amber-500/10 border-amber-200 text-amber-600">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>
+                {t('terminal.reconnectIn', { seconds: reconnectCountdown })}
+              </span>
+              <span className="text-amber-500/60">
+                ({reconnectAttempt}/{MAX_RECONNECT_ATTEMPTS})
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 px-1.5 text-[10px] text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
+                onClick={cancelReconnect}
+              >
+                {t('terminal.cancelReconnect')}
+              </Button>
+            </div>
+          )}
+
+          {/* Failed reconnect indicator */}
+          {reconnectAttempt >= MAX_RECONNECT_ATTEMPTS && !connected && !isReconnecting && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium bg-red-500/10 border-red-200 text-red-600">
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span>{t('terminal.reconnectFailed')}</span>
+            </div>
+          )}
 
           {connected ? (
             <Button variant="outline" size="sm" className="gap-2" onClick={disconnectWebSocket}>

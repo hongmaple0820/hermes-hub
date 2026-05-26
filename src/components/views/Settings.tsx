@@ -59,8 +59,8 @@ function SettingRow({ label, description, children }: SettingRowProps) {
 function SectionHeader({ icon: Icon, title, description }: { icon: React.ElementType; title: string; description?: string }) {
   return (
     <div className="flex items-start gap-3 mb-4">
-      <div className="mt-0.5 p-2 rounded-lg bg-muted">
-        <Icon className="w-4 h-4 text-muted-foreground" />
+      <div className="mt-0.5 p-2 rounded-lg bg-muted dark:bg-muted/80">
+        <Icon className="w-4 h-4 text-muted-foreground dark:text-muted-foreground/90" />
       </div>
       <div>
         <h3 className="text-sm font-semibold">{title}</h3>
@@ -433,24 +433,24 @@ export function Settings({ onLogout }: SettingsProps) {
   const agentCount = agents?.length || 0;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">{t('settingsPage.title')}</h1>
         <p className="text-muted-foreground text-sm">{t('settingsPage.subtitle')}</p>
       </div>
 
       <Tabs defaultValue="general" className="space-y-4">
-        <TabsList className="flex flex-wrap h-auto gap-1">
-          <TabsTrigger value="general" className="gap-1.5 text-xs">
+        <TabsList className="flex flex-wrap h-auto gap-1 overflow-x-auto">
+          <TabsTrigger value="general" className="gap-1.5 text-xs shrink-0">
             <Palette className="w-3.5 h-3.5" /> {t('settingsPage.generalTab')}
           </TabsTrigger>
-          <TabsTrigger value="acrp" className="gap-1.5 text-xs">
+          <TabsTrigger value="acrp" className="gap-1.5 text-xs shrink-0">
             <Hexagon className="w-3.5 h-3.5" /> {t('settingsPage.acrpTab')}
           </TabsTrigger>
-          <TabsTrigger value="data" className="gap-1.5 text-xs">
+          <TabsTrigger value="data" className="gap-1.5 text-xs shrink-0">
             <Database className="w-3.5 h-3.5" /> {t('settingsPage.dataManagementTab')}
           </TabsTrigger>
-          <TabsTrigger value="about" className="gap-1.5 text-xs">
+          <TabsTrigger value="about" className="gap-1.5 text-xs shrink-0">
             <Info className="w-3.5 h-3.5" /> {t('settingsPage.aboutTab')}
           </TabsTrigger>
         </TabsList>
@@ -517,7 +517,7 @@ export function Settings({ onLogout }: SettingsProps) {
                     value={getSetting('busyInputMode', 'queue') as string}
                     onValueChange={(v) => updateSetting('busyInputMode', v)}
                   >
-                    <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-32"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="queue">{t('settingsPage.busyModeQueue')}</SelectItem>
                       <SelectItem value="interrupt">{t('settingsPage.busyModeInterrupt')}</SelectItem>
@@ -551,11 +551,11 @@ export function Settings({ onLogout }: SettingsProps) {
                 {/* Theme Selector */}
                 <div>
                   <Label className="text-sm font-medium mb-3 block">{t('settingsPage.theme')}</Label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {[
-                      { value: 'light', icon: Sun, label: t('settingsPage.themeLight'), preview: 'bg-white border' },
-                      { value: 'dark', icon: Moon, label: t('settingsPage.themeDark'), preview: 'bg-zinc-900 border-zinc-700' },
-                      { value: 'system', icon: MonitorSmartphone, label: t('settingsPage.themeSystem'), preview: 'bg-gradient-to-r from-white to-zinc-900 border' },
+                      { value: 'light', icon: Sun, label: t('settingsPage.themeLight'), preview: 'bg-white border border-zinc-200 dark:border-zinc-500' },
+                      { value: 'dark', icon: Moon, label: t('settingsPage.themeDark'), preview: 'bg-zinc-900 border border-zinc-700 dark:border-zinc-500' },
+                      { value: 'system', icon: MonitorSmartphone, label: t('settingsPage.themeSystem'), preview: 'bg-gradient-to-r from-white to-zinc-900 border border-zinc-200 dark:border-zinc-500' },
                     ].map((opt) => (
                       <button
                         key={opt.value}
@@ -582,7 +582,7 @@ export function Settings({ onLogout }: SettingsProps) {
                 <div>
                   <Label className="text-sm font-medium mb-3 block">{t('settingsPage.accentColor')}</Label>
                   <p className="text-xs text-muted-foreground mb-3">{t('settingsPage.accentColorDesc')}</p>
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap gap-3">
                     {ACCENT_COLORS.map((accent) => (
                       <button
                         key={accent.id}
@@ -594,7 +594,7 @@ export function Settings({ onLogout }: SettingsProps) {
                         }`}
                       >
                         <div
-                          className="w-8 h-8 rounded-full border-2 border-white shadow-md"
+                          className="w-8 h-8 rounded-full border-2 border-white dark:border-zinc-600 shadow-md"
                           style={{ backgroundColor: accent.color }}
                         />
                         <span className="text-[10px] font-medium">{t(accent.label)}</span>
@@ -621,7 +621,7 @@ export function Settings({ onLogout }: SettingsProps) {
                 >
                   <Input
                     type="number"
-                    className="w-24"
+                    className="w-full sm:w-24"
                     min={1}
                     max={100}
                     value={getSetting('maxTurns', 10) as number}
@@ -636,7 +636,7 @@ export function Settings({ onLogout }: SettingsProps) {
                   <div className="flex items-center gap-2">
                     <Input
                       type="number"
-                      className="w-24"
+                      className="w-full sm:w-24"
                       min={10}
                       max={600}
                       value={getSetting('gatewayTimeout', 120) as number}
@@ -653,7 +653,7 @@ export function Settings({ onLogout }: SettingsProps) {
                   <div className="flex items-center gap-2">
                     <Input
                       type="number"
-                      className="w-24"
+                      className="w-full sm:w-24"
                       min={10}
                       max={600}
                       value={getSetting('restartDrainTimeout', 30) as number}
@@ -692,7 +692,7 @@ export function Settings({ onLogout }: SettingsProps) {
                   <div className="flex items-center gap-2">
                     <Input
                       type="number"
-                      className="w-28"
+                      className="w-full sm:w-28"
                       min={100}
                       max={50000}
                       value={getSetting('userProfileCharLimit', 2000) as number}
@@ -709,7 +709,7 @@ export function Settings({ onLogout }: SettingsProps) {
                   <div className="flex items-center gap-2">
                     <Input
                       type="number"
-                      className="w-28"
+                      className="w-full sm:w-28"
                       min={100}
                       max={100000}
                       value={getSetting('memoryCharLimit', 5000) as number}
@@ -739,7 +739,7 @@ export function Settings({ onLogout }: SettingsProps) {
                     value={getSetting('sessionResetMode', 'idle') as string}
                     onValueChange={(v) => updateSetting('sessionResetMode', v)}
                   >
-                    <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="idle">{t('settingsPage.resetModeIdle')}</SelectItem>
                       <SelectItem value="scheduled">{t('settingsPage.resetModeScheduled')}</SelectItem>
@@ -755,7 +755,7 @@ export function Settings({ onLogout }: SettingsProps) {
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
-                        className="w-28"
+                        className="w-full sm:w-28"
                         min={5}
                         max={1440}
                         value={getSetting('idleResetMinutes', 30) as number}
@@ -773,7 +773,7 @@ export function Settings({ onLogout }: SettingsProps) {
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
-                        className="w-28"
+                        className="w-full sm:w-28"
                         min={0}
                         max={23}
                         value={getSetting('scheduledResetHour', 0) as number}
@@ -826,7 +826,7 @@ export function Settings({ onLogout }: SettingsProps) {
                     value={getSetting('defaultProviderId', '') as string}
                     onValueChange={(v) => updateSetting('defaultProviderId', v)}
                   >
-                    <SelectTrigger className="w-48"><SelectValue placeholder={t('settingsPage.selectProvider')} /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-48"><SelectValue placeholder={t('settingsPage.selectProvider')} /></SelectTrigger>
                     <SelectContent>
                       {providers.length === 0 ? (
                         <SelectItem value="none" disabled>{t('agents.noProviders')}</SelectItem>
@@ -844,7 +844,7 @@ export function Settings({ onLogout }: SettingsProps) {
                   description={t('settingsPage.defaultModelDesc')}
                 >
                   <Input
-                    className="w-48"
+                    className="w-full sm:w-48"
                     placeholder="e.g., gpt-4o"
                     value={getSetting('defaultModel', '') as string}
                     onChange={(e) => updateSetting('defaultModel', e.target.value)}
@@ -1131,7 +1131,7 @@ export function Settings({ onLogout }: SettingsProps) {
                   <div className="flex items-center gap-2">
                     <Input
                       type="number"
-                      className="w-24"
+                      className="w-full sm:w-24"
                       min={5}
                       max={300}
                       value={getSetting('acrpHeartbeatInterval', 30) as number}
@@ -1148,7 +1148,7 @@ export function Settings({ onLogout }: SettingsProps) {
                   <div className="flex items-center gap-2">
                     <Input
                       type="number"
-                      className="w-24"
+                      className="w-full sm:w-24"
                       min={10}
                       max={600}
                       value={getSetting('acrpStaleTimeout', 90) as number}
@@ -1166,7 +1166,7 @@ export function Settings({ onLogout }: SettingsProps) {
                     value={String(getSetting('acrpAutoRefreshInterval', 30))}
                     onValueChange={(v) => updateSetting('acrpAutoRefreshInterval', parseInt(v))}
                   >
-                    <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-28"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {AUTO_REFRESH_OPTIONS.map((opt) => (
                         <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
@@ -1191,7 +1191,7 @@ export function Settings({ onLogout }: SettingsProps) {
                 >
                   <Input
                     type="number"
-                    className="w-24"
+                    className="w-full sm:w-24"
                     min={1}
                     max={50}
                     value={getSetting('acrpMaxInvocations', 5) as number}

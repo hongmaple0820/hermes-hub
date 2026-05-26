@@ -247,6 +247,19 @@ class ApiClient {
     return this.patch<{ channel: any }>(`/channels/${platform}`, data);
   }
 
+  async getChannelMetrics(platform: string) {
+    return this.get<{
+      metrics: {
+        messagesSent: number;
+        messagesReceived: number;
+        activeUsers: number;
+        latency: number | null;
+        lastMessageAt: string | null;
+        uptime: number;
+      };
+    }>(`/channels/${platform}/metrics`);
+  }
+
   // Jobs
   async getJobs() {
     return this.get<{ jobs: any[] }>('/jobs');

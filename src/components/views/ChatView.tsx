@@ -32,7 +32,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import {
   Bot, Send, Plus, Loader2, ArrowLeft, MessageSquare, Users, GitBranch, ArrowRight,
   Paperclip, Smile, Check, CheckCheck, Clock, Copy, Trash2, Search, ChevronDown,
-  Sparkles, Zap, BookOpen, Code, Globe, Radio, X, Download, Upload
+  Sparkles, Zap, BookOpen, Code, Globe, Radio, X, Download, Upload,
+  FileText, Image as ImageIcon, File
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -40,12 +41,39 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 import { ContextIndicator } from '@/components/shared/ContextIndicator';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { EmojiPicker } from '@/components/shared/EmojiPicker';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 const MAX_INPUT_LENGTH = 4000;
 const CHAR_COUNT_THRESHOLD = 3500;
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+const ALLOWED_FILE_TYPES = [
+  // Images
+  'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp',
+  // Documents
+  'application/pdf',
+  // Text
+  'text/plain', 'text/csv', 'text/html', 'text/css', 'text/markdown',
+  // Code
+  'text/javascript', 'text/typescript', 'application/json', 'text/xml',
+  'text/yaml', 'application/x-yaml',
+];
+
+function isAllowedType(mimeType: string): boolean {
+  if (ALLOWED_FILE_TYPES.includes(mimeType)) return true;
+  // Allow text/* and application/* code files
+  if (mimeType.startsWith('text/')) return true;
+  return false;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 // ---------------------------------------------------------------------------
 // Sub-component: Typing Indicator
@@ -59,9 +87,9 @@ function TypingIndicator({ agentName }: { agentName: string }) {
           <Bot className="w-4 h-4" />
         </AvatarFallback>
       </Avatar>
-      <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-3">
+      <div className="bg-card dark:bg-card/80 border border-border dark:border-border/80 rounded-2xl rounded-bl-md px-4 py-3">
         <div className="flex items-center gap-2">
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground dark:text-muted-foreground/90">
             {agentName} {t('chat.thinking')}
           </p>
           <div className="flex gap-1 items-center h-4">
@@ -157,7 +185,7 @@ function MessageBubble({
             'rounded-2xl px-4 py-2.5',
             isUser
               ? 'bg-primary text-primary-foreground rounded-br-md'
-              : 'bg-card border border-border rounded-bl-md'
+              : 'bg-card dark:bg-card/80 border border-border dark:border-border/80 rounded-bl-md'
           )}
         >
           {isUser ? (
@@ -178,7 +206,7 @@ function MessageBubble({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="text-[10px] text-muted-foreground cursor-default">
+                <span className="text-[10px] text-muted-foreground dark:text-muted-foreground/90 cursor-default">
                   {formatTime(msg.createdAt)}
                 </span>
               </TooltipTrigger>
@@ -471,8 +499,13 @@ function ConversationsPanel() {
   const [lineage, setLineage] = useState<{ ancestors: any[]; totalMessages: number } | null>(null);
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [attachments, setAttachments] = useState<Array<{ file: File; preview?: string }>>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
 
   const selectedConv = conversations.find((c: any) => c.id === selectedConversationId);
 
@@ -554,15 +587,42 @@ function ConversationsPanel() {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || !selectedConversationId) return;
+    if ((!input.trim() && attachments.length === 0) || !selectedConversationId) return;
     const userMsg = input.trim();
     setInput('');
     setSending(true);
+    setEmojiPickerOpen(false);
+
+    // Handle file attachments
+    let uploadedFileNames: string[] = [];
+    if (attachments.length > 0) {
+      try {
+        for (const att of attachments) {
+          const formData = new FormData();
+          formData.append('file', att.file);
+          formData.append('path', '/chat-uploads');
+          await api.uploadFile(formData);
+          uploadedFileNames.push(att.file.name);
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'File upload failed');
+        setSending(false);
+        return;
+      }
+      setAttachments([]);
+    }
+
+    // Build message content
+    let messageContent = userMsg;
+    if (uploadedFileNames.length > 0) {
+      const filePart = uploadedFileNames.map((n) => `📎 ${n}`).join('\n');
+      messageContent = messageContent ? `${messageContent}\n${filePart}` : filePart;
+    }
 
     const tempUserMsg = {
       id: `temp-${Date.now()}`,
-      content: userMsg,
-      type: 'text',
+      content: messageContent,
+      type: uploadedFileNames.length > 0 ? 'file' : 'text',
       senderType: 'user',
       senderName: 'You',
       createdAt: new Date().toISOString(),
@@ -570,7 +630,7 @@ function ConversationsPanel() {
     setMessages((prev) => [...prev, tempUserMsg]);
 
     try {
-      const result = await api.sendMessage(selectedConversationId, userMsg);
+      const result = await api.sendMessage(selectedConversationId, messageContent, tempUserMsg.type);
       setMessages((prev) => {
         const filtered = prev.filter((m) => m.id !== tempUserMsg.id);
         return [...filtered, result.message];
@@ -616,6 +676,72 @@ function ConversationsPanel() {
   const handleSwitchAgent = async (agentId: string) => {
     await handleStartChat(agentId);
   };
+
+  // File attachment handling
+  const handleFileSelect = useCallback((files: FileList | File[]) => {
+    const newAttachments: Array<{ file: File; preview?: string }> = [];
+    const fileArray = Array.from(files);
+
+    for (const file of fileArray) {
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(t('chat.fileTooLarge'));
+        continue;
+      }
+      if (!isAllowedType(file.type) && !file.type.startsWith('image/')) {
+        toast.error(t('chat.unsupportedType'));
+        continue;
+      }
+
+      const attachment: { file: File; preview?: string } = { file };
+      // Create preview for images
+      if (file.type.startsWith('image/')) {
+        attachment.preview = URL.createObjectURL(file);
+      }
+      newAttachments.push(attachment);
+    }
+
+    setAttachments((prev) => [...prev, ...newAttachments]);
+  }, [t]);
+
+  const handleRemoveAttachment = useCallback((index: number) => {
+    setAttachments((prev) => {
+      const newAtts = [...prev];
+      // Revoke object URL if it was a preview
+      if (newAtts[index].preview) {
+        URL.revokeObjectURL(newAtts[index].preview!);
+      }
+      newAtts.splice(index, 1);
+      return newAtts;
+    });
+  }, []);
+
+  // Drag and drop handlers
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files.length > 0) {
+      handleFileSelect(e.dataTransfer.files);
+    }
+  }, [handleFileSelect]);
+
+  // Emoji handler
+  const handleEmojiSelect = useCallback((emoji: string) => {
+    setInput((prev) => prev + emoji);
+    setEmojiPickerOpen(false);
+  }, []);
 
   return (
     <div className="flex h-full">
@@ -783,6 +909,17 @@ function ConversationsPanel() {
 
       {/* Chat Area */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile back button - visible only on small screens when conversation is active */}
+        {selectedConv && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="md:hidden fixed top-2 left-14 z-50 w-8 h-8 p-0 bg-background/80 backdrop-blur-sm border border-border/50 rounded-full"
+            onClick={() => setSelectedConversationId(null)}
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+        )}
         {selectedConv ? (
           <>
             {/* Agent Selector Header */}
@@ -827,7 +964,7 @@ function ConversationsPanel() {
             </div>
 
             {/* Messages Area */}
-            <ScrollArea className="flex-1 p-4 md:p-6" ref={scrollAreaRef}>
+            <ScrollArea className="flex-1 p-3 md:p-6" ref={scrollAreaRef}>
               <div className="max-w-3xl mx-auto space-y-3">
                 {loadingMessages ? (
                   <div className="space-y-4 py-4">
@@ -868,53 +1005,152 @@ function ConversationsPanel() {
             </ScrollArea>
 
             {/* Enhanced Input Area */}
-            <div className="p-3 md:p-4 border-t border-border">
+            <div className="p-2 sm:p-3 md:p-4 border-t border-border">
               <div className="max-w-3xl mx-auto">
-                <div className="flex items-end gap-2 bg-card border border-border rounded-xl px-3 py-2 focus-within:border-primary/50 transition-colors">
-                  {/* Attachment button */}
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="w-8 h-8 shrink-0 text-muted-foreground hover:text-foreground">
-                          <Paperclip className="w-4 h-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs">Attach file</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                {/* File attachment preview */}
+                {attachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {attachments.map((att, index) => (
+                      <div
+                        key={index}
+                        className="relative flex items-center gap-2 bg-card border border-border rounded-lg px-2 py-1.5 text-xs group"
+                      >
+                        {att.preview ? (
+                          <div className="w-10 h-10 rounded overflow-hidden shrink-0">
+                            <img src={att.preview} alt={att.file.name} className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded bg-muted flex items-center justify-center shrink-0">
+                            {att.file.type === 'application/pdf' ? (
+                              <FileText className="w-5 h-5 text-destructive" />
+                            ) : (
+                              <File className="w-5 h-5 text-muted-foreground" />
+                            )}
+                          </div>
+                        )}
+                        <div className="min-w-0 max-w-[120px]">
+                          <p className="truncate font-medium">{att.file.name}</p>
+                          <p className="text-muted-foreground">{formatFileSize(att.file.size)}</p>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveAttachment(index)}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          aria-label={t('chat.removeAttachment')}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-                  {/* Auto-expanding textarea */}
-                  <AutoExpandingTextarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={t('chat.sendMessage')}
-                    disabled={sending}
-                  />
+                {/* Drag and drop overlay */}
+                <div
+                  className={cn(
+                    'relative',
+                    isDragging && 'ring-2 ring-primary ring-offset-2 rounded-xl'
+                  )}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  {isDragging && (
+                    <div className="absolute inset-0 bg-primary/5 border-2 border-dashed border-primary rounded-xl z-10 flex items-center justify-center">
+                      <div className="text-center">
+                        <Upload className="w-8 h-8 text-primary mx-auto mb-1" />
+                        <p className="text-sm font-medium text-primary">{t('chat.dragDrop')}</p>
+                      </div>
+                    </div>
+                  )}
 
-                  {/* Emoji button */}
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" className="w-8 h-8 shrink-0 text-muted-foreground hover:text-foreground">
-                          <Smile className="w-4 h-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs">Emoji</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <div className="flex items-end gap-2 bg-card border border-border rounded-xl px-3 py-2 focus-within:border-primary/50 transition-colors">
+                    {/* Hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      className="hidden"
+                      accept={ALLOWED_FILE_TYPES.join(',') + ',image/*'}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          handleFileSelect(e.target.files);
+                          // Reset the input so the same file can be selected again
+                          e.target.value = '';
+                        }
+                      }}
+                    />
 
-                  {/* Send button */}
-                  <Button
-                    onClick={handleSend}
-                    disabled={sending || !input.trim()}
-                    size="icon"
-                    className="w-8 h-8 shrink-0"
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
+                    {/* Attachment button */}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="w-8 h-8 shrink-0 text-muted-foreground hover:text-foreground"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            <Paperclip className="w-4 h-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">{t('chat.attachFile')}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+
+                    {/* Auto-expanding textarea */}
+                    <AutoExpandingTextarea
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder={t('chat.sendMessage')}
+                      disabled={sending}
+                    />
+
+                    {/* Emoji button with picker */}
+                    <div className="relative shrink-0">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              ref={emojiButtonRef}
+                              variant="ghost"
+                              size="icon"
+                              className={cn(
+                                'w-8 h-8 text-muted-foreground hover:text-foreground',
+                                emojiPickerOpen && 'text-primary'
+                              )}
+                              onClick={() => setEmojiPickerOpen((prev) => !prev)}
+                            >
+                              <Smile className="w-4 h-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">{t('chat.emojiPicker')}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <EmojiPicker
+                        open={emojiPickerOpen}
+                        onClose={() => setEmojiPickerOpen(false)}
+                        onEmojiSelect={handleEmojiSelect}
+                        anchorRef={emojiButtonRef}
+                      />
+                    </div>
+
+                    {/* Send button */}
+                    <Button
+                      onClick={handleSend}
+                      disabled={sending || (!input.trim() && attachments.length === 0)}
+                      size="icon"
+                      className="w-8 h-8 shrink-0"
+                    >
+                      {sending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
+                <p className="text-[10px] text-muted-foreground dark:text-muted-foreground/80 mt-1.5 text-center">
                   Enter to send · Shift+Enter for new line
                 </p>
               </div>

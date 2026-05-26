@@ -90,12 +90,12 @@
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
+  --muted-foreground: oklch(0.63 0 0);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 18%);
   --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
@@ -195,4 +195,68 @@
 /* Smooth scroll behavior */
 .smooth-scroll {
   scroll-behavior: smooth;
+}
+
+/* Dark mode contrast overrides */
+.dark {
+  /* Ensure progress bars are visible */
+  &[data-slot="progress-indicator"],
+  .bg-muted {
+    background-color: oklch(0.3 0 0);
+  }
+
+  /* Ensure code blocks have visible syntax highlighting */
+  pre,
+  code {
+    background-color: oklch(0.22 0 0) !important;
+    border-color: oklch(1 0 0 / 15%);
+  }
+
+  /* Ensure badges with outline are visible */
+  [data-slot="badge"][data-variant="outline"] {
+    border-color: oklch(1 0 0 / 20%);
+  }
+
+  /* Health bar track background */
+  .bg-muted.overflow-hidden {
+    background-color: oklch(0.3 0 0);
+  }
+
+  /* Skill ranking progress track */
+  .h-1\.5.rounded-full.bg-muted {
+    background-color: oklch(0.3 0 0);
+  }
+
+  /* Ensure small timestamp text is readable */
+  .text-\[10px\].text-muted-foreground,
+  .text-\[9px\].text-muted-foreground,
+  .text-\[11px\].text-muted-foreground {
+    color: oklch(0.6 0 0);
+  }
+}
+
+/* Mobile responsiveness overrides */
+@media (max-width: 640px) {
+  /* Prevent horizontal overflow on mobile */
+  .max-w-7xl {
+    max-width: 100%;
+  }
+
+  /* Ensure dialogs are properly sized on mobile */
+  [data-slot="dialog-content"] {
+    max-width: calc(100vw - 2rem) !important;
+    max-height: 90vh;
+  }
+
+  /* Tabs horizontal scroll on mobile */
+  [data-slot="tabs-list"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap !important;
+  }
+
+  [data-slot="tabs-list"]::-webkit-scrollbar {
+    display: none;
+  }
 }

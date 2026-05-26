@@ -314,7 +314,7 @@ export function ProviderManager() {
   );
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">{t('providers.title')}</h1>
@@ -324,7 +324,7 @@ export function ProviderManager() {
           <DialogTrigger asChild>
             <Button className="gap-2"><Plus className="w-4 h-4" /> {t('providers.add')}</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg w-[calc(100vw-2rem)] sm:max-w-lg">
             <DialogHeader><DialogTitle>{t('providers.addTitle')}</DialogTitle><DialogDescription>{t('providers.addTitleDesc')}</DialogDescription></DialogHeader>
             {renderFormFields(false)}
           </DialogContent>
@@ -333,7 +333,7 @@ export function ProviderManager() {
 
       {/* Edit Dialog */}
       <Dialog open={showEdit} onOpenChange={(open) => { setShowEdit(open); if (!open) { setEditingProvider(null); setForm({ ...defaultForm }); } }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg w-[calc(100vw-2rem)] sm:max-w-lg">
           <DialogHeader><DialogTitle>{t('providers.editTitle')}</DialogTitle><DialogDescription>{t('providers.editTitleDesc')}</DialogDescription></DialogHeader>
           {renderFormFields(true)}
         </DialogContent>
@@ -380,7 +380,7 @@ export function ProviderManager() {
               <h3 className="text-sm font-semibold">{t('providers.quickAdd')}</h3>
             </div>
             <p className="text-xs text-muted-foreground mb-4">{t('providers.quickAddDesc')}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
               {PROVIDER_TYPES.filter((pt) => ['openai', 'anthropic', 'google', 'ollama'].includes(pt.value)).map((pt) => (
                 <button
                   key={pt.value}
@@ -404,7 +404,7 @@ export function ProviderManager() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {providers.map((provider: any) => {
             const pt = getProviderType(provider.provider);
             const testResult = testResults[provider.id];
@@ -529,7 +529,7 @@ export function ProviderManager() {
           {t('oauth.deviceCodeHint')}
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {OAUTH_PROVIDERS.map((oauthProvider) => {
             const status = oauthStatuses[oauthProvider.value as OAuthProvider];
             const isLoading = oauthLoading[oauthProvider.value as OAuthProvider];

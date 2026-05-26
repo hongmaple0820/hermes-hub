@@ -426,7 +426,7 @@ export function AgentManager() {
   );
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">{t('agents.title')}</h1>
@@ -436,7 +436,7 @@ export function AgentManager() {
           <Button className="gap-2" onClick={() => setShowCreate(true)}>
             <Plus className="w-4 h-4" /> {t('agents.create')}
           </Button>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto w-[calc(100vw-2rem)] sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>{t('agents.createTitle')}</DialogTitle>
               <DialogDescription>{t('agents.createTitleDesc')}</DialogDescription>
@@ -496,7 +496,7 @@ export function AgentManager() {
 
       {/* Edit Dialog */}
       <Dialog open={showEdit} onOpenChange={(open) => { setShowEdit(open); if (!open) { setEditingAgent(null); setForm({ ...defaultForm }); } }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto w-[calc(100vw-2rem)] sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{t('agents.editTitle')}</DialogTitle>
             <DialogDescription>{t('agents.editTitleDesc')}</DialogDescription>
@@ -507,7 +507,7 @@ export function AgentManager() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteConfirm} onOpenChange={(open) => { setShowDeleteConfirm(open); if (!open) { setDeletingAgent(null); setDeleteConfirmName(''); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t('agents.deleteConfirmTitle')}</DialogTitle>
             <DialogDescription className="space-y-2">
@@ -547,7 +547,7 @@ export function AgentManager() {
 
       {/* ACRP Success Dialog */}
       <Dialog open={showAcrpSuccess} onOpenChange={setShowAcrpSuccess}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm w-[calc(100vw-2rem)] sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-cyan-500" />
@@ -606,7 +606,7 @@ export function AgentManager() {
       ) : (
         <div className={cn(
           viewLayout === 'grid'
-            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
+            ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4'
             : 'flex flex-col gap-3'
         )}>
           <AnimatePresence mode="popLayout">

@@ -533,7 +533,22 @@
     "exportSuccess": "Conversation exported successfully",
     "importSuccess": "Conversation imported successfully",
     "importFailed": "Failed to import conversation",
-    "importInvalidFormat": "Invalid conversation file format"
+    "importInvalidFormat": "Invalid conversation file format",
+    "emojiPicker": "Emoji",
+    "searchEmoji": "Search emoji...",
+    "emojiSmileys": "Smileys",
+    "emojiGestures": "Gestures",
+    "emojiHearts": "Hearts",
+    "emojiAnimals": "Animals",
+    "emojiFood": "Food",
+    "emojiTravel": "Travel",
+    "emojiObjects": "Objects",
+    "attachFile": "Attach file",
+    "dragDrop": "Drop files here to attach",
+    "sendFile": "Send file",
+    "removeAttachment": "Remove attachment",
+    "fileTooLarge": "File is too large (max 10MB)",
+    "unsupportedType": "Unsupported file type"
   },
   "chatRooms": {
     "title": "Chat Rooms",
@@ -808,7 +823,10 @@
     "avgLatency": "Avg Latency",
     "messageFlow": "Message Flow",
     "messageFlowDesc": "Real-time message throughput across connected channels",
-    "noActiveChannels": "No active channels"
+    "noActiveChannels": "No active channels",
+    "refreshMetrics": "Refresh Metrics",
+    "noData": "No data available",
+    "metricsUnavailable": "Metrics unavailable"
   },
   "jobs": {
     "title": "Scheduled Jobs",
@@ -1103,7 +1121,12 @@
     "cmdSystem": "System",
     "showQuickCmds": "Show Quick Commands",
     "statusConnectedDesc": "Terminal is connected to the backend service",
-    "statusDisconnectedDesc": "Terminal is not connected. Click Connect to start."
+    "statusDisconnectedDesc": "Terminal is not connected. Click Connect to start.",
+    "reconnecting": "Reconnecting...",
+    "reconnectIn": "Reconnecting in {seconds}s...",
+    "reconnectFailed": "Reconnection failed after maximum attempts",
+    "reconnectSuccess": "Successfully reconnected",
+    "cancelReconnect": "Cancel"
   },
   "search": {
     "placeholder": "Search conversations, agents, messages...",

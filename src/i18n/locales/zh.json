@@ -533,7 +533,22 @@
     "exportSuccess": "对话导出成功",
     "importSuccess": "对话导入成功",
     "importFailed": "对话导入失败",
-    "importInvalidFormat": "无效的对话文件格式"
+    "importInvalidFormat": "无效的对话文件格式",
+    "emojiPicker": "表情",
+    "searchEmoji": "搜索表情...",
+    "emojiSmileys": "笑脸",
+    "emojiGestures": "手势",
+    "emojiHearts": "爱心",
+    "emojiAnimals": "动物",
+    "emojiFood": "食物",
+    "emojiTravel": "旅行",
+    "emojiObjects": "物品",
+    "attachFile": "附件",
+    "dragDrop": "拖放文件到此处添加附件",
+    "sendFile": "发送文件",
+    "removeAttachment": "移除附件",
+    "fileTooLarge": "文件过大（最大10MB）",
+    "unsupportedType": "不支持的文件类型"
   },
   "chatRooms": {
     "title": "聊天室",
@@ -808,7 +823,10 @@
     "avgLatency": "平均延迟",
     "messageFlow": "消息流",
     "messageFlowDesc": "已连接渠道的实时消息吞吐量",
-    "noActiveChannels": "无活跃渠道"
+    "noActiveChannels": "无活跃渠道",
+    "refreshMetrics": "刷新指标",
+    "noData": "暂无数据",
+    "metricsUnavailable": "指标不可用"
   },
   "jobs": {
     "title": "定时任务",
@@ -1103,7 +1121,12 @@
     "cmdSystem": "系统",
     "showQuickCmds": "显示快捷命令",
     "statusConnectedDesc": "终端已连接到后端服务",
-    "statusDisconnectedDesc": "终端未连接。点击连接以开始。"
+    "statusDisconnectedDesc": "终端未连接。点击连接以开始。",
+    "reconnecting": "正在重连...",
+    "reconnectIn": "{seconds}秒后重连...",
+    "reconnectFailed": "超过最大重试次数，重连失败",
+    "reconnectSuccess": "重连成功",
+    "cancelReconnect": "取消"
   },
   "search": {
     "placeholder": "搜索会话、智能体、消息...",

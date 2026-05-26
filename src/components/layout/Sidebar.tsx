@@ -283,7 +283,7 @@ function SidebarContent({
                             {isActive && (
                               <motion.div
                                 layoutId="sidebar-active-bg"
-                                className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/10 via-primary/[0.06] to-primary/[0.02] dark:from-primary/[0.15] dark:via-primary/[0.08] dark:to-primary/[0.03]"
+                                className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/10 via-primary/[0.06] to-primary/[0.02] dark:from-primary/[0.15] dark:via-primary/[0.08] dark:to-primary/[0.03] pointer-events-none"
                                 transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                               />
                             )}
@@ -292,7 +292,7 @@ function SidebarContent({
                             {isActive && !effectivelyCollapsed && (
                               <motion.div
                                 layoutId="sidebar-active-border"
-                                className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full bg-gradient-to-b from-primary via-primary/80 to-primary/50"
+                                className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full bg-gradient-to-b from-primary via-primary/80 to-primary/50 pointer-events-none"
                                 transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                               />
                             )}
@@ -301,7 +301,7 @@ function SidebarContent({
                             {isActive && effectivelyCollapsed && (
                               <motion.div
                                 layoutId="sidebar-active-bg-collapsed"
-                                className="absolute inset-0 rounded-lg bg-primary/[0.10] dark:bg-primary/[0.15] border border-primary/30"
+                                className="absolute inset-0 rounded-lg bg-primary/[0.10] dark:bg-primary/[0.15] border border-primary/30 pointer-events-none"
                                 transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                               />
                             )}

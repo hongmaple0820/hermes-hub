@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '@/lib/api-client';
 import { useI18n } from '@/i18n';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -36,7 +36,8 @@ interface Channel {
 interface ChannelMetrics {
   messagesSent: number;
   messagesReceived: number;
-  latency: number;
+  activeUsers: number;
+  latency: number | null;
   lastMessageAt: string | null;
   uptime: number;
 }
@@ -170,35 +171,68 @@ export function ChannelsView() {
   // Config dialog
   const [configPlatform, setConfigPlatform] = useState<string | null>(null);
 
-  // Simulated metrics per channel
+  // Real metrics per channel (loaded from API)
   const [metrics, setMetrics] = useState<Record<string, ChannelMetrics>>({});
+  const [metricsLoading, setMetricsLoading] = useState(false);
+  const [metricsError, setMetricsError] = useState(false);
 
   useEffect(() => {
     loadChannels();
   }, []);
 
-  // Simulate metrics updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setMetrics(prev => {
-        const updated = { ...prev };
-        for (const ch of channels) {
-          if (ch.status === 'connected') {
-            const m = updated[ch.platform] || { messagesSent: 0, messagesReceived: 0, latency: 0, lastMessageAt: null, uptime: 0 };
-            updated[ch.platform] = {
-              messagesSent: m.messagesSent + Math.floor(Math.random() * 3),
-              messagesReceived: m.messagesReceived + Math.floor(Math.random() * 5),
-              latency: Math.floor(20 + Math.random() * 80),
-              lastMessageAt: new Date().toISOString(),
-              uptime: m.uptime + 5,
+  // Load real metrics from the API
+  const loadMetrics = useCallback(async () => {
+    setMetricsLoading(true);
+    setMetricsError(false);
+    try {
+      const newMetrics: Record<string, ChannelMetrics> = {};
+      // Load metrics for each connected channel
+      const loadPromises = channels
+        .filter(ch => ch.status === 'connected')
+        .map(async (ch) => {
+          try {
+            const result = await api.getChannelMetrics(ch.platform);
+            newMetrics[ch.platform] = result.metrics;
+          } catch {
+            // If metrics fail for a specific channel, set unavailable
+            newMetrics[ch.platform] = {
+              messagesSent: 0,
+              messagesReceived: 0,
+              activeUsers: 0,
+              latency: null,
+              lastMessageAt: null,
+              uptime: 0,
             };
           }
+        });
+      await Promise.all(loadPromises);
+      // For disconnected channels, set zero metrics
+      for (const ch of channels) {
+        if (!newMetrics[ch.platform]) {
+          newMetrics[ch.platform] = {
+            messagesSent: 0,
+            messagesReceived: 0,
+            activeUsers: 0,
+            latency: null,
+            lastMessageAt: null,
+            uptime: 0,
+          };
         }
-        return updated;
-      });
-    }, 5000);
-    return () => clearInterval(interval);
+      }
+      setMetrics(newMetrics);
+    } catch {
+      setMetricsError(true);
+    } finally {
+      setMetricsLoading(false);
+    }
   }, [channels]);
+
+  // Load metrics when channels change
+  useEffect(() => {
+    if (channels.length > 0 && !loading) {
+      loadMetrics();
+    }
+  }, [channels, loading, loadMetrics]);
 
   const loadChannels = async () => {
     setLoading(true);
@@ -212,18 +246,6 @@ export function ChannelsView() {
         config: {},
       }));
       setChannels(loaded);
-      // Initialize metrics
-      const initMetrics: Record<string, ChannelMetrics> = {};
-      for (const ch of loaded) {
-        initMetrics[ch.platform] = {
-          messagesSent: 0,
-          messagesReceived: 0,
-          latency: 0,
-          lastMessageAt: null,
-          uptime: 0,
-        };
-      }
-      setMetrics(initMetrics);
     } catch {
       setChannels(PLATFORMS.map((p) => ({
         platform: p.id,
@@ -320,6 +342,13 @@ export function ChannelsView() {
     }
   };
 
+  // Helper to display metric value or "N/A" when unavailable
+  const displayMetric = (value: number | null, suffix?: string) => {
+    if (value === null || value === undefined) return '—';
+    if (suffix) return `${value}${suffix}`;
+    return String(value);
+  };
+
   // Summary metrics
   const totalMetrics = useMemo(() => {
     const result = { sent: 0, received: 0, connected: 0, avgLatency: 0, latencyCount: 0 };
@@ -330,11 +359,13 @@ export function ChannelsView() {
       const ch = getChannel(key);
       if (ch.status === 'connected') {
         result.connected++;
-        result.avgLatency += m.latency;
-        result.latencyCount++;
+        if (m.latency !== null) {
+          result.avgLatency += m.latency;
+          result.latencyCount++;
+        }
       }
     }
-    return { ...result, avgLatency: result.latencyCount > 0 ? Math.round(result.avgLatency / result.latencyCount) : 0 };
+    return { ...result, avgLatency: result.latencyCount > 0 ? Math.round(result.avgLatency / result.latencyCount) : null };
   }, [metrics, channels]);
 
   if (loading) {
@@ -355,6 +386,19 @@ export function ChannelsView() {
           <p className="text-muted-foreground text-sm">{t('channels.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={loadMetrics}
+            disabled={metricsLoading}
+          >
+            {metricsLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <BarChart3 className="w-4 h-4" />
+            )}
+            {t('channels.refreshMetrics')}
+          </Button>
           <Button variant="outline" className="gap-2" onClick={loadChannels}>
             <RefreshCw className="w-4 h-4" /> {t('common.refresh')}
           </Button>
@@ -381,7 +425,7 @@ export function ChannelsView() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">{t('channels.messagesSent')}</p>
-              <p className="text-lg font-bold">{totalMetrics.sent}</p>
+              <p className="text-lg font-bold">{displayMetric(totalMetrics.sent)}</p>
             </div>
           </div>
         </Card>
@@ -392,7 +436,7 @@ export function ChannelsView() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">{t('channels.messagesReceived')}</p>
-              <p className="text-lg font-bold">{totalMetrics.received}</p>
+              <p className="text-lg font-bold">{displayMetric(totalMetrics.received)}</p>
             </div>
           </div>
         </Card>
@@ -403,7 +447,9 @@ export function ChannelsView() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">{t('channels.avgLatency')}</p>
-              <p className="text-lg font-bold">{totalMetrics.avgLatency}<span className="text-xs font-normal">ms</span></p>
+              <p className="text-lg font-bold">
+                {displayMetric(totalMetrics.avgLatency, 'ms')}
+              </p>
             </div>
           </div>
         </Card>
@@ -418,7 +464,7 @@ export function ChannelsView() {
           const StatusIcon = status.icon;
           const Icon = platform.icon;
           const hasEdits = !!editedConfigs[platform.id];
-          const m = metrics[platform.id] || { messagesSent: 0, messagesReceived: 0, latency: 0, lastMessageAt: null, uptime: 0 };
+          const m = metrics[platform.id] || { messagesSent: 0, messagesReceived: 0, activeUsers: 0, latency: null, lastMessageAt: null, uptime: 0 };
 
           return (
             <Card key={platform.id} className={cn(
@@ -455,13 +501,19 @@ export function ChannelsView() {
                       </CardTitle>
                       {channel.status === 'connected' && (
                         <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
-                          <span className="flex items-center gap-1"><ArrowUp className="w-2.5 h-2.5 text-emerald-500" />{m.messagesSent}</span>
-                          <span className="flex items-center gap-1"><ArrowDown className="w-2.5 h-2.5 text-cyan-500" />{m.messagesReceived}</span>
-                          <span className="flex items-center gap-1"><Activity className="w-2.5 h-2.5 text-amber-500" />{m.latency}ms</span>
+                          <span className="flex items-center gap-1"><ArrowUp className="w-2.5 h-2.5 text-emerald-500" />{displayMetric(m.messagesSent)}</span>
+                          <span className="flex items-center gap-1"><ArrowDown className="w-2.5 h-2.5 text-cyan-500" />{displayMetric(m.messagesReceived)}</span>
+                          <span className="flex items-center gap-1"><Activity className="w-2.5 h-2.5 text-amber-500" />{displayMetric(m.latency, 'ms')}</span>
                           {m.uptime > 0 && (
                             <span className="flex items-center gap-1"><TrendingUp className="w-2.5 h-2.5" />{m.uptime}s</span>
                           )}
+                          {m.activeUsers > 0 && (
+                            <span className="flex items-center gap-1"><Zap className="w-2.5 h-2.5 text-violet-500" />{m.activeUsers}</span>
+                          )}
                         </div>
+                      )}
+                      {metricsError && channel.status === 'connected' && (
+                        <span className="text-[10px] text-amber-500">{t('channels.metricsUnavailable')}</span>
                       )}
                     </div>
                   </div>
@@ -579,11 +631,12 @@ export function ChannelsView() {
                 </div>
               ) : (
                 channels.filter(c => c.status === 'connected').map(ch => {
-                  const m = metrics[ch.platform] || { messagesSent: 0, messagesReceived: 0, latency: 0, uptime: 0 };
+                  const m = metrics[ch.platform] || { messagesSent: 0, messagesReceived: 0, activeUsers: 0, latency: null, uptime: 0 };
                   const platInfo = PLATFORMS.find(p => p.id === ch.platform);
                   const PlatIcon = platInfo?.icon || MessageCircle;
-                  const maxMessages = Math.max(m.messagesSent + m.messagesReceived, 1);
-                  const sentPct = Math.round((m.messagesSent / maxMessages) * 100);
+                  const totalMsgs = m.messagesSent + m.messagesReceived;
+                  const maxMessages = Math.max(totalMsgs, 1);
+                  const sentPct = totalMsgs > 0 ? Math.round((m.messagesSent / maxMessages) * 100) : 50;
                   return (
                     <div key={ch.platform} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
                       <div className="relative">
@@ -592,15 +645,21 @@ export function ChannelsView() {
                       </div>
                       <span className="text-sm font-medium w-20 shrink-0">{t(`channels.${ch.platform}`)}</span>
                       <div className="flex-1 flex items-center gap-2">
-                        <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden flex">
-                          <div className="h-full bg-emerald-500 transition-all" style={{ width: `${sentPct}%` }} />
-                          <div className="h-full bg-cyan-500 transition-all" style={{ width: `${100 - sentPct}%` }} />
-                        </div>
+                        {totalMsgs > 0 ? (
+                          <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden flex">
+                            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${sentPct}%` }} />
+                            <div className="h-full bg-cyan-500 transition-all" style={{ width: `${100 - sentPct}%` }} />
+                          </div>
+                        ) : (
+                          <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
+                            <div className="h-full bg-muted-foreground/10 w-full" />
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 text-[10px] text-muted-foreground shrink-0">
-                        <span className="flex items-center gap-0.5"><ArrowUp className="w-2.5 h-2.5 text-emerald-500" />{m.messagesSent}</span>
-                        <span className="flex items-center gap-0.5"><ArrowDown className="w-2.5 h-2.5 text-cyan-500" />{m.messagesReceived}</span>
-                        <span>{m.latency}ms</span>
+                        <span className="flex items-center gap-0.5"><ArrowUp className="w-2.5 h-2.5 text-emerald-500" />{displayMetric(m.messagesSent)}</span>
+                        <span className="flex items-center gap-0.5"><ArrowDown className="w-2.5 h-2.5 text-cyan-500" />{displayMetric(m.messagesReceived)}</span>
+                        <span>{displayMetric(m.latency, 'ms')}</span>
                       </div>
                     </div>
                   );

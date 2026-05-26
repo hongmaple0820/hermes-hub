@@ -646,3 +646,241 @@ Stage Summary:
 - Remaining P1/P2 items: ChatView file upload, Emoji picker, TerminalView auto-reconnect
 - Services: Next.js (3000), chat-service (3003), skill-ws (3004) all running
 - Lint: clean, Dev server: no errors
+
+---
+Task ID: 8-b
+Agent: DataFixer
+Task: ChannelsView real metrics + TerminalView auto-reconnect
+
+Work Log:
+- Read worklog.md and project context (Tasks 1-7)
+- Analyzed ChannelsView.tsx — found fake metrics using Math.random() in setInterval every 5 seconds
+- Analyzed TerminalView.tsx — found WebSocket with no auto-reconnect logic
+- Created new API endpoint `/api/channels/[platform]/metrics/route.ts` that queries real data:
+  - Counts ChatRoomMessage records for message metrics
+  - Counts distinct ChatRoomMember userIds for active users
+  - Computes uptime from channel.lastSync timestamp
+  - Returns latency as null (not measurable from DB)
+  - Includes auth check (requireAuth) and ownership verification
+- Added `api.getChannelMetrics(platform)` method to api-client.ts
+- Rewrote ChannelsView.tsx:
+  - Removed all Math.random() usage and fake setInterval timers
+  - Added loadMetrics() function that calls api.getChannelMetrics() for each connected channel
+  - Added displayMetric() helper that shows "—" for null/unavailable values instead of fake data
+  - Added metricsError state to show "Metrics unavailable" when API fails
+  - Added "Refresh Metrics" button (BarChart3 icon) in header
+  - Added metricsLoading state with spinner
+  - Metrics load automatically when channels change
+  - Channel cards now show activeUsers count via Zap icon
+  - Message Flow visualization handles zero-message channels gracefully
+- Rewrote TerminalView.tsx:
+  - Added auto-reconnect with exponential backoff (1s initial, 30s max, doubles each attempt)
+  - Max 10 reconnect attempts before giving up
+  - Added reconnectAttempt, reconnectCountdown, isReconnecting state
+  - Added userDisconnectedRef to prevent reconnect after explicit disconnect
+  - Added scheduleReconnect() with countdown timer display
+  - Added cancelReconnect() to stop auto-reconnect attempts
+  - On successful reconnect: reset attempt counter, show success toast
+  - On max attempts exceeded: show red "Reconnection failed" indicator
+  - UI shows "Reconnecting in Xs..." with attempt count and Cancel button
+  - Cleanup on component unmount via useEffect return
+- Added i18n keys to en.json and zh.json:
+  - channels.refreshMetrics, channels.noData, channels.metricsUnavailable
+  - terminal.reconnecting, terminal.reconnectIn, terminal.reconnectFailed, terminal.reconnectSuccess, terminal.cancelReconnect
+- Ran `bun run lint` — passes clean (0 errors)
+- Dev server running without errors
+
+Stage Summary:
+- **ChannelsView fake metrics completely replaced** with real data from database API
+- **TerminalView auto-reconnect implemented** with exponential backoff, max 10 attempts, cancel button, and status indicators
+- No more Math.random() in ChannelsView — all metrics come from real database queries
+- API endpoint `/api/channels/[platform]/metrics` created with auth and ownership checks
+- 8 new i18n keys added (4 channels + 5 terminal) in both en.json and zh.json
+- Lint passes clean, dev server stable
+
+---
+Task ID: 8-a
+Agent: FeatureDeveloper
+Task: Fix onboarding dialog + ChatView emoji picker + file upload
+
+Work Log:
+- Fixed WelcomeOnboarding.tsx: removed `onPointerDownOutside={(e) => e.preventDefault()}` from DialogContent, allowing users to click outside to dismiss/skip onboarding
+- Added `relative z-10` to the footer div in WelcomeOnboarding to ensure buttons are above any animation overlay during transitions
+- Created new `/src/components/shared/EmojiPicker.tsx` component with:
+  - 7 emoji categories: Smileys (100), Gestures (60), Hearts (30), Animals (70), Food (70), Travel (60), Objects (70) = 460+ emojis
+  - Keyword-based search/filter functionality (150+ emoji-to-keyword mappings)
+  - Category tab navigation with scroll-to-section
+  - Click-outside and Escape key to close
+  - Framer Motion open/close animations (scale + fade + y translate)
+  - Floating popup positioned above the emoji button
+- Integrated EmojiPicker into ChatView ConversationsPanel:
+  - Added `emojiPickerOpen` state and `emojiButtonRef` ref
+  - Wired up Smile button to toggle emoji picker
+  - Emoji insertion into message input on selection
+  - Active state styling on emoji button when picker is open
+- Implemented file attachment upload in ChatView ConversationsPanel:
+  - Hidden file input triggered by Paperclip button
+  - File validation: type checking (images, PDFs, text, code) and size limit (10MB)
+  - File preview area above input: image thumbnails and file icon + name + size
+  - Remove button (X) on each attachment preview
+  - Drag-and-drop support on chat input area with visual overlay
+  - File upload via `api.uploadFile(formData)` on send
+  - Files displayed as special message type with 📎 prefix
+  - Updated send button to show Loader2 spinner during send
+  - Send button now enabled when either text or attachments are present
+- Added i18n keys to en.json and zh.json:
+  - Emoji: emojiPicker, searchEmoji, emojiSmileys, emojiGestures, emojiHearts, emojiAnimals, emojiFood, emojiTravel, emojiObjects
+  - Files: attachFile, dragDrop, sendFile, removeAttachment, fileTooLarge, unsupportedType
+- Lint passes clean with 0 errors
+- Dev server running without compilation errors
+
+Stage Summary:
+- **WelcomeOnboarding fixed**: Click-outside-to-dismiss now works; footer buttons always above animation overlay
+- **EmojiPicker implemented**: Lightweight custom component with 460+ emojis, 7 categories, keyword search, animations
+- **File upload implemented**: File picker, drag-drop, preview, validation, upload via API, and file messages in chat
+- **i18n complete**: 15 new keys added to both en.json and zh.json
+- Lint passes, no errors
+
+---
+Task ID: 8-c
+Agent: UIEnhancer
+Task: Dark mode polish + Mobile responsiveness optimization
+
+Work Log:
+- Read worklog.md to understand project history (Tasks 1-7)
+- Analyzed all 5 target view components and globals.css
+- Applied dark mode contrast improvements to globals.css:
+  - Changed --muted-foreground from oklch(0.708 0 0) to oklch(0.63 0 0) for better contrast
+  - Changed --border from oklch(1 0 0 / 10%) to oklch(1 0 0 / 12%) for more visible borders
+  - Changed --input from oklch(1 0 0 / 15%) to oklch(1 0 0 / 18%) for more visible inputs
+  - Added dark mode override block: code block backgrounds, badge borders, progress bar tracks, small timestamp text readability
+  - Added mobile responsiveness media queries: dialog sizing, tabs horizontal scrolling
+- Dashboard dark mode polish:
+  - Added dark:text-muted-foreground/90 to all small text labels (stat labels, card titles, subtitles, timestamps, health bar labels, activity details)
+  - Changed provider setup card amber text from dark:text-amber-300/60 to /80 and dark:text-amber-400/50 to /70
+  - Added dark:bg-muted/80 to progress bar tracks and skill ranking tracks
+  - Added dark:text-muted-foreground/80 to arrow icon
+- ChatView dark mode + mobile:
+  - Added dark:bg-card/80 and dark:border-border/80 to agent message bubbles and typing indicator
+  - Added dark:text-muted-foreground/90 to timestamp text in message bubbles
+  - Added dark:text-muted-foreground/80 to input helper text
+  - Added mobile back button (ArrowLeft) visible on md:hidden when conversation is active
+  - Changed message area padding from p-4 to p-3 on mobile
+  - Changed input area padding from p-3 to p-2 on mobile
+- Settings dark mode + mobile:
+  - Added dark:bg-muted/80 to SectionHeader icon backgrounds
+  - Added dark:text-muted-foreground/90 to SectionHeader icon colors
+  - Made theme selector grid responsive: grid-cols-1 sm:grid-cols-3
+  - Added dark:border-zinc-500 to theme preview borders for dark mode visibility
+  - Added dark:border-zinc-600 to accent color circles for dark mode visibility
+  - Made accent color picker flex-wrap for mobile
+  - Added overflow-x-auto and shrink-0 to tabs for horizontal scrolling on mobile
+  - Made all form inputs responsive: w-full sm:w-24, w-full sm:w-28, w-full sm:w-32, w-full sm:w-48
+- AgentManager mobile:
+  - All dialogs have w-[calc(100vw-2rem)] sm:max-w-lg for mobile full-width
+  - Grid already uses grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 (single column on mobile)
+  - Search input already uses w-full
+- ProviderManager mobile:
+  - Provider cards grid changed from md:grid-cols-2 to sm:grid-cols-2 (single column on mobile)
+  - OAuth cards grid changed from md:grid-cols-2 to sm:grid-cols-2
+  - Quick add buttons grid already uses grid-cols-2 sm:grid-cols-4
+  - Dialogs already have mobile width
+  - Reduced gap on quick add: gap-2 sm:gap-3
+- Lint check passes clean (0 errors)
+
+Stage Summary:
+- **Dark mode contrast significantly improved** across all views: muted-foreground colors, progress bar tracks, timestamp text, code blocks, badge borders
+- **Mobile responsiveness optimized** for all 5 target views: responsive grids, mobile dialogs, horizontal scrollable tabs, full-width inputs, mobile back button in chat
+- **globals.css enhanced** with dark mode contrast overrides and mobile media queries
+- All changes backwards compatible, lint passes clean
+
+---
+Task ID: 8
+Agent: main
+Task: QA testing, bug fixes, feature development, and UI polish round
+
+Work Log:
+- Read worklog.md to understand full project history (Tasks 1-7)
+- Verified services: Next.js (3000), chat-service (3003), skill-ws (3004) all running
+- Performed QA testing with agent-browser:
+  - Tested login/registration flow
+  - Tested dashboard rendering
+  - Discovered critical bug: Sidebar navigation clicks not working
+- Fixed Sidebar navigation bug: Added `pointer-events-none` to 3 Framer Motion `motion.div` overlays (active-bg, active-border, active-bg-collapsed)
+- Launched 3 parallel subagents:
+  1. FeatureDeveloper (8-a): Fixed onboarding dialog + EmojiPicker + file upload
+  2. DataFixer (8-b): ChannelsView real metrics + TerminalView auto-reconnect
+  3. UIEnhancer (8-c): Dark mode polish + mobile responsiveness
+- Restarted dev server after port conflict
+- Verified lint passes clean
+
+### Completed Items:
+
+**Bug Fixes:**
+1. Sidebar navigation blocked by motion.div overlays → Added pointer-events-none to 3 overlays
+2. WelcomeOnboarding dialog not dismissible → Removed onPointerDownOutside preventDefault, added z-10 to footer
+
+**New Features:**
+3. ChatView EmojiPicker → 460+ emojis in 7 categories with keyword search, Framer Motion animations
+4. ChatView File Attachment → File picker, drag-drop, image preview, type/size validation, upload via API
+5. ChannelsView Real Metrics → New API endpoint `/api/channels/[platform]/metrics`, removed all Math.random()
+6. TerminalView Auto-Reconnect → Exponential backoff (1s→30s), max 10 attempts, cancel button, status UI
+
+**UI Enhancements:**
+7. Dark Mode Polish → Improved --muted-foreground contrast (0.708→0.63), --border opacity, --input opacity, added dark: variants for Dashboard/ChatView/Settings
+8. Mobile Responsiveness → ChatView mobile back button, Settings scrollable tabs, AgentManager full-width dialogs, ProviderManager earlier breakpoints
+
+Stage Summary:
+- **8 items completed** (2 bug fixes, 4 new features, 2 UI enhancements)
+- Project is significantly more feature-complete and polished
+- Lint: clean, Dev server: running
+- Services: Next.js (3000), chat-service (3003), skill-ws (3004)
+
+---
+Task ID: 8-final
+Agent: main
+Task: Final verification and handoff documentation
+
+Work Log:
+- Verified lint passes clean after all changes
+- Restarted dev server multiple times (server occasionally crashes under heavy compile load)
+- Verified basic page loads correctly (HTTP 200)
+- Verified ACRP routes return proper auth errors
+- Tested auth API working
+
+### Current Project Status:
+
+**Services:**
+- Next.js dev server (port 3000) ✅ Running (may need restart after idle)
+- Chat service (port 3003) ✅ Running  
+- Skill WS service (port 3004) ✅ Running
+
+**All Completed Tasks (Tasks 1-8):**
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 1 | Project clone and integration | ✅ |
+| 2-a | AuthPage styling enhancement | ✅ |
+| 2-b | Dashboard header fixes | ✅ |
+| 3 | QA round 1 + fixes | ✅ |
+| 4-a | Sidebar enhancement | ✅ |
+| 4-b | Provider setup card | ✅ |
+| 5 | QA round 2 | ✅ |
+| 6 | Comprehensive evaluation | ✅ |
+| 7 | P0 security + P1 features + P2 polish | ✅ |
+| 8 | Bug fixes + new features + UI polish | ✅ |
+
+**Unresolved Issues / Risks:**
+1. Dev server occasionally crashes under heavy compile load (needs manual restart)
+2. Chat service health endpoint returns "Transport unknown" (Socket.IO doesn't handle plain HTTP)
+3. Hermes mode in chat-service is a placeholder implementation
+4. No service-to-service authentication (internal APIs lack API Key/HMAC)
+
+**Recommended Next Steps:**
+1. Add rate limiting to all public API endpoints
+2. Implement operation audit logging for critical operations
+3. Add real-time notification persistence to database
+4. Implement conversation templates for quick agent startup
+5. Add comprehensive E2E tests
+6. Optimize build performance (server crashes under load)
+7. Add WebSocket health check endpoints to chat-service
