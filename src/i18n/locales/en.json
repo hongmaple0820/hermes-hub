@@ -203,6 +203,8 @@
     "subtitle": "Create and manage your AI agents with multi-provider LLM support",
     "create": "Create Agent",
     "createTitle": "Create New Agent",
+    "createTitleDesc": "Configure a new AI agent with custom settings and capabilities.",
+    "editTitleDesc": "Modify the agent's configuration and behavior.",
     "nameLabel": "Agent Name",
     "namePlaceholder": "e.g., Code Assistant",
     "descriptionLabel": "Description",

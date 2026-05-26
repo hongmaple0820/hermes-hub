@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   Bot, Server, Puzzle, Monitor, MessageSquare, Users,
   Activity, ArrowUpRight, Zap, Wifi, WifiOff, TrendingUp,
@@ -675,14 +676,14 @@ export function Dashboard() {
             }}
           />
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">{t('dashboard.title')}</h1>
               <p className="text-muted-foreground mt-1">{t('dashboard.subtitle')}</p>
             </div>
-            <div className="flex items-center gap-2 flex-wrap justify-end">
+            <div className="flex items-center gap-3 flex-wrap justify-end">
               {/* Last Updated indicator */}
-              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mr-1">
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <RefreshCw
                   className="w-3 h-3"
                   style={isRefreshing ? { animation: 'refreshSpin 0.6s linear infinite' } : undefined}
@@ -690,26 +691,39 @@ export function Dashboard() {
                 <span>{formatLastUpdated(lastUpdated)}</span>
               </div>
 
-              {/* System Status Badge - more prominent */}
-              <Badge
-                variant="outline"
-                className={cn(
-                  'gap-1.5 px-3 py-1.5 transition-all duration-300 font-medium',
-                  isSystemOnline
-                    ? 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-700 dark:bg-emerald-900/30 shadow-sm shadow-emerald-200/50 dark:shadow-emerald-900/30'
-                    : 'border-red-300 bg-red-50/60 dark:border-red-700 dark:bg-red-900/30 shadow-sm shadow-red-200/50 dark:shadow-red-900/30'
-                )}
-              >
-                <div className={cn(
-                  'w-2.5 h-2.5 rounded-full',
-                  isSystemOnline ? 'bg-emerald-500' : 'bg-red-500'
-                )}
-                style={isSystemOnline ? { animation: 'gentlePulse 2s ease-in-out infinite' } : undefined}
-                />
-                <span className={cn('text-xs font-semibold', isSystemOnline ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400')}>
-                  {isSystemOnline ? t('dashboard.systemOnline') : t('dashboard.systemOffline')}
-                </span>
-              </Badge>
+              {/* Subtle divider between time and badges */}
+              <div className="w-px h-4 bg-border/60" />
+
+              {/* System Status Badge - with tooltip for context */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'gap-1.5 px-3 py-1.5 transition-all duration-300 font-medium cursor-help',
+                      isSystemOnline
+                        ? 'border-emerald-300 bg-emerald-50/60 dark:border-emerald-700 dark:bg-emerald-900/30 shadow-sm shadow-emerald-200/50 dark:shadow-emerald-900/30'
+                        : 'border-red-300 bg-red-50/60 dark:border-red-700 dark:bg-red-900/30 shadow-sm shadow-red-200/50 dark:shadow-red-900/30'
+                    )}
+                  >
+                    <div className={cn(
+                      'w-2.5 h-2.5 rounded-full',
+                      isSystemOnline ? 'bg-emerald-500' : 'bg-red-500'
+                    )}
+                    style={isSystemOnline ? { animation: 'gentlePulse 2s ease-in-out infinite' } : undefined}
+                    />
+                    <span className={cn('text-xs font-semibold', isSystemOnline ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400')}>
+                      {isSystemOnline ? t('dashboard.systemOnline') : t('dashboard.systemOffline')}
+                    </span>
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[260px]">
+                  {isSystemOnline
+                    ? 'System is operational - LLM providers and/or ACRP agents are connected'
+                    : 'No LLM providers configured and no ACRP agents connected. Add a provider or connect an agent to get started.'
+                  }
+                </TooltipContent>
+              </Tooltip>
 
               <Badge variant="outline" className="gap-1.5 px-3 py-1.5 border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/20">
                 <Zap className="w-3 h-3 text-amber-500" />
@@ -745,7 +759,7 @@ export function Dashboard() {
                   <div className="text-2xl font-bold tracking-tight">
                     <AnimatedCounter target={stat.value} duration={800 + index * 100} />
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{stat.label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
                 </CardContent>
               </Card>
             </motion.div>
@@ -789,7 +803,7 @@ export function Dashboard() {
                         <p className="text-xs text-muted-foreground">{stat.subtitle}</p>
                         <ArrowUpRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       </div>
-                      <p className="text-[10px] text-muted-foreground mt-1 opacity-60">{stat.detail}</p>
+                      <p className="text-xs text-muted-foreground mt-1 opacity-80">{stat.detail}</p>
                     </div>
                     <Sparkline values={stat.sparkline} color={stat.sparklineColor} />
                   </div>

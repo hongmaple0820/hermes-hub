@@ -23,6 +23,9 @@ import {
   Sparkles,
   Shield,
   Globe,
+  ArrowRight,
+  Cpu,
+  Network,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -38,10 +41,10 @@ interface FormErrors {
 }
 
 const featureHighlights = [
-  { icon: Bot, key: 'featureAgents', color: 'from-blue-400 to-blue-600' },
-  { icon: Puzzle, key: 'featureSkills', color: 'from-purple-400 to-purple-600' },
-  { icon: MessageSquare, key: 'featureChat', color: 'from-emerald-400 to-emerald-600' },
-  { icon: Monitor, key: 'featureProtocol', color: 'from-amber-400 to-amber-600' },
+  { icon: Bot, key: 'featureAgents', color: 'from-emerald-400 to-teal-500' },
+  { icon: Puzzle, key: 'featureSkills', color: 'from-violet-400 to-purple-500' },
+  { icon: MessageSquare, key: 'featureChat', color: 'from-cyan-400 to-blue-500' },
+  { icon: Monitor, key: 'featureProtocol', color: 'from-amber-400 to-orange-500' },
 ] as const;
 
 // Password strength calculator
@@ -88,6 +91,189 @@ function FloatingOrb({
         delay,
       }}
     />
+  );
+}
+
+// Animated grid lines for left panel
+function GridPattern() {
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      {/* Horizontal lines */}
+      {Array.from({ length: 12 }).map((_, i) => (
+        <motion.div
+          key={`h-${i}`}
+          className="absolute left-0 right-0 h-px bg-white/[0.04]"
+          style={{ top: `${(i + 1) * 8}%` }}
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{
+            duration: 1.5,
+            delay: i * 0.08,
+            ease: [0.25, 0.46, 0.45, 0.94],
+          }}
+        />
+      ))}
+      {/* Vertical lines */}
+      {Array.from({ length: 8 }).map((_, i) => (
+        <motion.div
+          key={`v-${i}`}
+          className="absolute top-0 bottom-0 w-px bg-white/[0.04]"
+          style={{ left: `${(i + 1) * 12}%` }}
+          initial={{ scaleY: 0 }}
+          animate={{ scaleY: 1 }}
+          transition={{
+            duration: 1.5,
+            delay: i * 0.08 + 0.3,
+            ease: [0.25, 0.46, 0.45, 0.94],
+          }}
+        />
+      ))}
+      {/* Intersection dots */}
+      {Array.from({ length: 12 }).map((_, row) =>
+        Array.from({ length: 8 }).map((_, col) => (
+          <motion.div
+            key={`dot-${row}-${col}`}
+            className="absolute w-1 h-1 rounded-full bg-white/[0.08]"
+            style={{
+              top: `${(row + 1) * 8}%`,
+              left: `${(col + 1) * 12}%`,
+              transform: 'translate(-50%, -50%)',
+            }}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{
+              duration: 0.4,
+              delay: (row + col) * 0.03 + 0.8,
+              ease: 'easeOut',
+            }}
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
+// Floating label input component with animated labels
+function FloatingLabelInput({
+  id,
+  label,
+  type = 'text',
+  placeholder,
+  value,
+  onChange,
+  error,
+  required,
+  minLength,
+  icon: Icon,
+  rightElement,
+  className = '',
+}: {
+  id: string;
+  label: string;
+  type?: string;
+  placeholder?: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  error?: string;
+  required?: boolean;
+  minLength?: number;
+  icon?: React.ElementType;
+  rightElement?: React.ReactNode;
+  className?: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  const isActive = focused || value.length > 0;
+
+  return (
+    <div className="space-y-1">
+      <div className="relative">
+        {/* Floating label */}
+        <motion.label
+          htmlFor={id}
+          className="absolute left-3 z-10 pointer-events-none origin-left"
+          animate={{
+            y: isActive ? -10 : 0,
+            x: isActive ? 0 : 0,
+            scale: isActive ? 0.75 : 1,
+            color: focused
+              ? 'rgb(16, 185, 129)'
+              : error
+                ? 'rgb(239, 68, 68)'
+                : 'rgb(107, 114, 128)',
+          }}
+          transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+          style={{
+            top: '50%',
+            transformOrigin: 'left center',
+          }}
+        >
+          {label}
+        </motion.label>
+
+        {/* Input with animated border */}
+        <div className="relative">
+          <Input
+            id={id}
+            type={type}
+            placeholder={isActive ? placeholder : ''}
+            value={value}
+            onChange={onChange}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            required={required}
+            minLength={minLength}
+            className={`pt-5 pb-2 transition-all duration-300 bg-background/60 backdrop-blur-sm border-border/50 focus:bg-background/80 focus:border-emerald-500/50 focus-visible:ring-emerald-500/20 ${
+              error ? 'border-destructive focus:border-destructive focus-visible:ring-destructive/30' : ''
+            } ${rightElement ? 'pr-10' : ''} ${className}`}
+          />
+          {/* Focus indicator line */}
+          <motion.div
+            className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-emerald-500 to-cyan-500"
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: focused ? 1 : 0 }}
+            transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+            style={{ originX: 0 }}
+          />
+        </div>
+
+        {/* Right element (e.g. password toggle) */}
+        {rightElement && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            {rightElement}
+          </div>
+        )}
+      </div>
+
+      {/* Error message with animation */}
+      <AnimatePresence>
+        {error && (
+          <motion.p
+            initial={{ opacity: 0, y: -5, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: -5, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="text-xs text-destructive overflow-hidden"
+          >
+            {error}
+          </motion.p>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// Animated stat counter for left panel
+function StatCounter({ value, label, delay = 0 }: { value: string; label: string; delay?: number }) {
+  return (
+    <motion.div
+      className="text-center"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
+    >
+      <div className="text-2xl font-bold text-white">{value}</div>
+      <div className="text-xs text-white/50 mt-0.5">{label}</div>
+    </motion.div>
   );
 }
 
@@ -188,10 +374,10 @@ export function AuthPage({ onAuth }: AuthPageProps) {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8, ease: 'easeOut' }}
     >
-      {/* Global background with dot pattern */}
+      {/* Global background */}
       <div className="absolute inset-0 bg-background" />
       <div
-        className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
+        className="absolute inset-0 opacity-[0.02] dark:opacity-[0.04]"
         style={{
           backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
           backgroundSize: '24px 24px',
@@ -230,28 +416,67 @@ export function AuthPage({ onAuth }: AuthPageProps) {
         </Popover>
       </div>
 
-      {/* Left Decorative Panel - Desktop only */}
-      <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden">
-        {/* Animated mesh gradient background */}
+      {/* ===== LEFT PANEL - Hero / Branding Side (Desktop only) ===== */}
+      <div className="hidden lg:flex lg:w-[48%] relative overflow-hidden">
+        {/* Multi-layer animated gradient background */}
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-600 via-teal-700 to-cyan-800" />
-          {/* Animated gradient overlay */}
+          {/* Base gradient */}
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-teal-800 to-cyan-900" />
+
+          {/* Animated mesh gradient layer 1 */}
           <motion.div
             className="absolute inset-0"
             style={{
               background:
-                'linear-gradient(135deg, rgba(16,185,129,0.3) 0%, rgba(6,182,212,0.2) 30%, rgba(99,102,241,0.15) 60%, rgba(16,185,129,0.25) 100%)',
+                'radial-gradient(ellipse 80% 60% at 20% 30%, rgba(16,185,129,0.4) 0%, transparent 60%), radial-gradient(ellipse 60% 80% at 80% 70%, rgba(6,182,212,0.3) 0%, transparent 60%)',
             }}
             animate={{
               backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'],
             }}
             transition={{
-              duration: 15,
+              duration: 12,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+          />
+
+          {/* Animated mesh gradient layer 2 - slower, different hue */}
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(ellipse 70% 50% at 70% 20%, rgba(99,102,241,0.15) 0%, transparent 50%), radial-gradient(ellipse 50% 70% at 30% 80%, rgba(16,185,129,0.2) 0%, transparent 50%)',
+            }}
+            animate={{
+              backgroundPosition: ['100% 0%', '0% 100%', '100% 0%'],
+            }}
+            transition={{
+              duration: 18,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+          />
+
+          {/* Animated pulse ring */}
+          <motion.div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full"
+            style={{
+              background: 'radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)',
+            }}
+            animate={{
+              scale: [1, 1.2, 1],
+              opacity: [0.5, 0.8, 0.5],
+            }}
+            transition={{
+              duration: 8,
               repeat: Infinity,
               ease: 'easeInOut',
             }}
           />
         </div>
+
+        {/* Grid pattern overlay */}
+        <GridPattern />
 
         {/* Floating decorative orbs */}
         <FloatingOrb
@@ -346,24 +571,36 @@ export function AuthPage({ onAuth }: AuthPageProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
-            {/* Logo with glow animation */}
+            {/* Logo with floating animation */}
             <motion.div
-              className="flex items-center gap-4 mb-6"
+              className="flex items-center gap-4 mb-8"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
               <motion.div
                 className="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center border border-white/25 shadow-lg shadow-white/5 relative"
-                whileHover={{ scale: 1.05 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                animate={{ y: [0, -6, 0] }}
+                transition={{
+                  duration: 4,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                  delay: 0.5,
+                }}
+                whileHover={{ scale: 1.08 }}
               >
                 <Zap className="w-8 h-8 text-white" />
-                {/* Subtle glow ring */}
+                {/* Glow ring */}
                 <motion.div
                   className="absolute inset-0 rounded-2xl border border-white/20"
-                  animate={{ opacity: [0.3, 0.7, 0.3], scale: [1, 1.08, 1] }}
+                  animate={{ opacity: [0.3, 0.7, 0.3], scale: [1, 1.1, 1] }}
                   transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                {/* Outer glow ring */}
+                <motion.div
+                  className="absolute -inset-1 rounded-3xl border border-white/10"
+                  animate={{ opacity: [0.1, 0.3, 0.1], scale: [1, 1.15, 1] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
                 />
               </motion.div>
               <div>
@@ -380,7 +617,7 @@ export function AuthPage({ onAuth }: AuthPageProps) {
 
             {/* Tagline */}
             <motion.p
-              className="text-white/80 text-lg mb-10 leading-relaxed max-w-md font-light"
+              className="text-white/80 text-lg mb-8 leading-relaxed max-w-md font-light"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
@@ -389,7 +626,7 @@ export function AuthPage({ onAuth }: AuthPageProps) {
             </motion.p>
 
             {/* Feature Highlights with staggered animations */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               {featureHighlights.map((feature, index) => {
                 const Icon = feature.icon;
                 return (
@@ -402,7 +639,7 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                       delay: 0.5 + index * 0.12,
                       ease: [0.25, 0.46, 0.45, 0.94],
                     }}
-                    whileHover={{ x: 4 }}
+                    whileHover={{ x: 6 }}
                     className="flex items-center gap-4 group cursor-default"
                   >
                     <div
@@ -426,17 +663,32 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                     <span className="text-white/90 font-medium text-[15px] group-hover:text-white transition-colors">
                       {t(`auth.${feature.key}`)}
                     </span>
+                    <ArrowRight className="w-4 h-4 text-white/0 group-hover:text-white/50 transition-all duration-300 -ml-2 group-hover:ml-0" />
                   </motion.div>
                 );
               })}
             </div>
 
+            {/* Stat counters */}
+            <motion.div
+              className="mt-10 flex items-center gap-8 px-4 py-4 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 1 }}
+            >
+              <StatCounter value="10+" label="LLM Providers" delay={1.1} />
+              <div className="w-px h-8 bg-white/10" />
+              <StatCounter value="50+" label="Skills" delay={1.2} />
+              <div className="w-px h-8 bg-white/10" />
+              <StatCounter value="∞" label="Agents" delay={1.3} />
+            </motion.div>
+
             {/* Trust indicators */}
             <motion.div
-              className="mt-10 flex items-center gap-6"
+              className="mt-6 flex items-center gap-6"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 1.2 }}
+              transition={{ duration: 0.6, delay: 1.4 }}
             >
               <div className="flex items-center gap-1.5 text-white/50 text-xs">
                 <Shield className="w-3.5 h-3.5" />
@@ -445,6 +697,10 @@ export function AuthPage({ onAuth }: AuthPageProps) {
               <div className="flex items-center gap-1.5 text-white/50 text-xs">
                 <Globe className="w-3.5 h-3.5" />
                 <span>Open protocol</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-white/50 text-xs">
+                <Cpu className="w-3.5 h-3.5" />
+                <span>ACRP Compatible</span>
               </div>
             </motion.div>
           </motion.div>
@@ -456,7 +712,7 @@ export function AuthPage({ onAuth }: AuthPageProps) {
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-white/5 to-transparent" />
       </div>
 
-      {/* Right Panel - Form */}
+      {/* ===== RIGHT PANEL - Form Side ===== */}
       <div className="flex-1 flex items-center justify-center relative p-4 sm:p-6 lg:p-8">
         {/* Right panel ambient gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-accent/5" />
@@ -486,6 +742,13 @@ export function AuthPage({ onAuth }: AuthPageProps) {
               >
                 <motion.div
                   className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/20 relative"
+                  animate={{ y: [0, -4, 0] }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                    delay: 0.5,
+                  }}
                   whileTap={{ scale: 0.95 }}
                 >
                   <Zap className="w-8 h-8 text-white" />
@@ -519,7 +782,7 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                 </p>
               </motion.div>
 
-              {/* Card with frosted glass effect and subtle glow */}
+              {/* Card with frosted glass effect */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -539,47 +802,55 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                       <TabsList className="w-full mb-6 bg-muted/50 backdrop-blur-sm">
                         <TabsTrigger
                           value="login"
-                          className="flex-1 transition-all data-[state=active]:shadow-sm"
+                          className="flex-1 transition-all data-[state=active]:shadow-sm data-[state=active]:bg-background"
                         >
                           {t('auth.signIn')}
                         </TabsTrigger>
                         <TabsTrigger
                           value="register"
-                          className="flex-1 transition-all data-[state=active]:shadow-sm"
+                          className="flex-1 transition-all data-[state=active]:shadow-sm data-[state=active]:bg-background"
                         >
                           {t('auth.signUp')}
                         </TabsTrigger>
                       </TabsList>
                     </Tabs>
 
-                    {/* Social Login Buttons */}
+                    {/* Social Login Buttons - Enhanced */}
                     <div className="grid grid-cols-2 gap-3 mb-4">
-                      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <motion.div
+                        whileHover={{ scale: 1.03, y: -1 }}
+                        whileTap={{ scale: 0.97 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                      >
                         <Button
                           type="button"
                           variant="outline"
-                          className="gap-2 w-full bg-background/50 backdrop-blur-sm border-border/50 hover:bg-background/80 transition-all duration-200"
+                          className="gap-2.5 w-full h-11 bg-background/50 backdrop-blur-sm border-border/50 hover:bg-[#24292e]/5 hover:border-[#24292e]/30 dark:hover:bg-[#24292e]/20 dark:hover:border-[#24292e]/40 transition-all duration-300 hover:shadow-md group"
                           onClick={() => handleSocialLogin(t('auth.github'))}
                         >
-                          <Github className="w-4 h-4" />
-                          {t('auth.github')}
+                          <Github className="w-4 h-4 group-hover:text-[#24292e] dark:group-hover:text-white transition-colors" />
+                          <span className="text-sm font-medium">{t('auth.github')}</span>
                         </Button>
                       </motion.div>
-                      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                      <motion.div
+                        whileHover={{ scale: 1.03, y: -1 }}
+                        whileTap={{ scale: 0.97 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                      >
                         <Button
                           type="button"
                           variant="outline"
-                          className="gap-2 w-full bg-background/50 backdrop-blur-sm border-border/50 hover:bg-background/80 transition-all duration-200"
+                          className="gap-2.5 w-full h-11 bg-background/50 backdrop-blur-sm border-border/50 hover:bg-[#4285F4]/5 hover:border-[#4285F4]/30 dark:hover:bg-[#4285F4]/20 dark:hover:border-[#4285F4]/40 transition-all duration-300 hover:shadow-md group"
                           onClick={() => handleSocialLogin(t('auth.google'))}
                         >
                           <GoogleIcon />
-                          {t('auth.google')}
+                          <span className="text-sm font-medium">{t('auth.google')}</span>
                         </Button>
                       </motion.div>
                     </div>
 
                     {/* Divider */}
-                    <div className="relative my-4">
+                    <div className="relative my-5">
                       <div className="absolute inset-0 flex items-center">
                         <span className="w-full border-t border-border/60" />
                       </div>
@@ -595,125 +866,73 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                       <AnimatePresence>
                         {isRegister && (
                           <motion.div
-                            initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                            animate={{ opacity: 1, height: 'auto', marginBottom: 0 }}
-                            exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
                             transition={{ duration: 0.25, ease: 'easeInOut' }}
-                            className="space-y-2 overflow-hidden"
+                            className="overflow-hidden"
                           >
-                            <Label htmlFor="name" className="text-sm font-medium">
-                              {t('auth.name')}
-                            </Label>
-                            <Input
+                            <FloatingLabelInput
                               id="name"
+                              label={t('auth.name')}
                               placeholder={t('auth.namePlaceholder')}
                               value={name}
                               onChange={(e) => {
                                 setName(e.target.value);
                                 if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
                               }}
-                              className={`transition-all duration-200 bg-background/50 border-border/50 focus:bg-background/80 ${
-                                errors.name ? 'border-destructive focus-visible:ring-destructive/30' : ''
-                              }`}
+                              error={errors.name}
                               required
                             />
-                            {errors.name && (
-                              <motion.p
-                                initial={{ opacity: 0, y: -5 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="text-xs text-destructive"
-                              >
-                                {errors.name}
-                              </motion.p>
-                            )}
                           </motion.div>
                         )}
                       </AnimatePresence>
 
                       {/* Email field */}
-                      <div className="space-y-2">
-                        <Label htmlFor="email" className="text-sm font-medium">
-                          {t('auth.email')}
-                        </Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          placeholder={t('auth.emailPlaceholder')}
-                          value={email}
-                          onChange={(e) => {
-                            setEmail(e.target.value);
-                            if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
-                          }}
-                          className={`transition-all duration-200 bg-background/50 border-border/50 focus:bg-background/80 ${
-                            errors.email ? 'border-destructive focus-visible:ring-destructive/30' : ''
-                          }`}
-                          required
-                        />
-                        {errors.email && (
-                          <motion.p
-                            initial={{ opacity: 0, y: -5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="text-xs text-destructive"
-                          >
-                            {errors.email}
-                          </motion.p>
-                        )}
-                      </div>
+                      <FloatingLabelInput
+                        id="email"
+                        label={t('auth.email')}
+                        type="email"
+                        placeholder={t('auth.emailPlaceholder')}
+                        value={email}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+                        }}
+                        error={errors.email}
+                        required
+                      />
 
                       {/* Password field */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="password" className="text-sm font-medium">
-                            {t('auth.password')}
-                          </Label>
-                          {!isRegister && (
+                      <div className="space-y-1">
+                        <FloatingLabelInput
+                          id="password"
+                          label={t('auth.password')}
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder={t('auth.passwordPlaceholder')}
+                          value={password}
+                          onChange={(e) => {
+                            setPassword(e.target.value);
+                            if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                          }}
+                          error={errors.password}
+                          required
+                          minLength={6}
+                          rightElement={
                             <button
                               type="button"
-                              onClick={handleForgotPassword}
-                              className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-accent/50"
+                              aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                             >
-                              {t('auth.forgotPassword')}
+                              {showPassword ? (
+                                <EyeOff className="w-4 h-4" />
+                              ) : (
+                                <Eye className="w-4 h-4" />
+                              )}
                             </button>
-                          )}
-                        </div>
-                        <div className="relative">
-                          <Input
-                            id="password"
-                            type={showPassword ? 'text' : 'password'}
-                            placeholder={t('auth.passwordPlaceholder')}
-                            value={password}
-                            onChange={(e) => {
-                              setPassword(e.target.value);
-                              if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
-                            }}
-                            className={`pr-10 transition-all duration-200 bg-background/50 border-border/50 focus:bg-background/80 ${
-                              errors.password ? 'border-destructive focus-visible:ring-destructive/30' : ''
-                            }`}
-                            required
-                            minLength={6}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                            aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
-                          >
-                            {showPassword ? (
-                              <EyeOff className="w-4 h-4" />
-                            ) : (
-                              <Eye className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                        {errors.password && (
-                          <motion.p
-                            initial={{ opacity: 0, y: -5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="text-xs text-destructive"
-                          >
-                            {errors.password}
-                          </motion.p>
-                        )}
+                          }
+                        />
 
                         {/* Password Strength Indicator - Register only */}
                         <AnimatePresence>
@@ -725,12 +944,12 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                               transition={{ duration: 0.25, ease: 'easeInOut' }}
                               className="overflow-hidden"
                             >
-                              <div className="space-y-1.5 pt-1">
+                              <div className="space-y-1.5 pt-2">
                                 <div className="flex gap-1">
                                   {[1, 2, 3, 4].map((segment) => (
                                     <motion.div
                                       key={segment}
-                                      className={`h-1.5 flex-1 rounded-full ${
+                                      className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
                                         passwordStrength.score >= segment
                                           ? passwordStrength.color
                                           : 'bg-muted/50'
@@ -762,36 +981,52 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                         </AnimatePresence>
                       </div>
 
-                      {/* Remember me - Login only */}
-                      <AnimatePresence>
-                        {!isRegister && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.25, ease: 'easeInOut' }}
-                            className="flex items-center gap-2 overflow-hidden"
-                          >
-                            <Checkbox
-                              id="remember"
-                              checked={rememberMe}
-                              onCheckedChange={(checked) => setRememberMe(checked === true)}
-                            />
-                            <Label
-                              htmlFor="remember"
-                              className="text-sm text-muted-foreground cursor-pointer select-none"
+                      {/* Forgot password + Remember me row */}
+                      <div className="flex items-center justify-between">
+                        <AnimatePresence>
+                          {!isRegister && (
+                            <motion.div
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: -10 }}
+                              transition={{ duration: 0.25, ease: 'easeInOut' }}
+                              className="flex items-center gap-2"
                             >
-                              {t('auth.rememberMe')}
-                            </Label>
-                          </motion.div>
+                              <Checkbox
+                                id="remember"
+                                checked={rememberMe}
+                                onCheckedChange={(checked) => setRememberMe(checked === true)}
+                              />
+                              <Label
+                                htmlFor="remember"
+                                className="text-sm text-muted-foreground cursor-pointer select-none"
+                              >
+                                {t('auth.rememberMe')}
+                              </Label>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                        {!isRegister && (
+                          <motion.button
+                            type="button"
+                            onClick={handleForgotPassword}
+                            className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+                            whileHover={{ x: 2 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            {t('auth.forgotPassword')}
+                          </motion.button>
                         )}
-                      </AnimatePresence>
+                      </div>
 
                       {/* Submit button */}
-                      <motion.div whileHover={{ scale: loading ? 1 : 1.01 }} whileTap={{ scale: loading ? 1 : 0.99 }}>
+                      <motion.div
+                        whileHover={{ scale: loading ? 1 : 1.01 }}
+                        whileTap={{ scale: loading ? 1 : 0.98 }}
+                      >
                         <Button
                           type="submit"
-                          className="w-full relative overflow-hidden bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 transition-all duration-300 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30"
+                          className="w-full h-11 relative overflow-hidden bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 transition-all duration-300 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 font-medium"
                           disabled={loading}
                         >
                           {/* Shimmer effect on idle */}
@@ -851,9 +1086,12 @@ export function AuthPage({ onAuth }: AuthPageProps) {
 
                     {/* Features footer */}
                     <div className="mt-6 pt-4 border-t border-border/40">
-                      <p className="text-xs text-muted-foreground text-center">
-                        {t('auth.features')}
-                      </p>
+                      <div className="flex items-center justify-center gap-4">
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Network className="w-3.5 h-3.5" />
+                          <span className="text-xs">{t('auth.features')}</span>
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

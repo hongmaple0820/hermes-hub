@@ -203,6 +203,8 @@
     "subtitle": "创建和管理您的 AI 智能体，支持多供应商 LLM",
     "create": "创建智能体",
     "createTitle": "创建新智能体",
+    "createTitleDesc": "配置一个新的AI智能体，自定义设置和能力。",
+    "editTitleDesc": "修改智能体的配置和行为。",
     "nameLabel": "智能体名称",
     "namePlaceholder": "例如：代码助手",
     "descriptionLabel": "描述",
