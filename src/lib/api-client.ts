@@ -645,6 +645,16 @@ class ApiClient {
     return this.del(`/conversation-templates/${id}`);
   }
 
+  // Data Export
+  async exportData(format: string = 'json', type: string = 'all'): Promise<{ blob: Blob; filename: string }> {
+    const res = await this.request(`/data/export?format=${encodeURIComponent(format)}&type=${encodeURIComponent(type)}`);
+    const blob = await res.blob();
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+    const filename = filenameMatch ? filenameMatch[1] : `hermes-hub-${type}-${new Date().toISOString().slice(0, 10)}.${format}`;
+    return { blob, filename };
+  }
+
   // Audit Logs
   async getAuditLogs(params?: { page?: number; limit?: number; action?: string; resource?: string; startDate?: string; endDate?: string }) {
     const searchParams = new URLSearchParams();

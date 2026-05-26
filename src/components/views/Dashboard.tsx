@@ -14,7 +14,7 @@ import {
   Clock, Cpu, Globe, Shield, Sparkles, BarChart3, Radio,
   CheckCircle, Eye, LogOut, Plus, Settings, Timer, Uptime,
   ArrowDownRight, RefreshCw, AlertTriangle, ArrowRight,
-  Terminal, Sun, MoonStar, HandMetal, Cable
+  Terminal, Sun, MoonStar, HandMetal, Cable, BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -965,8 +965,8 @@ export function Dashboard() {
           ))}
         </div>
 
-        {/* Middle Row: Quick Actions Grid + Agent Activity Timeline + System Health */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* Middle Row: Quick Actions + Conversation Templates + Activity Timeline + System Health */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {/* Quick Actions Grid - 4-card grid */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -1001,6 +1001,68 @@ export function Dashboard() {
                     </button>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Conversation Templates */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.35 }}
+          >
+            <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-rose-500" />
+                  {t('templates.title')}
+                </CardTitle>
+                <CardDescription>{t('templates.subtitle')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {[
+                    { emoji: '🔍', name: t('templates.codeReview'), desc: t('templates.codeReviewDesc'), color: 'border-violet-200 dark:border-violet-800 hover:border-violet-400 dark:hover:border-violet-600 bg-violet-50/50 dark:bg-violet-900/10' },
+                    { emoji: '🔬', name: t('templates.researchAssistant'), desc: t('templates.researchAssistantDesc'), color: 'border-emerald-200 dark:border-emerald-800 hover:border-emerald-400 dark:hover:border-emerald-600 bg-emerald-50/50 dark:bg-emerald-900/10' },
+                    { emoji: '📊', name: t('templates.dataAnalysis'), desc: t('templates.dataAnalysisDesc'), color: 'border-amber-200 dark:border-amber-800 hover:border-amber-400 dark:hover:border-amber-600 bg-amber-50/50 dark:bg-amber-900/10' },
+                    { emoji: '✍️', name: t('templates.creativeWriting'), desc: t('templates.creativeWritingDesc'), color: 'border-rose-200 dark:border-rose-800 hover:border-rose-400 dark:hover:border-rose-600 bg-rose-50/50 dark:bg-rose-900/10' },
+                    { emoji: '🌐', name: t('templates.translation'), desc: t('templates.translationDesc'), color: 'border-cyan-200 dark:border-cyan-800 hover:border-cyan-400 dark:hover:border-cyan-600 bg-cyan-50/50 dark:bg-cyan-900/10' },
+                    { emoji: '🐛', name: t('templates.debugHelper'), desc: t('templates.debugHelperDesc'), color: 'border-orange-200 dark:border-orange-800 hover:border-orange-400 dark:hover:border-orange-600 bg-orange-50/50 dark:bg-orange-900/10' },
+                  ].map((template, index) => (
+                    <motion.div
+                      key={template.name}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.4 + index * 0.06 }}
+                    >
+                      <button
+                        className={cn(
+                          'w-full text-left p-3 rounded-xl border transition-all duration-200',
+                          template.color,
+                          'hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]'
+                        )}
+                        onClick={() => setCurrentView('chat')}
+                      >
+                        <div className="flex items-start gap-2">
+                          <span className="text-lg leading-none shrink-0">{template.emoji}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold truncate">{template.name}</p>
+                            <p className="text-[10px] text-muted-foreground dark:text-muted-foreground/90 line-clamp-2 mt-0.5">{template.desc}</p>
+                          </div>
+                        </div>
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full mt-2.5 text-xs h-7 gap-1 text-primary hover:text-primary"
+                  onClick={() => setCurrentView('chat')}
+                >
+                  {t('templates.useTemplate')}
+                  <ArrowRight className="w-3 h-3" />
+                </Button>
               </CardContent>
             </Card>
           </motion.div>

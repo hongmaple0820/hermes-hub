@@ -775,6 +775,39 @@
     "deleteAccountConfirm": "Type DELETE to confirm",
     "deleteAccountWarning": "This action cannot be undone. All your data will be permanently deleted."
   },
+  "audit": {
+    "title": "Audit Logs",
+    "subtitle": "View system operation records",
+    "action": "Action",
+    "resource": "Resource",
+    "time": "Time",
+    "noLogs": "No audit logs yet",
+    "filterAction": "Filter Action",
+    "allActions": "All Actions",
+    "refresh": "Refresh",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {page}",
+    "details": "Details",
+    "noDetails": "No details"
+  },
+  "dataExport": {
+    "title": "Data Export",
+    "subtitle": "Export your data for backup or migration",
+    "format": "Export Format",
+    "type": "Export Scope",
+    "all": "All Data",
+    "agents": "Agents",
+    "skills": "Skills",
+    "providers": "Providers",
+    "conversations": "Conversations",
+    "export": "Export",
+    "exporting": "Exporting...",
+    "success": "Export successful",
+    "failed": "Export failed",
+    "formatJson": "JSON",
+    "formatCsv": "CSV"
+  },
   "settings": {
     "accountInfo": "Account Information",
     "editProfile": "Edit Profile",
@@ -1607,14 +1640,8 @@
     "translation": "Translation",
     "translationDesc": "Professional multilingual translation service",
     "debugHelper": "Debug Helper",
-    "debugHelperDesc": "Code debugging and troubleshooting"
-  },
-  "audit": {
-    "title": "Audit Logs",
-    "subtitle": "View system operation records",
-    "action": "Action",
-    "resource": "Resource",
-    "time": "Time",
-    "noLogs": "No audit logs yet"
+    "debugHelperDesc": "Code debugging and troubleshooting",
+    "startFromTemplate": "Start from Template",
+    "start": "Start"
   }
 }

@@ -335,6 +335,20 @@ function AutoExpandingTextarea({
 function EmptyChatState({ onStartChat }: { onStartChat: () => void }) {
   const { agents } = useAppStore();
   const { t } = useI18n();
+  const [userTemplates, setUserTemplates] = useState<any[]>([]);
+
+  // Load user-created templates from API
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const result = await api.getConversationTemplates();
+        setUserTemplates(result.templates || []);
+      } catch {
+        // Templates API may not be available yet
+      }
+    };
+    fetchTemplates();
+  }, []);
 
   const suggestions = [
     { icon: <Sparkles className="w-4 h-4" />, text: 'Try asking: "What can you help me with?"' },
@@ -343,8 +357,41 @@ function EmptyChatState({ onStartChat }: { onStartChat: () => void }) {
     { icon: <Zap className="w-4 h-4" />, text: 'Try asking: "Help me debug this error"' },
   ];
 
+  const defaultTemplates = [
+    { emoji: '🔍', name: t('templates.codeReview'), desc: t('templates.codeReviewDesc'), systemPrompt: 'You are a senior code reviewer. Analyze code for bugs, performance issues, security vulnerabilities, and best practices. Provide constructive feedback with specific suggestions.', initialMessage: 'Please review my code and provide feedback on quality, performance, and best practices.' },
+    { emoji: '🔬', name: t('templates.researchAssistant'), desc: t('templates.researchAssistantDesc'), systemPrompt: 'You are a research assistant specialized in deep analysis and information synthesis. Help users explore topics thoroughly, cite sources when possible, and present findings in a structured format.', initialMessage: 'Help me research a topic. I need a comprehensive analysis with key findings and sources.' },
+    { emoji: '📊', name: t('templates.dataAnalysis'), desc: t('templates.dataAnalysisDesc'), systemPrompt: 'You are a data analysis expert. Help users interpret data, create visualizations concepts, identify trends, and extract actionable insights. Present findings with clear summaries and recommendations.', initialMessage: 'I have some data I need help analyzing. Can you help me find patterns and insights?' },
+    { emoji: '✍️', name: t('templates.creativeWriting'), desc: t('templates.creativeWritingDesc'), systemPrompt: 'You are a creative writing assistant. Help with stories, copywriting, poems, scripts, and other creative content. Adapt your style to match the desired tone and audience.', initialMessage: 'Help me write something creative. I\'m looking for engaging and original content.' },
+    { emoji: '🌐', name: t('templates.translation'), desc: t('templates.translationDesc'), systemPrompt: 'You are a professional multilingual translator. Provide accurate translations while preserving the original tone, context, and cultural nuances. Offer alternatives when multiple interpretations exist.', initialMessage: 'Please help me translate some text. I need an accurate and natural-sounding translation.' },
+    { emoji: '🐛', name: t('templates.debugHelper'), desc: t('templates.debugHelperDesc'), systemPrompt: 'You are an expert debug assistant. Help users identify and fix bugs in their code. Ask clarifying questions, analyze error messages, trace execution flow, and suggest fixes with explanations.', initialMessage: 'I\'m encountering a bug in my code. Can you help me debug and fix it?' },
+  ];
+
+  const handleTemplateStart = async (template: { systemPrompt?: string; initialMessage?: string; name?: string }) => {
+    if (agents.length === 0) {
+      onStartChat();
+      return;
+    }
+    try {
+      const firstAgent = agents[0];
+      const result = await api.createConversation({
+        agentId: firstAgent.id,
+        name: template.name || 'New Conversation',
+      });
+      const { setConversations, setSelectedConversationId } = useAppStore.getState();
+      const convs = await api.getConversations();
+      setConversations(convs.conversations || []);
+      setSelectedConversationId(result.conversation.id);
+      // If template has an initial message, send it
+      if (template.initialMessage && result.conversation.id) {
+        await api.sendMessage(result.conversation.id, template.initialMessage, 'text');
+      }
+    } catch {
+      onStartChat();
+    }
+  };
+
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-6">
+    <div className="flex-1 flex flex-col items-center justify-center p-6 overflow-y-auto">
       <EmptyState
         icon={MessageSquare}
         title={t('emptyState.noConversations')}
@@ -410,6 +457,53 @@ function EmptyChatState({ onStartChat }: { onStartChat: () => void }) {
             <span className="text-sm text-muted-foreground">{s.text}</span>
           </motion.button>
         ))}
+      </div>
+
+      {/* Start from Template Section */}
+      <div className="w-full max-w-lg mt-6">
+        <div className="flex items-center gap-2 mb-3">
+          <BookOpen className="w-4 h-4 text-rose-500" />
+          <p className="text-sm font-medium">{t('templates.startFromTemplate')}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {defaultTemplates.map((template, index) => (
+            <motion.button
+              key={template.name}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 + index * 0.05, duration: 0.25 }}
+              className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-accent/50 hover:border-primary/30 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200 text-left"
+              onClick={() => handleTemplateStart(template)}
+            >
+              <span className="text-base leading-none shrink-0">{template.emoji}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium truncate">{template.name}</p>
+              </div>
+              <span className="text-[10px] text-primary font-medium shrink-0">{t('templates.start')}</span>
+            </motion.button>
+          ))}
+          {/* User-created templates */}
+          {userTemplates.map((template: any, index: number) => (
+            <motion.button
+              key={template.id}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.9 + index * 0.05, duration: 0.25 }}
+              className="flex items-center gap-2 p-2.5 rounded-lg border border-border hover:bg-accent/50 hover:border-primary/30 hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200 text-left"
+              onClick={() => handleTemplateStart({
+                name: template.name,
+                systemPrompt: template.systemPrompt,
+                initialMessage: template.initialMessage,
+              })}
+            >
+              <span className="text-base leading-none shrink-0">📝</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium truncate">{template.name}</p>
+              </div>
+              <span className="text-[10px] text-primary font-medium shrink-0">{t('templates.start')}</span>
+            </motion.button>
+          ))}
+        </div>
       </div>
     </div>
   );

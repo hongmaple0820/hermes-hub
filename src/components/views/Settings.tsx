@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -31,7 +32,8 @@ import {
   Upload, AlertTriangle, Trash2, Info, ExternalLink, CheckCircle2,
   XCircle, Wifi, WifiOff, Server, Database, Globe, Monitor, Heart,
   RefreshCw, EyeIcon, Sun, Moon, MonitorSmartphone, Zap, Hexagon,
-  Loader2
+  Loader2, ChevronLeft, ChevronRight, FileText, FileSpreadsheet,
+  ScrollText
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -143,6 +145,17 @@ export function Settings({ onLogout }: SettingsProps) {
 
   // About / service status state
   const [serviceStatuses, setServiceStatuses] = useState<Record<string, 'checking' | 'online' | 'offline'>>({});
+
+  // Audit Log state
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditPagination, setAuditPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
+  const [auditAction, setAuditAction] = useState<string>('');
+  const [auditLoading, setAuditLoading] = useState(false);
+
+  // Data Export state
+  const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('json');
+  const [exportType, setExportType] = useState<string>('all');
+  const [exporting, setExporting] = useState(false);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -453,6 +466,67 @@ export function Settings({ onLogout }: SettingsProps) {
       Object.entries(vars).forEach(([key, value]) => {
         root.style.setProperty(key, value);
       });
+    }
+  };
+
+  // Load Audit Logs
+  const loadAuditLogs = useCallback(async (page?: number) => {
+    setAuditLoading(true);
+    try {
+      const result = await api.getAuditLogs({
+        page: page || auditPagination.page,
+        limit: auditPagination.limit,
+        action: auditAction || undefined,
+      });
+      setAuditLogs(result.logs || []);
+      setAuditPagination(result.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 });
+    } catch {
+      setAuditLogs([]);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [auditPagination.page, auditPagination.limit, auditAction]);
+
+  useEffect(() => {
+    loadAuditLogs();
+  }, [auditAction, loadAuditLogs]);
+
+  // Relative timestamp helper
+  const getRelativeTime = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+
+    if (diffSec < 60) return t('audit.justNow');
+    if (diffMin < 60) return t('audit.timeAgo').replace('{time}', `${diffMin}m`);
+    if (diffHour < 24) return t('audit.timeAgo').replace('{time}', `${diffHour}h`);
+    if (diffDay < 30) return t('audit.timeAgo').replace('{time}', `${diffDay}d`);
+    return date.toLocaleDateString();
+  };
+
+  // Data Export handler
+  const handleDataExport = async () => {
+    setExporting(true);
+    try {
+      const { blob, filename } = await api.exportData(exportFormat, exportType);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(t('dataExport.success'));
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : t('dataExport.failed');
+      toast.error(msg);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -1285,6 +1359,210 @@ export function Settings({ onLogout }: SettingsProps) {
                 </div>
                 <p className="text-xs text-muted-foreground">{t('settingsPage.exportDesc')}</p>
                 <p className="text-xs text-muted-foreground">{t('settingsPage.importDesc')}</p>
+              </CardContent>
+            </Card>
+
+            {/* Data Export */}
+            <Card>
+              <CardHeader className="pb-3">
+                <SectionHeader
+                  icon={Download}
+                  title={t('dataExport.title')}
+                  description={t('dataExport.subtitle')}
+                />
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Format selector */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">{t('dataExport.format')}</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={exportFormat === 'json' ? 'default' : 'outline'}
+                        size="sm"
+                        className="gap-1.5 flex-1"
+                        onClick={() => setExportFormat('json')}
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        {t('dataExport.formatJson')}
+                      </Button>
+                      <Button
+                        variant={exportFormat === 'csv' ? 'default' : 'outline'}
+                        size="sm"
+                        className="gap-1.5 flex-1"
+                        onClick={() => setExportFormat('csv')}
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5" />
+                        {t('dataExport.formatCsv')}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Type selector */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">{t('dataExport.type')}</Label>
+                    <Select value={exportType} onValueChange={setExportType}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('dataExport.all')}</SelectItem>
+                        <SelectItem value="agents">{t('dataExport.agents')}</SelectItem>
+                        <SelectItem value="skills">{t('dataExport.skills')}</SelectItem>
+                        <SelectItem value="providers">{t('dataExport.providers')}</SelectItem>
+                        <SelectItem value="conversations">{t('dataExport.conversations')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full gap-2"
+                  onClick={handleDataExport}
+                  disabled={exporting}
+                >
+                  {exporting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {t('dataExport.exporting')}
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      {t('dataExport.export')}
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Audit Log */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <SectionHeader
+                    icon={ScrollText}
+                    title={t('audit.title')}
+                    description={t('audit.subtitle')}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 shrink-0"
+                    onClick={() => loadAuditLogs()}
+                    disabled={auditLoading}
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${auditLoading ? 'animate-spin' : ''}`} />
+                    {t('audit.refresh')}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Filter controls */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex-1">
+                    <Label className="text-xs text-muted-foreground mb-1 block">{t('audit.filterAction')}</Label>
+                    <Select value={auditAction} onValueChange={(v) => { setAuditAction(v === '__all__' ? '' : v); }}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={t('audit.allActions')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">{t('audit.allActions')}</SelectItem>
+                        <SelectItem value="agent.create">agent.create</SelectItem>
+                        <SelectItem value="agent.delete">agent.delete</SelectItem>
+                        <SelectItem value="skill.create">skill.create</SelectItem>
+                        <SelectItem value="skill.delete">skill.delete</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Audit log table */}
+                {auditLoading && auditLogs.length === 0 ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : auditLogs.length === 0 ? (
+                  <div className="text-center py-8">
+                    <ScrollText className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">{t('audit.noLogs')}</p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[140px]">{t('audit.time')}</TableHead>
+                          <TableHead className="w-[140px]">{t('audit.action')}</TableHead>
+                          <TableHead className="w-[100px]">{t('audit.resource')}</TableHead>
+                          <TableHead>{t('audit.details')}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {auditLogs.map((log, i) => (
+                          <TableRow key={log.id} className={i % 2 === 0 ? 'bg-muted/30' : ''}>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              <span title={new Date(log.createdAt).toLocaleString()}>
+                                {getRelativeTime(log.createdAt)}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-[10px] font-mono">
+                                {log.action}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              {log.resource}
+                              {log.resourceId && (
+                                <span className="text-muted-foreground ml-1 font-mono text-[10px]">
+                                  {log.resourceId.slice(0, 8)}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                              {log.details
+                                ? (typeof log.details === 'string'
+                                  ? log.details.slice(0, 80)
+                                  : JSON.stringify(log.details).slice(0, 80))
+                                : t('audit.noDetails')}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {/* Pagination */}
+                {auditPagination.totalPages > 1 && (
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      {t('audit.page').replace('{page}', `${auditPagination.page}`)} · {auditPagination.total} {t('audit.details').toLowerCase()}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        disabled={auditPagination.page <= 1 || auditLoading}
+                        onClick={() => loadAuditLogs(auditPagination.page - 1)}
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        {t('audit.previous')}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        disabled={auditPagination.page >= auditPagination.totalPages || auditLoading}
+                        onClick={() => loadAuditLogs(auditPagination.page + 1)}
+                      >
+                        {t('audit.next')}
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
