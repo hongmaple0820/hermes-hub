@@ -1,0 +1,18 @@
+{
+  "code": 200,
+  "data": {
+    "description": "",
+    "html": "<html><head><meta name=\"color-scheme\" content=\"light dark\"></head><body><pre style=\"word-wrap: break-word; white-space: pre-wrap;\"># Agent Skills\n\n[Agent Skills](https://agentskills.io) are a simple, open format for giving agents new capabilities and expertise.\n\nSkills are folders of instructions, scripts, and resources that agents can discover and use to perform better at specific tasks. Write once, use everywhere.\n\n## Getting Started\n\n- **[Documentation](https://agentskills.io)** — Guides and tutorials\n- **[Specification](https://agentskills.io/specification)** — Format details\n- **[Example Skills](https://github.com/anthropics/skills)** — See what's possible\n- **[Discord](https://discord.gg/MKPE9g8aUy)** — Join the discussion!\n\nThis repo contains the specification, documentation, and reference SDK. Also see a list of example skills [here](https://github.com/anthropics/skills).\n\n## About\n\nAgent Skills is an open format maintained by [Anthropic](https://anthropic.com) and open to contributions from the community.\n\n## License\n\nCode in this repository is licensed under [Apache 2.0](LICENSE). Documentation is licensed under [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/). See individual directories for details.\n</pre></body></html>",
+    "title": "",
+    "url": "https://raw.githubusercontent.com/agentskills/agentskills/main/README.md",
+    "usage": {
+      "tokens": 296
+    }
+  },
+  "meta": {
+    "usage": {
+      "tokens": 296
+    }
+  },
+  "status": 20000
+}
