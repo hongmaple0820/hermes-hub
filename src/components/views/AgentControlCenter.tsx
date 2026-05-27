@@ -1455,6 +1455,214 @@ sio.wait()`;
     );
   };
 
+  // ─── Tab 4: CLI Quick Start ────────────────────────────────
+
+  const renderCliQuickStart = () => {
+    const sdkCode = `import { HermesAgent } from '@hermes-hub/agent-sdk';
+
+const agent = new HermesAgent({
+  token: 'YOUR_AGENT_TOKEN',
+  capabilities: [{
+    capabilityId: 'greet',
+    name: 'Greeting',
+    handler: async ({ name }) => ({ result: \`Hello, \${name}!\` })
+  }]
+});
+
+agent.on('connected', () => console.log('Connected!'));
+await agent.start();`;
+
+    const steps = [
+      {
+        step: 1,
+        title: t('acrp.step1Install'),
+        desc: t('acrp.step1InstallDesc'),
+        code: 'npm install -g @hermes-hub/cli',
+        language: 'bash',
+        icon: Terminal,
+        gradient: 'from-emerald-400 to-emerald-500',
+        color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
+      },
+      {
+        step: 2,
+        title: t('acrp.step2Init'),
+        desc: t('acrp.step2InitDesc'),
+        code: 'hermes init',
+        language: 'bash',
+        icon: Play,
+        gradient: 'from-violet-400 to-violet-500',
+        color: 'bg-violet-500/10 text-violet-600 border-violet-200',
+      },
+      {
+        step: 3,
+        title: t('acrp.step3Config'),
+        desc: t('acrp.step3ConfigDesc'),
+        code: `hermes config init\nhermes auth login`,
+        language: 'bash',
+        icon: Settings2,
+        gradient: 'from-amber-400 to-amber-500',
+        color: 'bg-amber-500/10 text-amber-600 border-amber-200',
+      },
+      {
+        step: 4,
+        title: t('acrp.step4Create'),
+        desc: t('acrp.step4CreateDesc'),
+        code: `hermes agent create --name "My Agent"\nhermes agent run <agentId>`,
+        language: 'bash',
+        icon: Zap,
+        gradient: 'from-cyan-400 to-cyan-500',
+        color: 'bg-cyan-500/10 text-cyan-600 border-cyan-200',
+      },
+      {
+        step: 5,
+        title: t('acrp.step5Verify'),
+        desc: t('acrp.step5VerifyDesc'),
+        code: 'hermes doctor',
+        language: 'bash',
+        icon: Shield,
+        gradient: 'from-rose-400 to-rose-500',
+        color: 'bg-rose-500/10 text-rose-600 border-rose-200',
+      },
+    ];
+
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h2 className="text-lg font-semibold">{t('acrp.cliQuickStart')}</h2>
+          <p className="text-sm text-muted-foreground">{t('acrp.cliDescription')}</p>
+        </div>
+
+        {/* Step Cards */}
+        <div className="space-y-4">
+          {steps.map(({ step, title, desc, code, language, icon: Icon, gradient, color }) => (
+            <Card key={step} className="relative overflow-hidden group hover:shadow-md transition-all duration-300">
+              <div className={cn('h-1 bg-gradient-to-r', gradient)} />
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+                  {/* Step number + icon */}
+                  <div className="flex sm:flex-col items-center gap-3 shrink-0">
+                    <div className={cn('w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-br text-white font-bold text-sm shadow-md', gradient)}>
+                      {step}
+                    </div>
+                    <div className={cn('w-8 h-8 rounded-md flex items-center justify-center border', color)}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                  </div>
+                  {/* Content */}
+                  <div className="flex-1 min-w-0 space-y-3">
+                    <div>
+                      <h4 className="text-sm font-semibold">{title}</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+                    </div>
+                    <div className="relative">
+                      <CodeBlock code={code} language={language} />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Agent SDK Alternative */}
+        <Card className="overflow-hidden border-dashed">
+          <div className="h-1 bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Code className="w-4 h-4 text-primary" />
+              {t('acrp.orUseSdk')}
+            </CardTitle>
+            <CardDescription className="text-xs">{t('acrp.sdkDescription')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CodeBlock code={sdkCode} language="javascript" />
+          </CardContent>
+        </Card>
+
+        {/* CLI vs Manual Comparison */}
+        <Card className="overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-emerald-400 via-primary to-cyan-400" />
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">{t('acrp.comparisonTitle')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Old / Manual */}
+              <div className="relative rounded-lg border border-red-200 dark:border-red-900/40 bg-red-50/50 dark:bg-red-950/20 p-4 space-y-3">
+                <div className="absolute -top-2.5 left-3">
+                  <Badge variant="outline" className="bg-card text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/40 text-[10px] px-2 py-0.5">
+                    {t('acrp.comparisonOld')}
+                  </Badge>
+                </div>
+                <div className="pt-2 space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
+                    <XCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{t('acrp.comparisonOldSteps')}</span>
+                  </div>
+                  <div className="space-y-1.5 text-[11px] text-red-500/80 dark:text-red-400/70">
+                    <div className="flex items-center gap-1.5"><span className="font-mono">1.</span> Create agent manually</div>
+                    <div className="flex items-center gap-1.5"><span className="font-mono">2.</span> Generate token in UI</div>
+                    <div className="flex items-center gap-1.5"><span className="font-mono">3.</span> Copy WebSocket URL</div>
+                    <div className="flex items-center gap-1.5"><span className="font-mono">4.</span> Write connection code</div>
+                    <div className="flex items-center gap-1.5"><span className="font-mono">5.</span> Handle heartbeat manually</div>
+                    <div className="flex items-center gap-1.5"><span className="font-mono">6.</span> Debug connection issues</div>
+                  </div>
+                </div>
+              </div>
+              {/* New / CLI */}
+              <div className="relative rounded-lg border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 space-y-3">
+                <div className="absolute -top-2.5 left-3">
+                  <Badge variant="outline" className="bg-card text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40 text-[10px] px-2 py-0.5">
+                    {t('acrp.comparisonNew')}
+                  </Badge>
+                </div>
+                <div className="pt-2 space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    <span>{t('acrp.comparisonNewSteps')}</span>
+                  </div>
+                  <div className="space-y-1.5 text-[11px] text-emerald-500/80 dark:text-emerald-400/70">
+                    <div className="flex items-center gap-1.5"><span className="font-mono">$</span> hermes init</div>
+                    <div className="flex items-center gap-1.5"><span className="font-mono">$</span> hermes auth login</div>
+                    <div className="flex items-center gap-1.5"><span className="font-mono">$</span> hermes agent run</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setActiveTab('setup')}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            {t('acrp.setupGuide')}
+          </Button>
+          {agents.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => {
+                setTokenAgentId(agents[0]?.id || '');
+                setActiveTab('connected');
+              }}
+            >
+              <Key className="w-3.5 h-3.5" />
+              {t('acrp.generateToken')}
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // ─── Main Render ───────────────────────────────────────────
 
   return (
@@ -1490,6 +1698,10 @@ sio.wait()`;
                 <BookOpen className="w-3.5 h-3.5" />
                 {t('acrp.setupGuide')}
               </TabsTrigger>
+              <TabsTrigger value="cli" className="gap-1.5 data-[state=active]:bg-accent">
+                <Terminal className="w-3.5 h-3.5" />
+                {t('acrp.cliQuickStart')}
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -1502,6 +1714,9 @@ sio.wait()`;
             </TabsContent>
             <TabsContent value="setup" className="mt-0">
               {renderSetupGuide()}
+            </TabsContent>
+            <TabsContent value="cli" className="mt-0">
+              {renderCliQuickStart()}
             </TabsContent>
           </div>
         </Tabs>

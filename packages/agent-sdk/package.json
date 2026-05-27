@@ -1,0 +1,38 @@
+{
+  "name": "@hermes-hub/agent-sdk",
+  "version": "0.1.0",
+  "description": "Official SDK for building Hermes Hub agents with ACRP protocol support",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": "./index.js",
+    "./types": "./types.js"
+  },
+  "scripts": {
+    "dev": "bun --hot index.js"
+  },
+  "keywords": [
+    "hermes",
+    "hermes-hub",
+    "agent",
+    "sdk",
+    "acrp",
+    "multi-agent",
+    "collaboration",
+    "websocket"
+  ],
+  "author": "Hermes Hub",
+  "license": "MIT",
+  "dependencies": {
+    "socket.io-client": "^4.7.0",
+    "eventemitter3": "^5.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hongmaple0820/hermes-hub.git",
+    "directory": "packages/agent-sdk"
+  }
+}
