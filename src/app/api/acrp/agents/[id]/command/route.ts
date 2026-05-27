@@ -46,18 +46,30 @@ export async function POST(
         signal: AbortSignal.timeout(5000),
       })
 
+      if (wsRes.status === 404) {
+        return NextResponse.json(
+          { success: false, error: 'Agent not connected', delivered: false },
+          { status: 503 }
+        )
+      }
+
       if (!wsRes.ok) {
         console.warn('[ACRP] skill-ws notify responded with non-OK:', wsRes.status)
       }
+
+      const wsData = await wsRes.json().catch(() => ({}))
+      return NextResponse.json({
+        success: true,
+        commandId: wsData.commandId || null,
+        delivered: true,
+      })
     } catch (wsError) {
       console.warn('[ACRP] skill-ws notify failed:', wsError)
       return NextResponse.json(
-        { error: 'Agent is not connected via WebSocket', success: false },
+        { error: 'Agent is not connected via WebSocket', success: false, delivered: false },
         { status: 503 }
       )
     }
-
-    return NextResponse.json({ success: true })
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

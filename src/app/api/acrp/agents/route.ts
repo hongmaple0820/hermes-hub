@@ -19,46 +19,60 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     })
 
-    // Get live status from skill-ws for each agent
-    const agentsWithStatus = await Promise.all(
-      agents.map(async (agent) => {
-        let liveStatus = null
-        try {
-          const res = await fetch(
-            `http://localhost:3004/internal/acrp-status?agentId=${agent.id}`,
-            { signal: AbortSignal.timeout(3000) }
-          )
-          if (res.ok) {
-            liveStatus = await res.json()
-          }
-        } catch {
-          // skill-ws service may be down or agent not connected
-          liveStatus = { connected: false }
-        }
+    // Get live status from skill-ws using the batch endpoint (fixes N+1 query problem)
+    let batchStatus: Record<string, any> = {}
+    try {
+      const batchRes = await fetch(
+        'http://localhost:3004/internal/acrp-status-batch',
+        { signal: AbortSignal.timeout(3000) }
+      )
+      if (batchRes.ok) {
+        const batchData = await batchRes.json()
+        batchStatus = batchData.agents || {}
+      }
+    } catch {
+      // skill-ws service may be down
+    }
 
-        // Get latest 5 invocations for this agent
-        const recentInvocations = await db.capabilityInvocation.findMany({
-          where: { agentId: agent.id },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-        })
+    // Get recent invocations for all agents in a single query
+    const agentIds = agents.map(a => a.id)
+    const recentInvocations = await db.capabilityInvocation.findMany({
+      where: {
+        agentId: { in: agentIds },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: agentIds.length * 5,
+    })
 
-        return {
-          id: agent.id,
-          name: agent.name,
-          agentType: agent.agentType,
-          agentVersion: agent.agentVersion,
-          agentPlatform: agent.agentPlatform,
-          agentMetadata: agent.agentMetadata,
-          wsConnected: agent.wsConnected,
-          lastHeartbeatAt: agent.lastHeartbeatAt,
-          registeredAt: agent.registeredAt,
-          capabilities: agent.capabilities,
-          recentInvocations,
-          liveStatus,
-        }
-      })
-    )
+    // Group invocations by agentId
+    const invocationsByAgent = new Map<string, any[]>()
+    for (const inv of recentInvocations) {
+      const list = invocationsByAgent.get(inv.agentId) || []
+      if (list.length < 5) {
+        list.push(inv)
+        invocationsByAgent.set(inv.agentId, list)
+      }
+    }
+
+    // Augment agents with live status from batch result
+    const agentsWithStatus = agents.map((agent) => {
+      const liveStatus = batchStatus[agent.id] || { connected: false }
+
+      return {
+        id: agent.id,
+        name: agent.name,
+        agentType: agent.agentType,
+        agentVersion: agent.agentVersion,
+        agentPlatform: agent.agentPlatform,
+        agentMetadata: agent.agentMetadata,
+        wsConnected: agent.wsConnected,
+        lastHeartbeatAt: agent.lastHeartbeatAt,
+        registeredAt: agent.registeredAt,
+        capabilities: agent.capabilities,
+        recentInvocations: invocationsByAgent.get(agent.id) || [],
+        liveStatus,
+      }
+    })
 
     return NextResponse.json({ agents: agentsWithStatus })
   } catch (error) {

@@ -1548,3 +1548,177 @@ Hermes Hub 是一个多智能体协作平台，经过10轮迭代开发，功能�
 11. **协作编辑** — 多用户同时编辑智能体配置
 12. **数据可视化增强** — Dashboard添加更多图表(recharts/d3)
 13. **键盘快捷键增强** — 全局键盘导航和操作
+
+---
+Task ID: 9-a
+Agent: BugFixer
+Task: Fix 6 critical ACRP/skill-ws bugs — agentType lost, capabilityId wrong, invocation stuck, timeout cleanup, token disconnect, configurable WS URLs
+
+Work Log:
+- Read worklog.md to understand project context (Tasks 1-8)
+
+### Fix 1: ACRP fields (agentType, agentVersion) lost on agent creation
+- `/src/app/api/agents/route.ts`: Added `agentType, agentVersion` to destructured body in POST handler, added `agentType: agentType || null` and `agentVersion: agentVersion || null` to `db.agent.create` data object
+- `/src/app/api/agents/[id]/route.ts`: Added `agentType`, `agentVersion`, `agentPlatform` to `allowedFields` array in PATCH handler
+
+### Fix 2: skill-ws capabilityId wrong in invocation-result
+- Added `capabilityId: string` field to `PendingToolCall` interface
+- In `/internal/acrp-invoke` handler wait=true mode (line ~1006): Added `capabilityId` field to pending call
+- In `/internal/acrp-invoke` handler fire-and-forget mode (line ~1029): Added `capabilityId` field to pending call
+- In `capability:result` handler (line ~816): Changed `capabilityId: data.invocationId` to `capabilityId: correctCapabilityId` where `correctCapabilityId = pending?.capabilityId || 'unknown'`
+
+### Fix 3: Invocation status stuck at "sent" when agent offline
+- `/src/app/api/acrp/agents/[id]/invoke/route.ts`: Completely rewrote try/catch block:
+  - When `wsRes.ok`: status → "sent", return 200
+  - When `wsRes.status === 404`: status → "failed" with "Agent not connected" error, return 503
+  - Other skill-ws errors: status → "failed" with error details, return 502
+  - Fetch throws: status → "failed" with "Service unavailable" error, return 503
+  - Removed duplicate `return NextResponse.json` at end of try block since all paths now return early
+  - All failed states include `completedAt: new Date()`
+
+### Fix 4: Add invocation timeout cleanup
+- `/mini-services/skill-ws/index.ts`: Added stale invocation cleanup `setInterval` after existing stale connection cleanup
+  - Runs every 30s, checks all pendingToolCalls for age > ACRP_INVOKE_TIMEOUT
+  - Cleans up: clears timeout, deletes from map, calls invocation-result API with error "Invocation timed out"
+  - Uses `pending.capabilityId` (from Fix 2) for correct capabilityId in timeout report
+- Verified `/src/app/api/acrp/invocation-result/route.ts` already includes `completedAt: new Date()` for all terminal states (create path line 51, update path line 67)
+
+### Fix 5: Token revocation should disconnect WebSocket
+- `/src/app/api/acrp/agents/[id]/token/route.ts`: After revoking token in DB, added fetch to `http://localhost:3004/internal/acrp-disconnect` with agentId, 3s timeout, non-critical error handling
+- `/mini-services/skill-ws/index.ts`: Added new `/internal/acrp-disconnect` POST endpoint after `/internal/acrp-notify` handler:
+  - Validates agentId is provided
+  - Finds ACRP agent by ID, sends `agent:notification` with type "revoked" and reason "Token has been revoked"
+  - Disconnects socket, cleans up `acrpConnectedAgents` and `acrpSocketToAgentId` maps
+  - Returns `{ success: true, disconnected: boolean }`
+
+### Fix 6: Make WS URLs configurable in generate-token
+- `/src/app/api/acrp/generate-token/route.ts`: Replaced hardcoded URLs with environment variables:
+  - `wsHost = process.env.NEXT_PUBLIC_WS_HOST || 'localhost:3004'`
+  - `wsConnectUrl = process.env.NEXT_PUBLIC_WS_PATH || '/?XTransformPort=3004'`
+  - `wsDirectUrl = \`ws://${wsHost}/\``
+
+### Verification:
+- `bun run lint` — passes clean with 0 errors
+- All 6 fixes applied across 5 files: agents/route.ts, agents/[id]/route.ts, skill-ws/index.ts, invoke/route.ts, token/route.ts, generate-token/route.ts
+
+Stage Summary:
+- **Fix 1**: Agent creation now persists agentType/agentVersion; PATCH allows updating agentType/agentVersion/agentPlatform
+- **Fix 2**: capability:result now sends correct capabilityId (from pending call) instead of invocationId to invocation-result API
+- **Fix 3**: Invocations correctly fail with appropriate error messages when agent is offline or skill-ws is down, instead of always showing "sent"
+- **Fix 4**: Stale invocations (>60s) are automatically cleaned up and marked as timed out in DB
+- **Fix 5**: Token revocation now immediately disconnects the agent's WebSocket with notification
+- **Fix 6**: WebSocket URLs in generate-token are configurable via environment variables
+- Lint passes clean
+
+---
+Task ID: 9-c
+Agent: ACRPChatIntegration
+Task: Fix AgentControlCenter setup guide code examples, add Chat with Agent button, add i18n keys, update ChatView for ACRP support
+
+Work Log:
+- Fixed setup guide code examples in AgentControlCenter.tsx:
+  - Changed `capabilityId` → `id` in all 3 code examples (JS, Python, JSON registration payload) to match ACRPCapability interface
+  - Fixed `capability:result` event in JS and Python examples: removed `status: 'success'` (not in ACRPCapabilityResult), changed pattern to `result: response, duration: 150`
+- Added "Chat with Agent" button to AgentControlCenter Remote Control tab:
+  - Imported `MessageCircle` from lucide-react
+  - Added `handleChatWithAgent` function that creates conversation via api.createConversation(), refreshes conversations in store, navigates to chat view
+  - Added button after Agent Info Card with MessageCircle icon, disabled when agent is offline, shows "Agent is offline" hint
+- Added i18n keys for ACRP chat integration to both en.json and zh.json:
+  - chatWithAgent, agentOffline, invocationFailed, invocationTimeout, agentNotConnected, serviceUnavailable
+- Updated ChatView to support ACRP agents:
+  - Verified ChatView already shows ACRP agents without filtering
+  - Verified no mode-based filtering in agent selection lists
+  - Updated `agent-reply.ts` to handle ACRP mode:
+    - Added early check for `agent.mode === 'acrp'` that delegates to `handleAcrpAgentReply()`
+    - New function checks ACRP agent connectivity, finds chat capability, invokes via skill-ws internal API
+    - Handles offline/service-unavailable/invocation-failed states gracefully
+- Ran `bun run lint` — passes clean (0 errors)
+- Dev server running without errors
+
+Stage Summary:
+- **Setup guide code examples fixed** — capabilityId→id, capability:result protocol corrected in JS/Python/JSON examples
+- **"Chat with Agent" button added** to Remote Control tab with navigation to chat view
+- **6 new i18n keys** added to both en.json and zh.json for ACRP chat integration
+- **ChatView ACRP support** — agent-reply.ts now properly handles ACRP mode via skill-ws internal API
+- Lint passes clean, dev server stable
+
+---
+Task ID: 9-b
+Agent: AcrpChatIntegrator
+Task: Add ACRP agent mode to chat-service and chat:message event to skill-ws
+
+Work Log:
+- Read worklog.md and project context (Tasks 1-8c)
+- Analyzed chat-service/index.ts — found AgentConfig.mode only supports 'builtin', 'custom_api', 'hermes' (no 'acrp')
+- Analyzed skill-ws/index.ts — found handleACRPConnection had no chat:message event handler for direct message forwarding
+- Added 'acrp' to AgentConfig.mode type union in chat-service/index.ts (line 42)
+- Added handleAcrpAgent function after handleHermesAgent in chat-service/index.ts:
+  - Checks ACRP agent online status via skill-ws /internal/acrp-status endpoint
+  - Returns offline message if agent not connected
+  - Finds chat-capable capability from agent's registered capabilities
+  - Invokes capability via skill-ws /internal/acrp-invoke?wait=true endpoint
+  - Handles HTTP status codes: 404 (offline), 504 (timeout), other errors
+  - Streams response back to chat room via agent:stream, agent:typing, agent:stream-complete events
+  - Full error handling with try/catch and informative error messages
+- Wired up ACRP mode in agent:message handler: added `else if (agentConfig.mode === 'acrp')` branch that calls handleAcrpAgent
+- Added chat:message event handler in skill-ws handleACRPConnection:
+  - Receives { conversationId, content, senderId, senderName } from chat-service
+  - Logs the received message for debugging
+  - Agent can respond via capability:result or agent:event (no automatic response)
+- Verified chat-service starts without TypeScript errors (only pre-existing MapIterator warning)
+- Verified skill-ws has no new TypeScript errors from changes
+- Ran bun run lint — passes clean
+
+Stage Summary:
+- **ACRP agent mode fully integrated into chat-service** — ACRP agents can now participate in conversations
+- **handleAcrpAgent function** provides complete ACRP→chat bridge: status check → capability discovery → invocation → streaming response
+- **chat:message event** added to skill-ws for direct message forwarding to ACRP agents
+- Chat service now supports 4 agent modes: builtin, custom_api, hermes, acrp
+- All changes backwards compatible, lint passes clean
+---
+Task ID: 9-d
+Agent: AcrpRealtimeEnhancer
+Task: Add real-time ACRP status updates and command acknowledgment tracking
+
+Work Log:
+- Added `GET /internal/acrp-status-batch` endpoint to skill-ws (port 3004)
+  - Returns status for all connected ACRP agents in a single HTTP call
+  - Returns { agents: Record<agentId, status>, count } format
+  - Fixes N+1 query problem where each agent required a separate HTTP call
+- Added `commandId` field to `agent:command` event in `/internal/acrp-notify` handler
+  - Command ID format: `cmd_{timestamp}_{random}` (e.g., cmd_1709123456789_abc123)
+  - Command ID is returned in the HTTP response: `{ success, notified, commandId }`
+- Added `command:ack` event handler in `handleACRPConnection`
+  - Listens for agent acknowledgments with statuses: received, executing, completed, failed
+  - Logs acknowledgment with commandId and status for future DB/frontend notification
+- Updated `/api/acrp/agents/[id]/command/route.ts`
+  - Now returns `commandId` from skill-ws response in API response body
+  - Returns `{ success, commandId, delivered }` on success
+  - Handles 404 from skill-ws (agent not connected) with 503 response and `{ success: false, error: 'Agent not connected', delivered: false }`
+  - Added `.catch(() => ({}))` on JSON parse for robustness
+- Updated `/api/acrp/agents/route.ts` to use batch endpoint
+  - Replaced N+1 `Promise.all` pattern (one fetch per agent to `/internal/acrp-status`) with single fetch to `/internal/acrp-status-batch`
+  - Also consolidated N+1 DB queries for recent invocations into a single `findMany` with `{ agentId: { in: agentIds } }` and grouped results in memory
+  - Significant performance improvement for users with multiple ACRP agents
+- Changed polling intervals in AgentControlCenter.tsx from 15s to 30s
+  - Connected Agents auto-refresh: 15000ms → 30000ms
+  - Remote Control auto-refresh: 15000ms → 30000ms
+  - Rationale: With batch endpoint reducing server load, less frequent polling is sufficient
+- Added invocation status refresh button in Invocation History panel
+  - Refresh button in the card header next to "Invocation History" title
+  - Uses ghost variant with RefreshCw icon and loading spinner state
+- Added timeout error display in invocation history items
+  - Shows `inv.error` for timeout status invocations (amber text, truncated)
+  - Existing timeout badge styling already properly distinguished (amber background)
+- Ran `bun run lint` — passes clean with 0 errors
+- Dev server running without errors
+
+Stage Summary:
+- **ACRP status batch endpoint added** — single HTTP call replaces N+1 pattern
+- **Command acknowledgment tracking implemented** — commandId in agent:command, command:ack event handler
+- **Command API route enhanced** — returns commandId, handles agent-not-connected 404
+- **N+1 query problem fixed** — both WS status fetches and DB invocation queries consolidated
+- **Polling reduced from 15s to 30s** — less server load with batch endpoint
+- **Invocation refresh button added** — manual refresh in invocation history card header
+- **Timeout error display added** — shows error message for timed-out invocations
+- Lint passes clean, dev server stable

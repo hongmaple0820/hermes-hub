@@ -36,6 +36,19 @@ export async function DELETE(
       },
     })
 
+    // Notify skill-ws to disconnect the agent's WebSocket
+    try {
+      await fetch('http://localhost:3004/internal/acrp-disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId }),
+        signal: AbortSignal.timeout(3000),
+      })
+    } catch (err) {
+      console.warn('[ACRP] Failed to notify skill-ws for disconnect:', err)
+      // Non-critical — agent will fail on next heartbeat since token is null
+    }
+
     return NextResponse.json({ success: true })
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {

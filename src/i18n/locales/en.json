@@ -1515,7 +1515,13 @@
     "typeTrae": "AI IDE agent",
     "typeCustom": "Custom",
     "typeCustomDesc": "Any WS client",
-    "noCapabilitiesHint": "The agent has not registered any capabilities yet"
+    "noCapabilitiesHint": "The agent has not registered any capabilities yet",
+    "chatWithAgent": "Chat with Agent",
+    "agentOffline": "Agent is offline",
+    "invocationFailed": "Invocation failed",
+    "invocationTimeout": "Invocation timed out",
+    "agentNotConnected": "Agent not connected",
+    "serviceUnavailable": "Service unavailable"
   },
   "sidebar": {
     "sectionMain": "Main",

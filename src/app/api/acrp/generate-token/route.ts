@@ -35,10 +35,13 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    const wsHost = process.env.NEXT_PUBLIC_WS_HOST || 'localhost:3004'
+    const wsConnectUrl = process.env.NEXT_PUBLIC_WS_PATH || '/?XTransformPort=3004'
+
     return NextResponse.json({
       agentToken: token,
-      wsConnectUrl: '/?XTransformPort=3004',
-      wsDirectUrl: 'ws://localhost:3004/',
+      wsConnectUrl,
+      wsDirectUrl: `ws://${wsHost}/`,
       agentId,
     })
   } catch (error) {

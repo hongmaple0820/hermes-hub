@@ -24,7 +24,7 @@ import {
   Bot, Server, Cable, Globe, Code, BookOpen, ArrowRight, Shield,
   MessageSquare, Database, Brain, Cpu, Heart, Star, Send, AlertTriangle,
   Key, Link2, ExternalLink, FileJson, Timer, XCircle, CheckCircle2,
-  Hourglass, Loader2, Search, Layers, Unplug, Plug, Plus,
+  Hourglass, Loader2, Search, Layers, Unplug, Plug, Plus, MessageCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -401,22 +401,22 @@ export function AgentControlCenter() {
     }
   }, [activeTab, loadAcrpAgents]);
 
-  // Auto-refresh connected agents (15s)
+  // Auto-refresh connected agents (30s)
   useEffect(() => {
     if (activeTab === 'connected') {
-      refreshIntervalRef.current = setInterval(loadAcrpAgents, 15000);
+      refreshIntervalRef.current = setInterval(loadAcrpAgents, 30000);
       return () => {
         if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
       };
     }
   }, [activeTab, loadAcrpAgents]);
 
-  // Auto-refresh Remote Control tab (15s) + refresh ago indicator
+  // Auto-refresh Remote Control tab (30s) + refresh ago indicator
   useEffect(() => {
     if (activeTab === 'control' && selectedAgentId) {
       controlRefreshRef.current = setInterval(() => {
         loadAgentDetail(selectedAgentId);
-      }, 15000);
+      }, 30000);
 
       refreshAgoRef.current = setInterval(() => {
         if (lastRefreshedAt) {
@@ -562,6 +562,28 @@ export function AgentControlCenter() {
       toast.error(t('acrp.testConnectionFailed'));
     } finally {
       setTestingConnection(false);
+    }
+  };
+
+  // Chat with agent - navigate to chat view and create conversation
+  const handleChatWithAgent = async (agent: any) => {
+    try {
+      const res = await api.createConversation({
+        agentId: agent.id,
+        name: `Chat with ${agent.name}`,
+      });
+
+      if (res?.conversation) {
+        // Refresh conversations list
+        const convs = await api.getConversations();
+        useAppStore.getState().setConversations(convs.conversations || []);
+        useAppStore.getState().setSelectedConversationId(res.conversation.id);
+        // Navigate to chat view
+        useAppStore.getState().setCurrentView('chat');
+        toast.success(t('acrp.chatWithAgent'));
+      }
+    } catch (err) {
+      toast.error(t('acrp.serviceUnavailable'));
     }
   };
 
@@ -879,6 +901,21 @@ export function AgentControlCenter() {
             </CardContent>
           </Card>
 
+          {/* Chat with Agent */}
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => handleChatWithAgent(agentDetail.agent)}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
+              disabled={!agentDetail.liveStatus?.connected && !agentDetail.agent?.wsConnected}
+            >
+              <MessageCircle className="h-4 w-4" />
+              {t('acrp.chatWithAgent')}
+            </Button>
+            {!(agentDetail.liveStatus?.connected || agentDetail.agent?.wsConnected) && (
+              <span className="text-xs text-muted-foreground">{t('acrp.agentOffline')}</span>
+            )}
+          </div>
+
           {/* Quick Commands */}
           <Card>
             <CardHeader className="pb-3">
@@ -987,10 +1024,21 @@ export function AgentControlCenter() {
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm">{t('acrp.invocationHistory')}</CardTitle>
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                    {agentDetail.recentInvocations.length}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-sm">{t('acrp.invocationHistory')}</CardTitle>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                      {agentDetail.recentInvocations.length}
+                    </Badge>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1 text-xs"
+                    onClick={() => loadAgentDetail(selectedAgentId)}
+                  >
+                    <RefreshCw className={cn('w-3 h-3', loadingDetail && 'animate-spin')} />
+                    {t('common.refresh')}
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -1030,6 +1078,9 @@ export function AgentControlCenter() {
                           </div>
                           <div className="text-right shrink-0">
                             {inv.duration && <p className="text-muted-foreground">{inv.duration}ms</p>}
+                            {inv.status === 'timeout' && inv.error && (
+                              <p className="text-amber-600 text-[10px] truncate max-w-32">{inv.error}</p>
+                            )}
                             <p className="text-muted-foreground">{formatTimeAgo(inv.createdAt || inv.invokedAt)}</p>
                           </div>
                         </div>
@@ -1065,7 +1116,7 @@ socket.on('connect', () => {
     platform: 'Node.js',
     capabilities: [
       {
-        capabilityId: 'model.switch',
+        id: 'model.switch',
         name: 'Switch Model',
         category: 'model',
         description: 'Switch the LLM model',
@@ -1091,10 +1142,11 @@ setInterval(() => {
 socket.on('capability:invoke', (data) => {
   console.log('Capability invoked:', data);
   // Execute the capability...
+  const response = { message: 'Done!' };
   socket.emit('capability:result', {
     invocationId: data.invocationId,
-    status: 'success',
-    result: { message: 'Done!' }
+    result: response,
+    duration: 150
   });
 });
 
@@ -1119,7 +1171,7 @@ sio.emit('agent:register', {
     'platform': 'Python',
     'capabilities': [
         {
-            'capabilityId': 'skill.install',
+            'id': 'skill.install',
             'name': 'Install Skill',
             'category': 'skill',
             'description': 'Install a new skill',
@@ -1147,10 +1199,11 @@ threading.Thread(target=heartbeat, daemon=True).start()
 @sio.on('capability:invoke')
 def on_invoke(data):
     print(f'Capability invoked: {data}')
+    response = {'message': 'Done!'}
     sio.emit('capability:result', {
         'invocationId': data['invocationId'],
-        'status': 'success',
-        'result': {'message': 'Done!'}
+        'result': response,
+        'duration': 150
     })
 
 @sio.on('agent:command')
@@ -1165,7 +1218,7 @@ sio.wait()`;
   "platform": "Node.js / Python / Go",
   "capabilities": [
     {
-      "capabilityId": "model.switch",
+      "id": "model.switch",
       "name": "Switch Model",
       "category": "model",
       "description": "Switch the active LLM model",
@@ -1185,7 +1238,7 @@ sio.wait()`;
       }
     },
     {
-      "capabilityId": "skill.install",
+      "id": "skill.install",
       "name": "Install Skill",
       "category": "skill",
       "description": "Install a new skill to the agent",

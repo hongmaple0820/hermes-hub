@@ -85,30 +85,44 @@ export async function POST(
           where: { id: invocation.id },
           data: { status: 'sent' },
         })
-      } else {
-        // skill-ws responded with error — still mark as sent, it may retry
-        console.warn(
-          '[ACRP] skill-ws invoke responded with non-OK:',
-          wsRes.status
-        )
+        return NextResponse.json({
+          invocationId: invocation.id,
+          status: 'sent',
+        })
+      } else if (wsRes.status === 404) {
+        // Agent not connected
         await db.capabilityInvocation.update({
           where: { id: invocation.id },
-          data: { status: 'sent' },
+          data: { status: 'failed', error: 'Agent not connected', completedAt: new Date() },
         })
+        return NextResponse.json(
+          { error: 'Agent is not connected', invocationId: invocation.id, status: 'failed' },
+          { status: 503 }
+        )
+      } else {
+        // Other skill-ws error
+        const errBody = await wsRes.text().catch(() => 'Unknown error')
+        await db.capabilityInvocation.update({
+          where: { id: invocation.id },
+          data: { status: 'failed', error: `Invocation delivery failed: ${errBody}`, completedAt: new Date() },
+        })
+        return NextResponse.json(
+          { error: 'Failed to deliver invocation', invocationId: invocation.id, status: 'failed' },
+          { status: 502 }
+        )
       }
     } catch (wsError) {
-      // skill-ws is down or agent not connected
+      // skill-ws is down
       console.warn('[ACRP] skill-ws invoke failed:', wsError)
       await db.capabilityInvocation.update({
         where: { id: invocation.id },
-        data: { status: 'sent' },
+        data: { status: 'failed', error: 'Service unavailable', completedAt: new Date() },
       })
+      return NextResponse.json(
+        { error: 'Skill service unavailable', invocationId: invocation.id, status: 'failed' },
+        { status: 503 }
+      )
     }
-
-    return NextResponse.json({
-      invocationId: invocation.id,
-      status: 'sent',
-    })
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

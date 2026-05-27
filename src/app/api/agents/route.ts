@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
       name, description, avatar, systemPrompt, mode, isPublic,
       providerId, model, temperature, maxTokens,
       callbackUrl, apiKey,
+      agentType, agentVersion,
       skillIds,
     } = body;
 
@@ -82,6 +83,8 @@ export async function POST(request: NextRequest) {
         maxTokens: maxTokens ?? null,
         callbackUrl: callbackUrl || null,
         apiKey: apiKey || null,
+        agentType: agentType || null,
+        agentVersion: agentVersion || null,
       },
       include: {
         provider: { select: { id: true, name: true, provider: true, defaultModel: true } },

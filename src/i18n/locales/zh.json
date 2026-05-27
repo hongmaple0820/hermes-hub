@@ -1515,7 +1515,13 @@
     "typeTrae": "AI IDE Agent",
     "typeCustom": "自定义",
     "typeCustomDesc": "任意 WS 客户端",
-    "noCapabilitiesHint": "该 Agent 尚未注册任何能力"
+    "noCapabilitiesHint": "该 Agent 尚未注册任何能力",
+    "chatWithAgent": "与智能体对话",
+    "agentOffline": "智能体离线",
+    "invocationFailed": "调用失败",
+    "invocationTimeout": "调用超时",
+    "agentNotConnected": "智能体未连接",
+    "serviceUnavailable": "服务不可用"
   },
   "sidebar": {
     "sectionMain": "主要",

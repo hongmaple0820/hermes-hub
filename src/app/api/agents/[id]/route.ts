@@ -65,6 +65,7 @@ export async function PATCH(
     const allowedFields = [
       'name', 'description', 'avatar', 'systemPrompt', 'mode', 'isPublic', 'status',
       'providerId', 'model', 'temperature', 'maxTokens', 'callbackUrl', 'apiKey',
+      'agentType', 'agentVersion', 'agentPlatform',
     ];
     for (const field of allowedFields) {
       if (body[field] !== undefined) updateData[field] = body[field];

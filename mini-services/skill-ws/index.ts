@@ -87,6 +87,7 @@ interface PendingToolCall {
   reject: (reason: any) => void
   timeout: ReturnType<typeof setTimeout>
   createdAt: Date
+  capabilityId: string
 }
 
 // --- ACRP types ---
@@ -806,6 +807,7 @@ function handleACRPConnection(socket: Socket) {
     }
 
     // Update CapabilityInvocation record in DB
+    const correctCapabilityId = pending?.capabilityId || 'unknown'
     try {
       await fetch(`${NEXTJS_API_URL}/api/acrp/invocation-result`, {
         method: 'POST',
@@ -813,7 +815,7 @@ function handleACRPConnection(socket: Socket) {
         body: JSON.stringify({
           invocationId: data.invocationId,
           agentId,
-          capabilityId: data.invocationId, // Will be resolved from the pending call
+          capabilityId: correctCapabilityId,
           result: data.result,
           error: data.error,
           duration: data.duration,
@@ -846,6 +848,17 @@ function handleACRPConnection(socket: Socket) {
     } catch (err: any) {
       console.error(`[ACRP:STATUS] Failed to update DB for agent ${agentId}:`, err.message)
     }
+  })
+
+  // -----------------------------------------------------------------------
+  // chat:message — Forward chat messages to the agent (from chat-service)
+  // -----------------------------------------------------------------------
+
+  socket.on('chat:message', async (data: { conversationId: string; content: string; senderId: string; senderName: string }) => {
+    console.log(`[ACRP:CHAT] Agent ${agentId} received chat message from ${data.senderName}`)
+
+    // The agent can respond via capability:result or agent:event
+    // No automatic response needed - the agent decides how to handle it
   })
 
   // -----------------------------------------------------------------------
@@ -884,6 +897,15 @@ function handleACRPConnection(socket: Socket) {
     } catch (err: any) {
       console.error(`[ACRP:EVENT] Error processing event from agent ${agentId}:`, err.message)
     }
+  })
+
+  // -----------------------------------------------------------------------
+  // command:ack — Agent acknowledges receipt/execution of a command
+  // -----------------------------------------------------------------------
+
+  socket.on('command:ack', async (data: { commandId: string; status: 'received' | 'executing' | 'completed' | 'failed'; result?: any; error?: string }) => {
+    console.log(`[ACRP:CMD-ACK] Agent ${agentId} acknowledged command ${data.commandId}: ${data.status}`)
+    // Future: Store command acknowledgment in DB or notify frontend via WebSocket
   })
 
   // -----------------------------------------------------------------------
@@ -1008,6 +1030,7 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
             reject,
             timeout,
             createdAt: new Date(),
+            capabilityId,
           })
         })
 
@@ -1031,6 +1054,7 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
           reject: () => {},
           timeout,
           createdAt: new Date(),
+          capabilityId,
         })
 
         res.writeHead(200, { 'Content-Type': 'application/json' })
@@ -1082,6 +1106,35 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
   }
 
   // -----------------------------------------------------------------------
+  // GET /internal/acrp-status-batch — Get status for all connected ACRP agents
+  // -----------------------------------------------------------------------
+
+  if (path === '/internal/acrp-status-batch' && req.method === 'GET') {
+    try {
+      const agents: Record<string, any> = {}
+      for (const [agentId, agent] of acrpConnectedAgents.entries()) {
+        agents[agentId] = {
+          connected: true,
+          lastHeartbeat: agent.lastHeartbeat?.toISOString() || null,
+          socketId: agent.socketId || null,
+          capabilities: agent.capabilities || [],
+          agentType: agent.platform || null,
+          agentVersion: agent.version || null,
+          name: agent.name || null,
+          connectedAt: agent.connectedAt?.toISOString() || null,
+        }
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ agents, count: acrpConnectedAgents.size }))
+    } catch (err: any) {
+      console.error('[ACRP:STATUS-BATCH] Error:', err)
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: err.message || 'Internal server error' }))
+    }
+    return
+  }
+
+  // -----------------------------------------------------------------------
   // POST /internal/acrp-notify — Send notification to ACRP agent
   // -----------------------------------------------------------------------
 
@@ -1112,11 +1165,18 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
 
       // If command is provided, send agent:command; otherwise send agent:notification
       if (command) {
+        const commandId = `cmd_${Date.now()}_${Math.random().toString(36).slice(2)}`
         socket.emit('agent:command', {
+          commandId,
           command,
           params: commandParams || {},
           timestamp: new Date().toISOString(),
         })
+
+        // Return the commandId in the response
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: true, notified: true, commandId }))
+        return
       } else {
         socket.emit('agent:notification', {
           type: type || 'info',
@@ -1129,6 +1189,46 @@ async function handleHttpRequest(req: IncomingMessage, res: ServerResponse) {
       res.end(JSON.stringify({ success: true, notified: true }))
     } catch (err: any) {
       console.error('[ACRP:NOTIFY] Error:', err)
+      res.writeHead(500, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: err.message || 'Internal server error' }))
+    }
+    return
+  }
+
+  // -----------------------------------------------------------------------
+  // POST /internal/acrp-disconnect — Force disconnect an ACRP agent
+  // -----------------------------------------------------------------------
+
+  if (path === '/internal/acrp-disconnect' && req.method === 'POST') {
+    try {
+      const body = await readRequestBody(req)
+      const { agentId } = JSON.parse(body)
+
+      if (!agentId) {
+        res.writeHead(400, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Missing required field: agentId' }))
+        return
+      }
+
+      const acrpAgent = acrpConnectedAgents.get(agentId)
+      if (acrpAgent) {
+        const socket = io.sockets.sockets.get(acrpAgent.socketId)
+        if (socket) {
+          socket.emit('agent:notification', {
+            type: 'revoked',
+            data: { reason: 'Token has been revoked' },
+            timestamp: new Date().toISOString(),
+          })
+          socket.disconnect(true)
+        }
+        acrpConnectedAgents.delete(agentId)
+        acrpSocketToAgentId.delete(acrpAgent.socketId)
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ success: true, disconnected: !!acrpAgent }))
+    } catch (err: any) {
+      console.error('[ACRP:DISCONNECT] Error:', err)
       res.writeHead(500, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ error: err.message || 'Internal server error' }))
     }
@@ -1560,6 +1660,34 @@ setInterval(() => {
 }, 30_000) // Run every 30 seconds
 
 // ---------------------------------------------------------------------------
+// Stale Invocation Cleanup (ACRP invocations pending for too long)
+// ---------------------------------------------------------------------------
+
+setInterval(() => {
+  const now = Date.now()
+  for (const [invocationId, pending] of pendingToolCalls.entries()) {
+    const age = now - pending.createdAt.getTime()
+    if (age > ACRP_INVOKE_TIMEOUT) {
+      console.warn(`[TIMEOUT] Cleaning up stale invocation: ${invocationId}`)
+      clearTimeout(pending.timeout)
+      pendingToolCalls.delete(invocationId)
+      // Update DB record to timeout status
+      fetch(`${NEXTJS_API_URL}/api/acrp/invocation-result`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invocationId,
+          agentId: 'unknown',
+          capabilityId: pending.capabilityId || 'unknown',
+          error: 'Invocation timed out',
+          duration: age,
+        }),
+      }).catch(() => {})
+    }
+  }
+}, 30000) // Check every 30s
+
+// ---------------------------------------------------------------------------
 // Start Server
 // ---------------------------------------------------------------------------
 
@@ -1599,5 +1727,23 @@ const shutdown = () => {
   })
 }
 
-process.on('SIGTERM', shutdown)
-process.on('SIGINT', shutdown)
+process.on('SIGTERM', () => {
+  console.error('[SIGNAL] Received SIGTERM — stack trace:')
+  console.trace()
+  shutdown()
+})
+process.on('SIGINT', () => {
+  console.error('[SIGNAL] Received SIGINT — stack trace:')
+  console.trace()
+  shutdown()
+})
+
+// Prevent unhandled promise rejections from crashing the process
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[UNHANDLED REJECTION]', reason)
+})
+
+process.on('uncaughtException', (error) => {
+  console.error('[UNCAUGHT EXCEPTION]', error)
+  // Don't exit — just log the error
+})

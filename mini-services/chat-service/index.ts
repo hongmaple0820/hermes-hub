@@ -39,7 +39,7 @@ interface ChatMessage {
 interface AgentConfig {
   agentId: string
   name: string
-  mode: 'builtin' | 'custom_api' | 'hermes'
+  mode: 'builtin' | 'custom_api' | 'hermes' | 'acrp'
   provider?: string
   model?: string
   apiKey?: string
@@ -343,6 +343,9 @@ io.on('connection', (socket: Socket) => {
       } else if (agentConfig.mode === 'hermes') {
         // --- Hermes: forward to hermes gateway ---
         await handleHermesAgent(socket, roomKey, conversationId, agentConfig, message)
+      } else if (agentConfig.mode === 'acrp') {
+        // --- ACRP: forward to connected ACRP agent via skill-ws ---
+        await handleAcrpAgent(socket, roomKey, conversationId, agentConfig, message)
       } else {
         console.warn(`[AGENT:MSG] Unknown agent mode: ${agentConfig.mode}`)
         io.to(roomKey).emit('agent:typing', {
@@ -1063,6 +1066,134 @@ async function handleHermesAgent(
       agentId: agentConfig.agentId,
       fullResponse: fallbackResponse,
       timestamp: new Date().toISOString(),
+    })
+  }
+}
+
+async function handleAcrpAgent(
+  socket: Socket,
+  roomKey: string,
+  conversationId: string,
+  agentConfig: AgentConfig,
+  message: string,
+) {
+  const SKILL_WS_URL = process.env.SKILL_WS_URL || 'http://localhost:3004'
+
+  // Check if agent is connected via ACRP
+  try {
+    const statusRes = await fetch(
+      `${SKILL_WS_URL}/internal/acrp-status?agentId=${agentConfig.agentId}`,
+      { signal: AbortSignal.timeout(3000) }
+    )
+
+    if (!statusRes.ok) {
+      throw new Error('Skill service unavailable')
+    }
+
+    const statusData = await statusRes.json()
+    if (!statusData.connected) {
+      io.to(roomKey).emit('agent:typing', {
+        conversationId,
+        agentId: agentConfig.agentId,
+        isTyping: false,
+        timestamp: new Date().toISOString(),
+      })
+      io.to(roomKey).emit('agent:stream-complete', {
+        conversationId,
+        agentId: agentConfig.agentId,
+        fullResponse: `[${agentConfig.name}] I'm currently offline. Please try again later.`,
+        timestamp: new Date().toISOString(),
+        error: true,
+      })
+      return
+    }
+
+    // Find a "chat" or "message" capability, or use a generic one
+    const chatCapability = statusData.capabilities?.find(
+      (cap: any) => cap.category === 'chat' || cap.id === 'chat.reply' || cap.id === 'message'
+    )
+    const capabilityId = chatCapability?.id || 'chat.reply'
+
+    // Generate an invocation ID
+    const invocationId = `chat_${Date.now()}_${Math.random().toString(36).slice(2)}`
+
+    // Invoke the capability via skill-ws with wait=true
+    const invokeRes = await fetch(`${SKILL_WS_URL}/internal/acrp-invoke?wait=true`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agentId: agentConfig.agentId,
+        capabilityId,
+        params: {
+          message,
+          conversationId,
+          timestamp: new Date().toISOString(),
+        },
+        invocationId,
+        invokedBy: agentConfig.agentId,
+      }),
+      signal: AbortSignal.timeout(60000), // 60s timeout
+    })
+
+    let reply = ''
+
+    if (invokeRes.ok) {
+      const data = await invokeRes.json()
+      if (data.success && data.result) {
+        // Extract the response from the result
+        reply = data.result.response || data.result.message || data.result.content ||
+                data.result.result || data.result.text ||
+                (typeof data.result === 'string' ? data.result : JSON.stringify(data.result))
+      } else {
+        reply = data.error || `[${agentConfig.name}] No response received.`
+      }
+    } else if (invokeRes.status === 404) {
+      reply = `[${agentConfig.name}] I'm currently offline. Please try again later.`
+    } else if (invokeRes.status === 504) {
+      reply = `[${agentConfig.name}] Response timed out. Please try again.`
+    } else {
+      reply = `[${agentConfig.name}] Failed to get response. Please try again later.`
+    }
+
+    // Stream the response
+    io.to(roomKey).emit('agent:stream', {
+      conversationId,
+      agentId: agentConfig.agentId,
+      chunk: reply,
+      timestamp: new Date().toISOString(),
+    })
+
+    io.to(roomKey).emit('agent:typing', {
+      conversationId,
+      agentId: agentConfig.agentId,
+      isTyping: false,
+      timestamp: new Date().toISOString(),
+    })
+
+    io.to(roomKey).emit('agent:stream-complete', {
+      conversationId,
+      agentId: agentConfig.agentId,
+      fullResponse: reply,
+      timestamp: new Date().toISOString(),
+    })
+
+    console.log(`[AGENT:ACRP] Completed ACRP invocation for agent ${agentConfig.name} (${agentConfig.agentId})`)
+  } catch (err: any) {
+    console.error(`[AGENT:ACRP] Error:`, err)
+
+    io.to(roomKey).emit('agent:typing', {
+      conversationId,
+      agentId: agentConfig.agentId,
+      isTyping: false,
+      timestamp: new Date().toISOString(),
+    })
+
+    io.to(roomKey).emit('agent:stream-complete', {
+      conversationId,
+      agentId: agentConfig.agentId,
+      fullResponse: `[${agentConfig.name}] Error: ${err.message || 'Service unavailable'}`,
+      timestamp: new Date().toISOString(),
+      error: true,
     })
   }
 }
