@@ -2962,3 +2962,177 @@ Stage Summary:
 - **VLM rating**: 7/10 (improved from 6/10, target 9/10 needs more iteration)
 - **Remaining for Phase 3**: Frontend rebuild (reduce to 5 core pages), Workflow runtime, Multi-agent orchestration
 - **Remaining for Phase 4**: RAG, Tool Marketplace, collaboration features
+
+---
+Task ID: 9
+Agent: main
+Task: Phase 2 Assessment & Planning
+
+Work Log:
+- Verified all 3 services running: Next.js (3000), agent-runtime (3003), skill-ws (3004)
+- Ran lint check - passes clean
+- Read full project state: Prisma schema, all new views, Agent Runtime service, API routes
+- Confirmed Phase 1 is COMPLETE:
+  - Thread/Run/Step/Tool/AgentTool data models in Prisma ✅
+  - Agent Runtime service on port 3003 with Socket.IO ✅
+  - API routes for threads/runs/tools/agents ✅
+  - New views: ChatView2 (939 lines), AgentBuilder (382 lines), ToolRegistry (full), ActivityView (1067 lines) ✅
+  - Dashboard already redesigned for 2.0 with Run stats, execution health, recent runs ✅
+  - Sidebar updated with 5 core pages ✅
+- Planned Phase 2 work:
+  - ChatView2 Enhancement (markdown rendering, conversation templates)
+  - Conversation Templates UI
+  - Agent Discovery
+  - Gateway WS Integration
+
+Stage Summary:
+- Phase 1 fully complete and stable
+- Starting Phase 2: Feature enrichment and UX polish
+- Dashboard already has 1075 lines of comprehensive Run/Thread/Step analytics
+- Key gap: ChatView2 needs markdown rendering, conversation templates need frontend UI
+
+---
+Task ID: 10-b
+Agent: AgentDiscoveryDeveloper
+Task: Implement Agent Discovery & Public Agent Browsing
+
+Work Log:
+- Created `src/components/views/AgentDiscovery.tsx` — full Discovery UI component with:
+  - Hero section with "Discover Agents" title and purple-to-cyan gradient background
+  - Category filter tabs (All, Productivity, Development, Communication, Creative, Data) using rounded-full chip buttons (same pattern as ToolRegistry)
+  - Search bar with 300ms debounce
+  - Grid of public agent cards (1 col mobile, 2 md, 3 lg) showing:
+    - Emoji avatar based on agent ID hash
+    - Agent name and description
+    - Runtime type badge (Builtin/Remote/Workflow) with color-coded styling
+    - "Use Agent" button for installed/own agents → navigates to chat2 with agent pre-selected
+    - "Install" button for new agents → creates copy via POST /api/agents
+    - Author info and conversation count metadata
+  - Loading skeletons while fetching (matches ToolRegistry pattern)
+  - Empty state for no public agents and no search results
+  - Framer Motion stagger animations on cards (0.05s delay per card)
+  - Card style: rounded-xl, hover:shadow-md, hover:scale-[1.01], hover:border-primary/20
+- Updated `src/lib/api-client.ts` — `discoverAgents()` now accepts optional `{ category?: string; search?: string }` params, passes as query string
+- Added `agentDiscovery` to `ViewMode` type in `src/lib/store.ts`
+- Added `AgentDiscovery` import and `case 'agentDiscovery'` route in `src/app/page.tsx`
+- Added Compass icon import and `agentDiscovery` nav item to Sidebar's "core" section (between toolRegistry and activity)
+- Updated keyboard shortcuts: ⌘5 = agentDiscovery, ⌘6 = activity, ⌘7 = agents, ⌘8 = skills, ⌘9 = agent-control
+- Added i18n keys to `en.json`:
+  - nav.agentDiscovery = "Discover"
+  - discovery.title, discovery.subtitle, discovery.searchPlaceholder
+  - discovery.all, discovery.productivity, discovery.development
+  - discovery.communication, discovery.creative, discovery.data
+  - discovery.useAgent, discovery.installAgent, discovery.installed
+  - discovery.noAgents, discovery.noAgentsDesc, discovery.noResults
+  - discovery.builtin, discovery.remote, discovery.workflow
+  - discovery.byAuthor, discovery.agentInstalled
+- Added i18n keys to `zh.json`:
+  - nav.agentDiscovery = "发现"
+  - discovery.title = "发现智能体"
+  - discovery.subtitle = "浏览和安装社区分享的公开智能体"
+  - All other discovery keys with natural Chinese translations
+- Ran `bun run lint` — passes clean with 0 errors
+- Dev server running correctly, no compilation errors
+
+Stage Summary:
+- **Agent Discovery feature fully implemented** with Discovery UI, API integration, navigation, and i18n
+- Component follows same design patterns as ToolRegistry (card style, category chips, loading skeletons)
+- "Use" navigates to chat2 with agent pre-selected; "Install" creates a copy for the current user
+- All existing functionality preserved — no modifications to agent-runtime service or Prisma schema
+
+---
+Task ID: 10-a
+Agent: ChatView2Enhancer
+Task: Enhance ChatView2 with Markdown Rendering and Conversation Templates
+
+Work Log:
+- Installed react-markdown@10.1.0 and remark-gfm@4.0.1
+- Updated `src/components/views/chat/MessageArea.tsx`:
+  - Added ReactMarkdown and remarkGfm imports
+  - For agent messages (role === 'agent'), replaced plain `<p>` with `<ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>` wrapped in `.markdown-content` div
+  - For user messages, kept plain text rendering (no markdown)
+  - For cancelled messages ([Cancelled]), kept plain text with italic style (no markdown)
+  - For streaming content, also uses ReactMarkdown for live markdown rendering
+  - Removed unused imports (useState, useCallback, Copy, Check)
+- Added comprehensive markdown CSS styles to `src/app/globals.css`:
+  - `.markdown-content` — line-height 1.6
+  - Headings (h1-h6) — proper sizing, weight, and margins
+  - `pre` — dark background (oklch(0.17 0 0)) with overflow-x-auto
+  - Inline `code` — muted background with monospace font, dark mode variant
+  - Lists (ul, ol) — proper list-style and indentation
+  - `blockquote` — left border accent with subtle background, dark mode variant
+  - Tables — bordered cells with header background, dark mode borders
+  - Links — colored with underline, hover opacity
+  - `hr` — subtle separator
+  - `img` — max-width with rounded corners
+- Created `src/components/views/chat/ConversationTemplates.tsx`:
+  - Shows grid of template cards (icon, name, description, badges for agents/prompt/starter, usage count)
+  - "Use Template" button that calls `onUseTemplate` callback
+  - "Create Template" dialog with full form: icon, name, description, system prompt, initial message, agent selection, public toggle
+  - Loads templates from `/api/conversation-templates` API via `api.getConversationTemplates()`
+  - Creates templates via `api.createConversationTemplate(data)` — already existed in api-client.ts
+  - Empty state with "Create First Template" CTA
+  - Loading and error states
+- Integrated ConversationTemplates into ChatView2 empty state:
+  - Added tab bar with "Select Agent" and "Templates" tabs
+  - `emptyStateTab` state ('chat' | 'templates') persisted during session
+  - "Select Agent" tab shows AgentSelector component
+  - "Templates" tab shows ConversationTemplates component
+  - Added MessageSquare and LayoutTemplate icons from lucide-react
+- Implemented `handleUseTemplate` in ChatView2:
+  - Picks first agent from template.agentIds, or falls back to first available agent
+  - Selects the agent (loads threads, tools)
+  - Creates a thread with template's name as title and systemPrompt override
+  - Joins thread room via Socket.IO
+  - If template has initialMessage, auto-sends it after 300ms delay
+  - Shows toast on success
+  - Does NOT auto-navigate away from chat2 — creates thread and selects it
+- Added i18n keys for templates to `en.json` and `zh.json`:
+  - templates.title, templates.subtitle, templates.createTemplate, templates.useTemplate
+  - templates.name, templates.description, templates.icon, templates.systemPrompt
+  - templates.initialMessage, templates.agents, templates.public, templates.usageCount
+  - templates.noTemplates, templates.noTemplatesDesc, templates.createFirst
+  - templates.created, templates.templateUsed
+- Ran `bun run lint` — passes clean with 0 errors
+- Dev server running without compilation errors
+
+Stage Summary:
+- **Markdown rendering fully implemented** for agent messages and streaming content using react-markdown + remark-gfm
+- **Conversation Templates UI created** with template grid, create dialog, and "Use Template" flow
+- **ChatView2 empty state enhanced** with tabbed interface ("Select Agent" | "Templates")
+- **Template usage flow works end-to-end**: creates thread with systemPrompt override, auto-sends initial message
+- **All existing functionality preserved** — streaming, run tracking, Socket.IO, tool panel all intact
+- No modifications to agent-runtime service or any API routes
+- 17 new i18n keys added to both en.json and zh.json
+- Lint passes clean, dev server stable
+
+---
+Task ID: 10
+Agent: main
+Task: Phase 2 Feature Development - ChatView2 Enhancement, Conversation Templates, Agent Discovery
+
+Work Log:
+- Launched parallel sub-agents for two feature tracks
+- Agent 10-a completed:
+  - Added react-markdown + remark-gfm for agent message rendering in MessageArea.tsx
+  - Added 170+ lines of markdown CSS styles in globals.css (headings, code blocks, tables, etc.)
+  - Created ConversationTemplates.tsx component (280+ lines)
+  - Integrated templates into ChatView2 with tabbed empty state ("Select Agent" | "Templates")
+  - Added 17 template i18n keys in en.json and zh.json
+- Agent 10-b completed:
+  - Created AgentDiscovery.tsx component (280+ lines) with hero section, category filters, search, card grid
+  - Added agentDiscovery to ViewMode type in store.ts
+  - Added route in page.tsx and nav item in Sidebar
+  - Added 18 discovery i18n keys in en.json and zh.json
+- Verified lint passes clean
+- VLM QA analysis: UI rated 8/10, no bugs found, new tabs and navigation items visible
+- Set up cron job for periodic development review (every 15 minutes)
+
+Stage Summary:
+- Phase 2 feature development complete
+- ChatView2 now has markdown rendering for agent messages
+- Conversation Templates UI integrated into chat empty state
+- Agent Discovery page added to sidebar navigation
+- All i18n keys added for English and Chinese
+- Lint clean, dev server stable, VLM QA passed
+- Remaining: Gateway WS integration for Tool system websocket handlerType

@@ -7,6 +7,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Bot, Sparkles, Code, Globe, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/i18n';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { RunCard, type Run } from './RunCard';
 import type { Step } from './StepTimeline';
 
@@ -188,12 +190,13 @@ export function MessageArea({
                                   : 'bg-card dark:bg-card/80 border border-border dark:border-border/80 rounded-bl-md'
                             )}
                           >
-                            <p className={cn(
-                              'text-sm whitespace-pre-wrap',
-                              isCancelled && 'text-muted-foreground'
-                            )}>
-                              {msg.content}
-                            </p>
+                            {isUser || isCancelled ? (
+                              <p className={cn('text-sm whitespace-pre-wrap', isCancelled && 'text-muted-foreground')}>{msg.content}</p>
+                            ) : (
+                              <div className="markdown-content text-sm">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                              </div>
+                            )}
                           </div>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="text-[10px]">
@@ -265,7 +268,9 @@ export function MessageArea({
                 <div className="bg-card dark:bg-card/80 border border-border dark:border-border/80 rounded-2xl rounded-bl-md px-4 py-2.5 relative overflow-hidden">
                   {/* Shimmer effect on streaming message */}
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-shimmer" />
-                  <p className="text-sm whitespace-pre-wrap relative z-10">{streamingContent}</p>
+                  <div className="markdown-content text-sm relative z-10">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamingContent}</ReactMarkdown>
+                  </div>
                   <span className="inline-block w-1.5 h-4 bg-primary/60 animate-pulse ml-0.5 align-text-bottom relative z-10" />
                 </div>
               </div>

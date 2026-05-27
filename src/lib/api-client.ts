@@ -127,8 +127,12 @@ class ApiClient {
     return this.del(`/agents/${id}`);
   }
 
-  async discoverAgents() {
-    return this.get<{ agents: any[] }>('/agents/discover');
+  async discoverAgents(params?: { category?: string; search?: string }) {
+    const query = new URLSearchParams();
+    if (params?.category) query.set('category', params.category);
+    if (params?.search) query.set('search', params.search);
+    const qs = query.toString();
+    return this.get<{ agents: any[]; pagination: { page: number; limit: number; total: number; pages: number } }>(`/agents/discover${qs ? `?${qs}` : ''}`);
   }
 
   // Agent Skills

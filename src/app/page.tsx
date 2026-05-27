@@ -15,6 +15,7 @@ import { SkillMarketplace } from '@/components/views/SkillMarketplace';
 import { ChatView } from '@/components/views/ChatView';
 import ChatView2 from '@/components/views/ChatView2';
 import { ToolRegistry } from '@/components/views/ToolRegistry';
+import { AgentDiscovery } from '@/components/views/AgentDiscovery';
 import ActivityView from '@/components/views/ActivityView';
 import { ChatRoomManager } from '@/components/views/ChatRoomManager';
 import { Settings } from '@/components/views/Settings';
@@ -191,10 +192,11 @@ function AppContent() {
         '2': 'chat2',
         '3': 'agentBuilder',
         '4': 'toolRegistry',
-        '5': 'activity',
-        '6': 'agents',
-        '7': 'skills',
-        '8': 'agent-control',
+        '5': 'agentDiscovery',
+        '6': 'activity',
+        '7': 'agents',
+        '8': 'skills',
+        '9': 'agent-control',
       };
 
       if (e.key === ',') {
@@ -346,6 +348,8 @@ function AppContent() {
         return <AgentControlCenter />;
       case 'toolRegistry':
         return <ToolRegistry />;
+      case 'agentDiscovery':
+        return <AgentDiscovery />;
       case 'activity':
         return <ActivityView />;
       case 'notifications':

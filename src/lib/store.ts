@@ -22,6 +22,7 @@ export type ViewMode =
   | 'notifications'
   | 'agentBuilder'
   | 'toolRegistry'
+  | 'agentDiscovery'
   | 'activity';
 
 export interface Notification {

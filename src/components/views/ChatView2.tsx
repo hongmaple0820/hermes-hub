@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Bot, ChevronDown, Wrench, ArrowLeft, Menu } from 'lucide-react';
+import { Bot, ChevronDown, Wrench, ArrowLeft, Menu, MessageSquare, LayoutTemplate } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/i18n';
 import { api } from '@/lib/api-client';
@@ -18,6 +18,7 @@ import { ThreadList } from './chat/ThreadList';
 import { MessageArea, type Message } from './chat/MessageArea';
 import { ChatInput } from './chat/ChatInput';
 import { AgentSelector, type MockAgent } from './chat/AgentSelector';
+import { ConversationTemplates, type ConversationTemplateData } from './chat/ConversationTemplates';
 import type { Run } from './chat/RunCard';
 import type { Step } from './chat/StepTimeline';
 
@@ -136,6 +137,7 @@ export default function ChatView2() {
   const [boundTools, setBoundTools] = useState<any[]>([]);
   const [streamingContent, setStreamingContent] = useState<Record<string, string>>({});
   const [mobileThreadListOpen, setMobileThreadListOpen] = useState(false);
+  const [emptyStateTab, setEmptyStateTab] = useState<'chat' | 'templates'>('chat');
 
   // Socket.IO
   const socketRef = useRef<Socket | null>(null);
@@ -724,12 +726,167 @@ export default function ChatView2() {
   );
 
   // ---------------------------------------------------------------------------
-  // Render: No agent selected → show AgentSelector
+  // Handle template usage — create thread with template config
+  // ---------------------------------------------------------------------------
+  const handleUseTemplate = useCallback(
+    async (template: ConversationTemplateData) => {
+      try {
+        // Pick the first agent from the template, or fall back to any available agent
+        const targetAgentId = template.agentIds?.[0] || agents?.[0]?.id;
+        if (!targetAgentId) {
+          toast({ title: 'No agent available', description: 'Please create an agent first.', variant: 'destructive' });
+          return;
+        }
+
+        // Find the agent in our list
+        const agent = agents?.find((a: any) => a.id === targetAgentId);
+        if (!agent) {
+          toast({ title: 'Agent not found', variant: 'destructive' });
+          return;
+        }
+
+        // Select the agent (loads threads, tools, etc.)
+        await handleSelectAgent({
+          id: agent.id,
+          name: agent.name,
+          description: agent.description || '',
+          status: agent.status || 'offline',
+          mode: agent.mode || agent.runtime || 'builtin',
+          model: agent.model || undefined,
+        });
+
+        // Create a thread with the template's systemPrompt override
+        const threadData = await api.createThread({
+          agentId: targetAgentId,
+          title: template.name,
+          systemPrompt: template.systemPrompt || undefined,
+        });
+
+        const newThread = mapApiThreadToThreadInfo(threadData.thread);
+        setThreads((prev) => [newThread, ...prev]);
+        setMessagesMap((prev) => ({ ...prev, [newThread.id]: [] }));
+        setRunsMap((prev) => ({ ...prev, [newThread.id]: [] }));
+        setActiveThreadId(newThread.id);
+
+        // Join thread room
+        socketRef.current?.emit('thread:join', { threadId: newThread.id });
+
+        // If template has an initial message, send it
+        if (template.initialMessage) {
+          setInput(template.initialMessage);
+          // Auto-send after a brief delay so state updates settle
+          setTimeout(async () => {
+            const content = template.initialMessage!;
+            try {
+              const msgData = await api.sendThreadMessage(newThread.id, content);
+              const savedMsg = mapApiMessageToMessage(msgData.message);
+
+              const optimisticUserMsg: Message = {
+                id: `msg-pending-${Date.now()}`,
+                role: 'user',
+                content,
+                timestamp: new Date().toISOString(),
+              };
+
+              setMessagesMap((prev) => ({
+                ...prev,
+                [newThread.id]: [savedMsg],
+              }));
+
+              // Create a Run
+              const runData = await api.createRun(newThread.id);
+              const run = runData.run;
+              setActiveRunId(run.id);
+
+              const uiRun = mapApiRunToRun(run, 1);
+              uiRun.status = 'in_progress';
+
+              const agentRunMsg: Message = {
+                id: `msg-run-${run.id}`,
+                role: 'agent',
+                content: '',
+                timestamp: new Date().toISOString(),
+                run: uiRun,
+              };
+
+              setMessagesMap((prev) => ({
+                ...prev,
+                [newThread.id]: [...(prev[newThread.id] || []), agentRunMsg],
+              }));
+
+              setRunsMap((prev) => ({
+                ...prev,
+                [newThread.id]: [uiRun],
+              }));
+
+              setIsTyping(true);
+              setIsRunInProgress(true);
+
+              // Emit to trigger execution
+              socketRef.current?.emit('thread:message', {
+                threadId: newThread.id,
+                content,
+                agentId: targetAgentId,
+              });
+            } catch (err: any) {
+              console.error('[ChatView2] Failed to send template initial message:', err);
+            }
+          }, 300);
+        }
+
+        toast({ title: t('templates.templateUsed') });
+      } catch (err: any) {
+        console.error('[ChatView2] Failed to use template:', err);
+        toast({ title: err.message || 'Failed to use template', variant: 'destructive' });
+      }
+    },
+    [agents, handleSelectAgent, t]
+  );
+
+  // ---------------------------------------------------------------------------
+  // Render: No agent selected → show tabbed AgentSelector + Templates
   // ---------------------------------------------------------------------------
   if (!selectedAgent) {
     return (
       <div className="h-full flex flex-col">
-        <AgentSelector onSelectAgent={handleSelectAgent} />
+        {/* Tab bar */}
+        <div className="flex items-center border-b border-border px-4 pt-3 gap-1 shrink-0">
+          <button
+            onClick={() => setEmptyStateTab('chat')}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-lg transition-colors',
+              emptyStateTab === 'chat'
+                ? 'bg-background border border-border border-b-background -mb-px text-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+            )}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            {t('chat2.selectAgent')}
+          </button>
+          <button
+            onClick={() => setEmptyStateTab('templates')}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-lg transition-colors',
+              emptyStateTab === 'templates'
+                ? 'bg-background border border-border border-b-background -mb-px text-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+            )}
+          >
+            <LayoutTemplate className="w-3.5 h-3.5" />
+            {t('templates.title')}
+          </button>
+        </div>
+
+        {/* Tab content */}
+        <div className="flex-1 overflow-y-auto">
+          {emptyStateTab === 'chat' ? (
+            <AgentSelector onSelectAgent={handleSelectAgent} />
+          ) : (
+            <div className="p-4 sm:p-6 max-w-3xl mx-auto">
+              <ConversationTemplates onUseTemplate={handleUseTemplate} />
+            </div>
+          )}
+        </div>
       </div>
     );
   }

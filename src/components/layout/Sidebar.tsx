@@ -8,6 +8,7 @@ import {
   LogOut, ChevronLeft, ChevronRight, Zap, Languages,
   Radio, Clock, Settings,
   Monitor, ChevronDown, Menu, Wrench, Activity,
+  Compass,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -47,15 +48,16 @@ const navSections = [
       { id: 'chat2' as ViewMode, labelKey: 'nav.chat2', icon: MessageSquare, shortcut: '⌘2' },
       { id: 'agentBuilder' as ViewMode, labelKey: 'nav.agentBuilder', icon: Bot, shortcut: '⌘3' },
       { id: 'toolRegistry' as ViewMode, labelKey: 'nav.toolRegistry', icon: Wrench, shortcut: '⌘4' },
-      { id: 'activity' as ViewMode, labelKey: 'nav.activity', icon: Activity, shortcut: '⌘5' },
+      { id: 'agentDiscovery' as ViewMode, labelKey: 'nav.agentDiscovery', icon: Compass, shortcut: '⌘5' },
+      { id: 'activity' as ViewMode, labelKey: 'nav.activity', icon: Activity, shortcut: '⌘6' },
     ],
   },
   {
     label: 'admin',
     items: [
-      { id: 'agents' as ViewMode, labelKey: 'nav.agents', icon: Bot, shortcut: '⌘6' },
-      { id: 'skills' as ViewMode, labelKey: 'nav.skills', icon: Puzzle, shortcut: '⌘7' },
-      { id: 'agent-control' as ViewMode, labelKey: 'nav.agentControl', icon: Monitor, shortcut: '⌘8' },
+      { id: 'agents' as ViewMode, labelKey: 'nav.agents', icon: Bot, shortcut: '⌘7' },
+      { id: 'skills' as ViewMode, labelKey: 'nav.skills', icon: Puzzle, shortcut: '⌘8' },
+      { id: 'agent-control' as ViewMode, labelKey: 'nav.agentControl', icon: Monitor, shortcut: '⌘9' },
     ],
   },
   {

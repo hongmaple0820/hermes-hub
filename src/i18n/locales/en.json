@@ -104,6 +104,7 @@
     "agentControl": "Agent Control",
     "agentBuilder": "Agent Builder",
     "toolRegistry": "Tools",
+    "agentDiscovery": "Discover",
     "activity": "Activity",
     "legacy": "Legacy"
   },
@@ -1767,6 +1768,25 @@
     "thinkingLabel": "Thinking...",
     "streamingLabel": "Responding..."
   },
+  "templates": {
+    "title": "Templates",
+    "subtitle": "Quick-start conversation templates with preset agents and prompts",
+    "createTemplate": "Create Template",
+    "useTemplate": "Use Template",
+    "name": "Template Name",
+    "description": "Description",
+    "icon": "Icon",
+    "systemPrompt": "System Prompt",
+    "initialMessage": "Initial Message",
+    "agents": "Agents",
+    "public": "Public",
+    "usageCount": "Used",
+    "noTemplates": "No templates yet",
+    "noTemplatesDesc": "Create a template to quickly start conversations with preset configurations",
+    "createFirst": "Create First Template",
+    "created": "Template created!",
+    "templateUsed": "Template applied!"
+  },
   "agentBuilder": {
     "title": "Agent Builder",
     "createTitle": "Create Agent",
@@ -1946,5 +1966,27 @@
     "noSteps": "No steps recorded",
     "navigatingToThread": "Navigating to thread…",
     "rerunFailed": "Failed to start re-run"
+  },
+  "discovery": {
+    "title": "Discover Agents",
+    "subtitle": "Browse and install public agents shared by the community",
+    "searchPlaceholder": "Search public agents...",
+    "all": "All",
+    "productivity": "Productivity",
+    "development": "Development",
+    "communication": "Communication",
+    "creative": "Creative",
+    "data": "Data",
+    "useAgent": "Use Agent",
+    "installAgent": "Install",
+    "installed": "Installed",
+    "noAgents": "No Public Agents Yet",
+    "noAgentsDesc": "When agents are made public, they will appear here for everyone to discover and use.",
+    "noResults": "No agents match your search",
+    "builtin": "Builtin",
+    "remote": "Remote",
+    "workflow": "Workflow",
+    "byAuthor": "by {author}",
+    "agentInstalled": "Agent installed successfully!"
   }
 }

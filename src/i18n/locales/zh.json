@@ -104,6 +104,7 @@
     "agentControl": "Agent 控制",
     "agentBuilder": "构建智能体",
     "toolRegistry": "工具库",
+    "agentDiscovery": "发现",
     "activity": "执行记录",
     "legacy": "旧版"
   },
@@ -1767,6 +1768,25 @@
     "thinkingLabel": "思考中...",
     "streamingLabel": "回复中..."
   },
+  "templates": {
+    "title": "对话模板",
+    "subtitle": "预设智能体和提示词的快速对话模板",
+    "createTemplate": "创建模板",
+    "useTemplate": "使用模板",
+    "name": "模板名称",
+    "description": "描述",
+    "icon": "图标",
+    "systemPrompt": "系统提示词",
+    "initialMessage": "初始消息",
+    "agents": "智能体",
+    "public": "公开",
+    "usageCount": "使用次数",
+    "noTemplates": "暂无模板",
+    "noTemplatesDesc": "创建模板以快速启动预设配置的对话",
+    "createFirst": "创建第一个模板",
+    "created": "模板已创建！",
+    "templateUsed": "模板已应用！"
+  },
   "agentBuilder": {
     "title": "智能体构建器",
     "createTitle": "创建智能体",
@@ -1946,5 +1966,27 @@
     "noSteps": "暂无步骤记录",
     "navigatingToThread": "正在跳转到线程…",
     "rerunFailed": "重新运行失败"
+  },
+  "discovery": {
+    "title": "发现智能体",
+    "subtitle": "浏览和安装社区分享的公开智能体",
+    "searchPlaceholder": "搜索公开智能体...",
+    "all": "全部",
+    "productivity": "效率",
+    "development": "开发",
+    "communication": "通讯",
+    "creative": "创意",
+    "data": "数据",
+    "useAgent": "使用智能体",
+    "installAgent": "安装",
+    "installed": "已安装",
+    "noAgents": "暂无公开智能体",
+    "noAgentsDesc": "当智能体被设为公开后，它们将出现在这里供所有人发现和使用。",
+    "noResults": "没有找到匹配的智能体",
+    "builtin": "内置",
+    "remote": "远程",
+    "workflow": "工作流",
+    "byAuthor": "由 {author} 创建",
+    "agentInstalled": "智能体安装成功！"
   }
 }
