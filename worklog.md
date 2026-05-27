@@ -1722,3 +1722,33 @@ Stage Summary:
 - **Invocation refresh button added** — manual refresh in invocation history card header
 - **Timeout error display added** — shows error message for timed-out invocations
 - Lint passes clean, dev server stable
+
+---
+Task ID: 9
+Agent: main
+Task: ACRP业务闭环修复 — Phase 1/2/3 全面修复和功能增强
+
+Work Log:
+- 深度分析ACRP协议完整流程（8步），发现7个关键Bug和5个功能缺口
+- 启动3个并行子Agent执行修复：
+  - 9-a: 修复6个P0 Bug（ACRP字段丢失、capabilityId传参、调用状态、超时清理、Token撤销、URL可配置）
+  - 9-b: chat-service添加ACRP模式（核心闭环修复）
+  - 9-c: AgentControlCenter修复示例代码+添加Chat按钮+i18n
+- 启动第4个子Agent执行Phase 3：
+  - 9-d: 批量状态查询、命令确认、轮询优化、调用刷新按钮
+- 修复skill-ws进程稳定性问题（添加unhandledRejection/uncaughtException处理）
+- 通过API验证所有修复生效：
+  - ✅ agentType/agentVersion正确写入DB
+  - ✅ 离线Agent调用返回"Agent not connected"(503)
+  - ✅ 命令对离线Agent返回错误
+  - ✅ 批量状态查询正常工作
+  - ✅ chat-service支持ACRP模式
+- 代码提交并推送到远程
+
+Stage Summary:
+- **7个P0 Bug全部修复**：ACRP字段丢失、capabilityId传参错误、调用状态卡住、超时无清理、Token撤销不断开WS、URL硬编码、示例代码字段名错误
+- **核心业务闭环修复**：ACRP Agent现在可以参与聊天对话（chat-service添加acrp模式）
+- **性能优化**：N+1查询→批量查询，15s轮询→30s
+- **新增功能**：命令确认机制(commandId+command:ack)、与Agent对话按钮、调用超时清理
+- 代码已推送到GitHub
+- Lint通过，3个服务正常运行
