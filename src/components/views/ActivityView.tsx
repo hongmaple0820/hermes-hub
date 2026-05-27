@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Activity, RefreshCw, Filter, ChevronDown, ChevronRight,
@@ -344,7 +344,11 @@ function RunCardComponent({ run, runIndex }: { run: RunData; runIndex: number })
   const [stepsLoading, setStepsLoading] = useState(false);
   const [stepsLoaded, setStepsLoaded] = useState(false);
 
-  const sConfig = statusConfig[run.status] || statusConfig.queued;
+  const {
+    icon: statusIcon,
+    color: statusColor,
+    label: statusLabel,
+  } = statusConfig[run.status] || statusConfig.queued;
 
   // Lazy-load steps when expanding
   const handleExpand = useCallback(async () => {
@@ -398,10 +402,10 @@ function RunCardComponent({ run, runIndex }: { run: RunData; runIndex: number })
               <span className="text-xs text-muted-foreground">{agentName}</span>
               <Badge
                 variant="outline"
-                className={cn('text-[10px] h-4 px-1.5 border', sConfig.color)}
+                className={cn('text-[10px] h-4 px-1.5 border', statusColor, run.status === 'in_progress' && 'animate-pulse')}
               >
                 {run.status === 'in_progress' && <Loader2 className="w-2.5 h-2.5 mr-1 animate-spin" />}
-                {t(sConfig.label)}
+                {t(statusLabel)}
               </Badge>
               <span className="text-[10px] text-muted-foreground">
                 • {run.stepCount} {t('activity.steps')}
@@ -565,14 +569,16 @@ function StatsSummary({ runs }: { runs: RunData[] }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.05, duration: 0.2 }}
         >
-          <Card className="hover:shadow-sm transition-shadow">
+          <Card className="rounded-xl hover:shadow-sm transition-shadow">
             <CardContent className="p-4 flex items-center gap-3">
               <div className={cn('shrink-0', stat.color)}>
                 {stat.icon}
               </div>
               <div className="min-w-0">
-                <div className="text-lg font-bold leading-tight">{stat.value}</div>
-                <div className="text-[11px] text-muted-foreground truncate">{stat.label}</div>
+                <div className="text-lg font-bold leading-tight">
+                  {typeof stat.value === 'number' ? <AnimatedStat target={stat.value} duration={800} /> : stat.value}
+                </div>
+                <div className="text-xs text-muted-foreground truncate">{stat.label}</div>
               </div>
             </CardContent>
           </Card>
@@ -677,6 +683,90 @@ function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) 
         {t('common.retry')}
       </Button>
     </motion.div>
+  );
+}
+
+function AnimatedStat({ target, duration = 1000 }: { target: number; duration?: number }) {
+  const [count, setCount] = useState(0);
+  const prevTarget = useRef(target);
+
+  useEffect(() => {
+    const startValue = prevTarget.current === target ? 0 : prevTarget.current;
+    prevTarget.current = target;
+    let startTime: number;
+    let animationFrame: number;
+
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.floor(startValue + (target - startValue) * eased));
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(animate);
+      }
+    };
+
+    animationFrame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [target, duration]);
+
+  return <>{count}</>;
+}
+
+// ---------------------------------------------------------------------------
+// Mini Bar Chart for runs over time
+// ---------------------------------------------------------------------------
+function RunsBarChart({ runs }: { runs: RunData[] }) {
+  const { t } = useI18n();
+
+  // Compute runs per day (last 7 days)
+  const chartData = useMemo(() => {
+    const data: { label: string; count: number; success: number; failed: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const dayStart = new Date();
+      dayStart.setDate(dayStart.getDate() - i);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+      const dayRuns = runs.filter(r => {
+        const d = new Date(r.startedAt || r.createdAt).getTime();
+        return d >= dayStart.getTime() && d < dayEnd.getTime();
+      });
+      data.push({
+        label: dayStart.toLocaleDateString([], { weekday: 'short' }).slice(0, 2),
+        count: dayRuns.length,
+        success: dayRuns.filter(r => r.status === 'completed').length,
+        failed: dayRuns.filter(r => r.status === 'failed').length,
+      });
+    }
+    return data;
+  }, [runs]);
+
+  const maxCount = Math.max(...chartData.map(d => d.count), 1);
+
+  return (
+    <div className="flex items-end gap-1.5 h-20">
+      {chartData.map((d, i) => (
+        <div key={i} className="flex flex-col items-center gap-1 flex-1">
+          <div className="w-full relative" style={{ height: '60px' }}>
+            <div
+              className="absolute bottom-0 w-full rounded-t-sm bg-emerald-500/60 hover:bg-emerald-500/80 transition-colors"
+              style={{ height: `${maxCount > 0 ? (d.success / maxCount) * 100 : 0}%` }}
+              title={`${d.success} completed`}
+            />
+            {d.failed > 0 && (
+              <div
+                className="absolute w-full rounded-t-sm bg-red-500/60 hover:bg-red-500/80 transition-colors"
+                style={{ height: `${(d.failed / maxCount) * 100}%`, bottom: `${(d.success / maxCount) * 100}%` }}
+                title={`${d.failed} failed`}
+              />
+            )}
+          </div>
+          <span className="text-[9px] text-muted-foreground">{d.label}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -802,7 +892,33 @@ export default function ActivityView() {
           <p className="text-sm text-muted-foreground mt-0.5">{t('activity.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Filter popover */}
+          {/* Export CSV */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 rounded-lg"
+            onClick={() => {
+              const headers = ['ID', 'Status', 'Agent', 'Thread', 'Duration (ms)', 'Input Tokens', 'Output Tokens', 'Started', 'Completed', 'Error'];
+              const rows = runs.map(r => [
+                r.id, r.status, r.thread?.agent?.name || '', r.thread?.title || '',
+                r.durationMs, r.inputTokens, r.outputTokens,
+                r.startedAt || '', r.completedAt || '', r.lastError || ''
+              ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+              const csv = [headers.join(','), ...rows].join('\n');
+              const blob = new Blob([csv], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `activity-${new Date().toISOString().slice(0, 10)}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+              toast.success('CSV exported');
+            }}
+            disabled={runs.length === 0}
+          >
+            <BarChart3 className="w-4 h-4" />
+            CSV
+          </Button>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
@@ -861,6 +977,16 @@ export default function ActivityView() {
 
       {/* Stats Summary */}
       <StatsSummary runs={runs} />
+
+      {/* Runs Over Time Chart */}
+      {runs.length > 0 && (
+        <Card className="rounded-xl mb-6">
+          <CardContent className="p-4">
+            <p className="text-xs font-medium text-muted-foreground mb-3">{t('activity.runsOverTime') || 'Runs Over Time (7 days)'}</p>
+            <RunsBarChart runs={runs} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Active filters indicators */}
       {(agentFilter !== 'all' || statusFilter !== 'all') && (

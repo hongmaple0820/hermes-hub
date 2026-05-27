@@ -6,11 +6,13 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Bot, ChevronDown, Wrench, ArrowLeft } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Bot, ChevronDown, Wrench, ArrowLeft, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/i18n';
 import { api } from '@/lib/api-client';
 import { useAppStore } from '@/lib/store';
+import { toast } from '@/hooks/use-toast';
 import { io, Socket } from 'socket.io-client';
 import { ThreadList } from './chat/ThreadList';
 import { MessageArea, type Message } from './chat/MessageArea';
@@ -126,12 +128,14 @@ export default function ChatView2() {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isRunInProgress, setIsRunInProgress] = useState(false);
+  const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [toolPanelOpen, setToolPanelOpen] = useState(false);
   const [loadingThreads, setLoadingThreads] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [boundTools, setBoundTools] = useState<any[]>([]);
   const [streamingContent, setStreamingContent] = useState<Record<string, string>>({});
+  const [mobileThreadListOpen, setMobileThreadListOpen] = useState(false);
 
   // Socket.IO
   const socketRef = useRef<Socket | null>(null);
@@ -187,12 +191,16 @@ export default function ChatView2() {
       console.log('[ChatView2] Run complete:', data);
       setIsRunInProgress(false);
       setIsTyping(false);
+      setActiveRunId(null);
 
       if (data.threadId) {
         // Refresh messages from DB (replaces placeholder with real message)
         refreshThreadMessages(data.threadId);
         refreshThreadRuns(data.threadId);
         refreshThreadList();
+
+        // Auto-generate thread title if still "New Conversation"
+        autoGenerateThreadTitle(data.threadId);
       }
     });
 
@@ -200,6 +208,7 @@ export default function ChatView2() {
       console.log('[ChatView2] Run error:', data);
       setIsRunInProgress(false);
       setIsTyping(false);
+      setActiveRunId(null);
       setError(data.error);
 
       if (data.threadId) {
@@ -209,6 +218,34 @@ export default function ChatView2() {
 
       // Auto-clear error after 5s
       setTimeout(() => setError(null), 5000);
+    });
+
+    // Handle run cancellation event
+    socket.on('run:cancelled', (data: { runId: string; threadId: string }) => {
+      console.log('[ChatView2] Run cancelled:', data);
+      setIsRunInProgress(false);
+      setIsTyping(false);
+      setActiveRunId(null);
+
+      // Replace the placeholder agent message with "[Cancelled]"
+      if (data.threadId) {
+        setMessagesMap((prev) => {
+          const msgs = prev[data.threadId] || [];
+          return {
+            ...prev,
+            [data.threadId]: msgs.map((m) => {
+              if (m.role === 'agent' && m.id === `msg-run-${data.runId}`) {
+                return { ...m, content: '[Cancelled]' };
+              }
+              return m;
+            }),
+          };
+        });
+
+        refreshThreadRuns(data.threadId);
+      }
+
+      toast({ title: t('chat2.runCancelled'), description: t('chat2.cancelled') });
     });
 
     // Streaming events — handle both threadId and conversationId formats
@@ -260,9 +297,13 @@ export default function ChatView2() {
 
       setIsTyping(false);
       setIsRunInProgress(false);
+      setActiveRunId(null);
 
       // Refresh thread list for updated lastMessage
       refreshThreadList();
+
+      // Auto-generate thread title if still "New Conversation"
+      autoGenerateThreadTitle(threadId);
     });
 
     socket.on('disconnect', (reason) => {
@@ -316,6 +357,34 @@ export default function ChatView2() {
       console.error('[ChatView2] Failed to refresh runs:', err);
     }
   }, []);
+
+  // ---------------------------------------------------------------------------
+  // Thread Title Auto-Generation
+  // ---------------------------------------------------------------------------
+  const autoGenerateThreadTitle = useCallback(async (threadId: string) => {
+    try {
+      // Check if the current thread title is still "New Conversation"
+      const thread = threads.find((th) => th.id === threadId);
+      if (thread && thread.title === 'New Conversation') {
+        // Get the first user message to use as the title
+        const msgs = messagesMap[threadId] || [];
+        const firstUserMsg = msgs.find((m) => m.role === 'user');
+        if (firstUserMsg?.content) {
+          const title = firstUserMsg.content.length > 50
+            ? firstUserMsg.content.slice(0, 50) + '...'
+            : firstUserMsg.content;
+          await api.updateThread(threadId, { title });
+          setThreads((prev) =>
+            prev.map((th) =>
+              th.id === threadId ? { ...th, title } : th
+            )
+          );
+        }
+      }
+    } catch (err: any) {
+      console.error('[ChatView2] Failed to auto-generate thread title:', err);
+    }
+  }, [threads, messagesMap]);
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -398,6 +467,7 @@ export default function ChatView2() {
 
       // Join thread room via Socket.IO
       socketRef.current?.emit('thread:join', { threadId: newThread.id });
+      setMobileThreadListOpen(false);
     } catch (err: any) {
       console.error('[ChatView2] Failed to create thread:', err);
       setError(err.message || 'Failed to create thread');
@@ -481,6 +551,9 @@ export default function ChatView2() {
       } finally {
         setLoadingMessages(false);
       }
+
+      // Close mobile thread list
+      setMobileThreadListOpen(false);
     },
     [activeThreadId]
   );
@@ -522,6 +595,7 @@ export default function ChatView2() {
       // 2. Create a Run
       const runData = await api.createRun(activeThreadId);
       const run = runData.run;
+      setActiveRunId(run.id);
 
       // 3. Add a placeholder agent message with the run
       const runNumber = (runsMap[activeThreadId] || []).length + 1;
@@ -571,8 +645,46 @@ export default function ChatView2() {
       setError(err.message || 'Failed to send message');
       setIsTyping(false);
       setIsRunInProgress(false);
+      setActiveRunId(null);
     }
   }, [input, activeThreadId, selectedAgent, runsMap]);
+
+  // ---------------------------------------------------------------------------
+  // Run Cancellation
+  // ---------------------------------------------------------------------------
+  const handleCancelRun = useCallback(() => {
+    if (!activeRunId || !activeThreadId) return;
+
+    // Emit run:cancel event via Socket.IO
+    socketRef.current?.emit('run:cancel', { runId: activeRunId, threadId: activeThreadId });
+
+    // Optimistically update the UI — replace placeholder with "[Cancelled]"
+    setMessagesMap((prev) => {
+      const msgs = prev[activeThreadId] || [];
+      return {
+        ...prev,
+        [activeThreadId]: msgs.map((m) => {
+          if (m.role === 'agent' && m.id === `msg-run-${activeRunId}`) {
+            return { ...m, content: '[Cancelled]' };
+          }
+          return m;
+        }),
+      };
+    });
+
+    setIsRunInProgress(false);
+    setIsTyping(false);
+    setActiveRunId(null);
+
+    // Clear streaming content for this thread
+    setStreamingContent((prev) => {
+      const next = { ...prev };
+      delete next[activeThreadId];
+      return next;
+    });
+
+    toast({ title: t('chat2.runCancelled'), description: t('chat2.cancelled') });
+  }, [activeRunId, activeThreadId, t]);
 
   const handleSuggestionClick = useCallback(
     (text: string) => {
@@ -593,7 +705,23 @@ export default function ChatView2() {
     setRunsMap({});
     setBoundTools([]);
     setError(null);
+    setIsRunInProgress(false);
+    setIsTyping(false);
+    setActiveRunId(null);
   }, [activeThreadId]);
+
+  // ---------------------------------------------------------------------------
+  // Mobile Thread List Content (reused in both Sheet and inline)
+  // ---------------------------------------------------------------------------
+  const mobileThreadListTrigger = (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="md:hidden w-7 h-7 mr-1"
+    >
+      <Menu className="w-4 h-4" />
+    </Button>
+  );
 
   // ---------------------------------------------------------------------------
   // Render: No agent selected → show AgentSelector
@@ -638,16 +766,27 @@ export default function ChatView2() {
       {/* Chat Header */}
       <div className="px-4 py-2.5 border-b border-border flex items-center justify-between bg-card/50 shrink-0">
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-7 h-7 md:hidden mr-1"
-            onClick={() => {
-              // On mobile, show thread list sheet
-            }}
-          >
-            <Bot className="w-4 h-4" />
-          </Button>
+          {/* Mobile: Thread list Sheet trigger */}
+          <Sheet open={mobileThreadListOpen} onOpenChange={setMobileThreadListOpen}>
+            <SheetTrigger asChild>
+              {mobileThreadListTrigger}
+            </SheetTrigger>
+            <SheetContent side="left" className="w-72 p-0">
+              <SheetHeader className="sr-only">
+                <SheetTitle>{t('chat2.title')}</SheetTitle>
+              </SheetHeader>
+              <ThreadList
+                threads={threads}
+                activeThreadId={activeThreadId}
+                onSelectThread={handleSelectThread}
+                onNewThread={handleNewThread}
+                onDeleteThread={handleDeleteThread}
+                agentName={agentName}
+                loading={loadingThreads}
+              />
+            </SheetContent>
+          </Sheet>
+
           <Button
             variant="ghost"
             size="icon"
@@ -710,7 +849,7 @@ export default function ChatView2() {
 
       {/* Main content */}
       <div className="flex-1 flex min-h-0">
-        {/* Thread list - desktop */}
+        {/* Thread list - desktop only */}
         <div className="hidden md:block">
           <ThreadList
             threads={threads}
@@ -719,20 +858,6 @@ export default function ChatView2() {
             onNewThread={handleNewThread}
             onDeleteThread={handleDeleteThread}
             agentName={agentName}
-            loading={loadingThreads}
-          />
-        </div>
-
-        {/* Thread list - mobile (Sheet) */}
-        <div className="md:hidden">
-          <ThreadList
-            threads={threads}
-            activeThreadId={activeThreadId}
-            onSelectThread={handleSelectThread}
-            onNewThread={handleNewThread}
-            onDeleteThread={handleDeleteThread}
-            agentName={agentName}
-            isMobile
             loading={loadingThreads}
           />
         </div>
@@ -755,6 +880,7 @@ export default function ChatView2() {
               onSuggestionClick={handleSuggestionClick}
               showEmptyState={currentMessages.length === 0}
               streamingContent={activeThreadId ? streamingContent[activeThreadId] : undefined}
+              runs={activeThreadId ? runsMap[activeThreadId] : undefined}
             />
           )}
 
@@ -762,6 +888,7 @@ export default function ChatView2() {
             value={input}
             onChange={setInput}
             onSend={handleSend}
+            onCancelRun={handleCancelRun}
             isRunInProgress={isRunInProgress}
           />
         </div>

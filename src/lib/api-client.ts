@@ -704,7 +704,11 @@ class ApiClient {
     return this.get<{ steps: any[] }>(`/runs/${runId}/steps`);
   }
 
-  async cancelRun(threadId: string, runId: string) {
+  async cancelRun(runId: string) {
+    return this.post<{ run: any }>(`/runs/${runId}/cancel`);
+  }
+
+  async cancelThreadRun(threadId: string, runId: string) {
     return this.post<{ run: any }>(`/threads/${threadId}/runs/${runId}/cancel`);
   }
 

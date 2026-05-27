@@ -4,7 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { useI18n } from '@/i18n';
+import { cn } from '@/lib/utils';
 
 export interface IdentityData {
   name: string;
@@ -34,12 +36,19 @@ export function IdentityForm({ value, onChange }: IdentityFormProps) {
       <div className="space-y-2">
         <Label className="text-sm font-medium">
           {t('agentBuilder.identity.name')} <span className="text-destructive">*</span>
+          {value.name.trim().length > 0 && (
+            <span className="text-emerald-500 ml-1.5">✓
+              <svg className="w-3 h-3 inline ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </span>
+          )}
         </Label>
         <Input
           placeholder={t('agentBuilder.identity.namePlaceholder')}
           value={value.name}
           onChange={(e) => handleChange('name', e.target.value)}
-          className="rounded-lg"
+          className={cn('rounded-lg', value.name.trim().length > 0 ? 'border-emerald-300 dark:border-emerald-700 focus-visible:ring-emerald-500/20' : '')}
         />
       </div>
 
@@ -98,6 +107,23 @@ export function IdentityForm({ value, onChange }: IdentityFormProps) {
           checked={value.isPublic}
           onCheckedChange={(v) => handleChange('isPublic', v)}
         />
+      </div>
+
+      {/* Preview */}
+      <div className="rounded-xl border border-dashed border-border p-4">
+        <p className="text-xs font-medium text-muted-foreground mb-2">Preview</p>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-lg">
+            {value.avatar || '\uD83E\uDD16'}
+          </div>
+          <div>
+            <p className="text-sm font-semibold">{value.name || 'Agent Name'}</p>
+            <p className="text-xs text-muted-foreground">{value.description || 'No description'}</p>
+          </div>
+          {value.isPublic && (
+            <Badge variant="secondary" className="text-[10px] ml-auto">Public</Badge>
+          )}
+        </div>
       </div>
     </div>
   );

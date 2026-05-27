@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const status = url.searchParams.get('status') || undefined;
     const agentId = url.searchParams.get('agentId') || undefined;
-    const limit = parseInt(url.searchParams.get('limit') || '50', 10);
+    const rawLimit = parseInt(url.searchParams.get('limit') || '50', 10);
+    const limit = Math.min(Math.max(rawLimit, 1), 200); // Clamp between 1 and 200
 
     // Build where clause: runs belonging to threads owned by this user
     const where: Record<string, unknown> = {

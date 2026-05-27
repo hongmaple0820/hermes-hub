@@ -1437,7 +1437,9 @@
     "sectionCommunication": "コミュニケーション",
     "sectionManagement": "管理",
     "sectionSystem": "システム",
-    "newBadge": "新規"
+    "newBadge": "新規",
+    "sectionCore": "コア",
+    "sectionAdmin": "管理"
   },
   "commandPalette": {
     "placeholder": "コマンド、ビュー、Agentを検索...",

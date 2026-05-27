@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAppStore, ViewMode } from '@/lib/store';
 
 import { api } from '@/lib/api-client';
@@ -101,6 +101,7 @@ function AppContent() {
   const [initialized, setInitialized] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const initialViewSet = useRef(false);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -139,6 +140,12 @@ function AppContent() {
       setProviders(providers.providers || []);
       setAgents(agents.agents || []);
 
+      // For new users with no agents, default to chat2 view instead of dashboard
+      if (!initialViewSet.current && (!agents.agents || agents.agents.length === 0)) {
+        setCurrentView('chat2');
+      }
+      initialViewSet.current = true;
+
       // If no skills, seed them
       if (!skills.skills || skills.skills.length === 0) {
         await api.seedSkills().catch(() => {});
@@ -155,7 +162,7 @@ function AppContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, setProviders, setAgents, setSkills, setConversations, setChatRooms, setIsLoading]);
+  }, [isAuthenticated, setProviders, setAgents, setSkills, setConversations, setChatRooms, setIsLoading, setCurrentView]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -178,18 +185,16 @@ function AppContent() {
         return;
       }
 
-      // Number shortcuts for navigation
+      // Number shortcuts for navigation (Hermes Hub 2.0)
       const viewMap: Record<string, ViewMode> = {
         '1': 'dashboard',
-        '2': 'agentBuilder',
-        '3': 'toolRegistry',
-        '4': 'agents',
-        '5': 'skills',
-        '6': 'agent-control',
-        '7': 'chat',
-        '8': 'providers',
-        '9': 'chat2',
-        '0': 'activity',
+        '2': 'chat2',
+        '3': 'agentBuilder',
+        '4': 'toolRegistry',
+        '5': 'activity',
+        '6': 'agents',
+        '7': 'skills',
+        '8': 'agent-control',
       };
 
       if (e.key === ',') {
@@ -339,8 +344,6 @@ function AppContent() {
         return <TerminalView />;
       case 'agent-control':
         return <AgentControlCenter />;
-      case 'agentBuilder':
-        return <AgentBuilder />;
       case 'toolRegistry':
         return <ToolRegistry />;
       case 'activity':

@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppStore, type ViewMode } from '@/lib/store';
 import { useI18n } from '@/i18n';
 import {
-  LayoutDashboard, Bot, Server, Puzzle, MessageSquare, Users, Settings,
+  LayoutDashboard, Bot, Puzzle, MessageSquare,
   LogOut, ChevronLeft, ChevronRight, Zap, Languages,
-  Radio, Clock, BarChart3, UserCircle, Brain, ScrollText, Folder, Terminal,
-  Monitor, ChevronDown, Menu, Wrench, Activity, ArrowLeftRight,
+  Radio, Clock, Settings,
+  Monitor, ChevronDown, Menu, Wrench, Activity,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -24,60 +24,46 @@ interface SidebarProps {
 }
 
 const sectionLabelKeys: Record<string, string> = {
-  main: 'sidebar.sectionMain',
-  create: 'sidebar.sectionCreate',
-  legacy: 'sidebar.sectionLegacy',
-  management: 'sidebar.sectionManagement',
+  core: 'sidebar.sectionCore',
+  admin: 'sidebar.sectionAdmin',
   system: 'sidebar.sectionSystem',
 };
 
 // Sections that should be collapsed by default
-const defaultCollapsedSections = ['legacy'];
+const defaultCollapsedSections: string[] = [];
 
+// Hermes Hub 2.0 Navigation Structure
+// Primary (Core): 5 core pages of the new architecture
+// Secondary (Admin): Management pages kept as secondary
+// System: Settings and system utilities
+// Hidden: chat, chat-rooms, files, terminal, memory, logs, usage, profiles, providers
+//   — These routes still work but are not shown in the sidebar
 const navSections = [
   {
-    label: 'main',
+    label: 'core',
+    isPrimary: true,
     items: [
       { id: 'dashboard' as ViewMode, labelKey: 'nav.dashboard', icon: LayoutDashboard, shortcut: '⌘1' },
-      { id: 'chat2' as ViewMode, labelKey: 'nav.chat2', icon: MessageSquare, shortcut: '⌘9', isNew: true },
-      { id: 'activity' as ViewMode, labelKey: 'nav.activity', icon: Activity, shortcut: '⌘0' },
+      { id: 'chat2' as ViewMode, labelKey: 'nav.chat2', icon: MessageSquare, shortcut: '⌘2' },
+      { id: 'agentBuilder' as ViewMode, labelKey: 'nav.agentBuilder', icon: Bot, shortcut: '⌘3' },
+      { id: 'toolRegistry' as ViewMode, labelKey: 'nav.toolRegistry', icon: Wrench, shortcut: '⌘4' },
+      { id: 'activity' as ViewMode, labelKey: 'nav.activity', icon: Activity, shortcut: '⌘5' },
     ],
   },
   {
-    label: 'create',
+    label: 'admin',
     items: [
-      { id: 'agentBuilder' as ViewMode, labelKey: 'nav.agentBuilder', icon: Bot, shortcut: '⌘2' },
-      { id: 'toolRegistry' as ViewMode, labelKey: 'nav.toolRegistry', icon: Wrench, shortcut: '⌘3' },
-    ],
-  },
-  {
-    label: 'legacy',
-    isLegacy: true,
-    items: [
-      { id: 'chat' as ViewMode, labelKey: 'nav.chat', icon: ArrowLeftRight, shortcut: '⌘7' },
-      { id: 'agents' as ViewMode, labelKey: 'nav.agents', icon: Bot, shortcut: '⌘4' },
-      { id: 'skills' as ViewMode, labelKey: 'nav.skills', icon: Puzzle, shortcut: '⌘5' },
-      { id: 'agent-control' as ViewMode, labelKey: 'nav.agentControl', icon: Monitor, shortcut: '⌘6' },
-    ],
-  },
-  {
-    label: 'management',
-    items: [
-      { id: 'files' as ViewMode, labelKey: 'nav.files', icon: Folder },
-      { id: 'memory' as ViewMode, labelKey: 'nav.memory', icon: Brain },
-      { id: 'jobs' as ViewMode, labelKey: 'nav.jobs', icon: Clock },
-      { id: 'channels' as ViewMode, labelKey: 'nav.channels', icon: Radio },
-      { id: 'usage' as ViewMode, labelKey: 'nav.usage', icon: BarChart3 },
-      { id: 'profiles' as ViewMode, labelKey: 'nav.profiles', icon: UserCircle },
+      { id: 'agents' as ViewMode, labelKey: 'nav.agents', icon: Bot, shortcut: '⌘6' },
+      { id: 'skills' as ViewMode, labelKey: 'nav.skills', icon: Puzzle, shortcut: '⌘7' },
+      { id: 'agent-control' as ViewMode, labelKey: 'nav.agentControl', icon: Monitor, shortcut: '⌘8' },
     ],
   },
   {
     label: 'system',
     items: [
       { id: 'settings' as ViewMode, labelKey: 'nav.settings', icon: Settings, shortcut: '⌘,' },
-      { id: 'logs' as ViewMode, labelKey: 'nav.logs', icon: ScrollText },
-      { id: 'terminal' as ViewMode, labelKey: 'nav.terminal', icon: Terminal },
-      { id: 'providers' as ViewMode, labelKey: 'nav.providers', icon: Server, shortcut: '⌘8' },
+      { id: 'channels' as ViewMode, labelKey: 'nav.channels', icon: Radio },
+      { id: 'jobs' as ViewMode, labelKey: 'nav.jobs', icon: Clock },
     ],
   },
 ];
@@ -90,7 +76,7 @@ function getCollapsedSections(): Record<string, boolean> {
     if (stored) {
       return JSON.parse(stored);
     }
-    // Default: legacy section is collapsed
+    // Default: no sections collapsed
     const defaults: Record<string, boolean> = {};
     defaultCollapsedSections.forEach(s => { defaults[s] = true; });
     return defaults;
@@ -244,14 +230,19 @@ function SidebarContent({
                 const isSectionCollapsed = collapsedSections[section.label] === true;
                 const sectionLabelKey = sectionLabelKeys[section.label];
 
-                const isLegacy = (section as any).isLegacy === true;
+                const isPrimary = (section as any).isPrimary === true;
 
                 return (
-                  <div key={section.label} className={cn(isLegacy && 'opacity-60 hover:opacity-100 transition-opacity duration-200')}>
-                    {/* Separator line between groups */}
+                  <div key={section.label}>
+                    {/* Separator line between groups - thicker/more prominent between primary and secondary */}
                     {sectionIndex > 0 && (
                       <div className="px-3 py-2">
-                        <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+                        <div className={cn(
+                          'h-px',
+                          sectionIndex === 1
+                            ? 'bg-gradient-to-r from-transparent via-primary/25 to-transparent'
+                            : 'bg-gradient-to-r from-transparent via-border to-transparent'
+                        )} />
                       </div>
                     )}
 
@@ -260,7 +251,7 @@ function SidebarContent({
                       <div className="flex items-center gap-1.5 px-3 pt-2 pb-1.5 group cursor-pointer" onClick={() => toggleSection(section.label)}>
                         <span className={cn(
                           'text-[10px] font-semibold uppercase tracking-[0.12em] flex-1 select-none',
-                          isLegacy ? 'text-muted-foreground/40' : 'text-muted-foreground/60'
+                          isPrimary ? 'text-foreground/60' : 'text-muted-foreground/60'
                         )}>
                           {t(sectionLabelKey)}
                         </span>
@@ -301,7 +292,9 @@ function SidebarContent({
                               // Active vs inactive styling
                               isActive
                                 ? 'text-primary font-semibold'
-                                : 'text-muted-foreground',
+                                : isPrimary
+                                  ? 'text-foreground/80 font-medium'
+                                  : 'text-muted-foreground',
                               effectivelyCollapsed && 'justify-center px-0',
                             )}
                           >
@@ -347,12 +340,6 @@ function SidebarContent({
                             {!effectivelyCollapsed && (
                               <>
                                 <span className="truncate flex-1 text-left relative z-10">{t(item.labelKey)}</span>
-                                {/* New Badge with pulse */}
-                                {item.isNew && (
-                                  <Badge className="h-4 px-1.5 text-[9px] font-bold bg-emerald-500 text-white hover:bg-emerald-500 border-0 leading-none relative z-10 animate-[badge-pulse_2s_ease-in-out_infinite]">
-                                    {t('sidebar.newBadge')}
-                                  </Badge>
-                                )}
                                 {/* Agent count badges */}
                                 {item.id === 'agents' && onlineAgents > 0 && (
                                   <span className="ml-auto text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full font-medium relative z-10">
@@ -376,7 +363,8 @@ function SidebarContent({
                                     {connectedAcrp > 0 ? connectedAcrp : ''}
                                   </span>
                                 )}
-                                {item.id === 'chat' && unreadConvs > 0 && (
+                                {/* Unread conversations badge for chat2 */}
+                                {item.id === 'chat2' && unreadConvs > 0 && (
                                   <span className="text-[10px] bg-orange-500/10 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded-full font-medium relative z-10">
                                     {unreadConvs}
                                   </span>
@@ -398,17 +386,15 @@ function SidebarContent({
                               <TooltipTrigger asChild>{button}</TooltipTrigger>
                               <TooltipContent side="right" className="font-medium">
                                 {t(item.labelKey)}
-                                {item.isNew && (
-                                  <Badge className="ml-1.5 h-4 px-1 text-[8px] font-bold bg-emerald-500 text-white border-0">
-                                    {t('sidebar.newBadge')}
-                                  </Badge>
-                                )}
                                 {/* Show badge counts in tooltip for collapsed state */}
                                 {item.id === 'agents' && onlineAgents > 0 && (
                                   <span className="ml-1.5 text-[10px] text-emerald-500">{onlineAgents} online</span>
                                 )}
                                 {item.id === 'agent-control' && connectedAcrp > 0 && (
                                   <span className="ml-1.5 text-[10px] text-cyan-500">{connectedAcrp} connected</span>
+                                )}
+                                {item.id === 'chat2' && unreadConvs > 0 && (
+                                  <span className="ml-1.5 text-[10px] text-orange-500">{unreadConvs} unread</span>
                                 )}
                               </TooltipContent>
                             </Tooltip>

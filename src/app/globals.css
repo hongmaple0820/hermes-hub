@@ -152,6 +152,20 @@
   }
 }
 
+/* Shimmer animation for streaming messages */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
 /* Badge pulse animation */
 @keyframes badge-pulse {
   0%, 100% {

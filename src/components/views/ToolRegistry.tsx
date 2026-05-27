@@ -497,23 +497,24 @@ export function ToolRegistry() {
     <div className="h-full overflow-y-auto">
       <div className="p-6 max-w-5xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Wrench className="w-6 h-6 text-primary" />
-              {t('toolRegistry.title')}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {t('toolRegistry.subtitle')}
-            </p>
-          </div>
+        <div className="relative overflow-hidden rounded-xl p-5 border border-border/50" style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(6,182,212,0.04) 50%, rgba(16,185,129,0.04) 100%)' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <Wrench className="w-6 h-6 text-primary" />
+                {t('toolRegistry.title')}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t('toolRegistry.subtitle')}
+              </p>
+            </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs">
               {boundCount}/{toolList.length} {t('toolRegistry.bound').toLowerCase()}
             </Badge>
             <Button
               size="sm"
-              className="gap-1.5"
+              className="gap-1.5 rounded-lg"
               onClick={() => {
                 setFormData(emptyForm);
                 setFormErrors({});
@@ -523,6 +524,7 @@ export function ToolRegistry() {
               <Plus className="w-3.5 h-3.5" />
               {t('toolRegistry.createTool')}
             </Button>
+          </div>
           </div>
         </div>
 
@@ -534,7 +536,7 @@ export function ToolRegistry() {
               placeholder={t('toolRegistry.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-9 h-10 rounded-lg"
             />
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -584,7 +586,7 @@ export function ToolRegistry() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.04 }}
               >
-                <Card className="hover:shadow-md transition-all duration-200 hover:border-primary/20 group">
+                <Card className="rounded-xl hover:shadow-md hover:scale-[1.01] transition-all duration-200 hover:border-primary/20 group">
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       <div
@@ -678,23 +680,30 @@ export function ToolRegistry() {
         </div>
 
         {filteredTools.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            <Wrench className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">{t('toolRegistry.noCustomTools')}</p>
-            <p className="text-xs mt-1">{t('toolRegistry.noCustomToolsDesc')}</p>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="flex flex-col items-center justify-center py-16 text-center"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+              <Wrench className="w-8 h-8 text-primary/50" />
+            </div>
+            <h3 className="text-base font-semibold mb-1">{t('toolRegistry.noCustomTools')}</h3>
+            <p className="text-sm text-muted-foreground max-w-xs">{t('toolRegistry.noCustomToolsDesc')}</p>
             <Button
               size="sm"
-              className="mt-3"
+              className="mt-4 rounded-lg gap-1.5"
               onClick={() => {
                 setFormData(emptyForm);
                 setFormErrors({});
                 setShowCreateDialog(true);
               }}
             >
-              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              <Plus className="w-3.5 h-3.5" />
               {t('toolRegistry.createFirstTool')}
             </Button>
-          </div>
+          </motion.div>
         )}
       </div>
 

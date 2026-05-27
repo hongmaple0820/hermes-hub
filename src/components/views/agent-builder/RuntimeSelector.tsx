@@ -23,19 +23,19 @@ const runtimeOptions: { type: RuntimeType; icon: typeof Bot; emoji: string; colo
 const colorClasses: Record<string, { border: string; bg: string; text: string; ring: string }> = {
   emerald: {
     border: 'border-emerald-500',
-    bg: 'bg-emerald-500/5',
+    bg: 'bg-gradient-to-br from-emerald-50 to-emerald-500/5 dark:from-emerald-950/30 dark:to-emerald-500/5',
     text: 'text-emerald-600',
     ring: 'ring-emerald-500/20',
   },
   amber: {
     border: 'border-amber-500',
-    bg: 'bg-amber-500/5',
+    bg: 'bg-gradient-to-br from-amber-50 to-amber-500/5 dark:from-amber-950/30 dark:to-amber-500/5',
     text: 'text-amber-600',
     ring: 'ring-amber-500/20',
   },
   violet: {
     border: 'border-violet-400',
-    bg: 'bg-violet-500/5',
+    bg: 'bg-gradient-to-br from-violet-50 to-violet-500/5 dark:from-violet-950/30 dark:to-violet-500/5',
     text: 'text-violet-500',
     ring: 'ring-violet-500/20',
   },
@@ -63,7 +63,7 @@ export function RuntimeSelector({ value, onChange }: RuntimeSelectorProps) {
                 'relative cursor-pointer transition-all duration-200 rounded-xl overflow-hidden group',
                 option.disabled
                   ? 'opacity-50 cursor-not-allowed'
-                  : 'hover:shadow-md hover:-translate-y-0.5',
+                  : 'hover:shadow-lg hover:-translate-y-1',
                 isSelected && !option.disabled
                   ? `ring-2 ${colors.ring} ${colors.border} ${colors.bg}`
                   : 'border-border hover:border-primary/30'
@@ -73,8 +73,8 @@ export function RuntimeSelector({ value, onChange }: RuntimeSelectorProps) {
               <CardContent className="p-5">
                 <div className="flex items-start gap-3">
                   <div className={cn(
-                    'w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-lg',
-                    isSelected ? colors.bg : 'bg-muted',
+                    'w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-lg transition-colors',
+                    isSelected ? 'bg-gradient-to-br from-primary/15 to-primary/5' : 'bg-muted',
                     isSelected ? colors.text : 'text-muted-foreground'
                   )}>
                     <span>{option.emoji}</span>

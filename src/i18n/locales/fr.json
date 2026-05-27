@@ -1437,7 +1437,9 @@
     "sectionCommunication": "Communication",
     "sectionManagement": "Gestion",
     "sectionSystem": "Système",
-    "newBadge": "Nouveau"
+    "newBadge": "Nouveau",
+    "sectionCore": "Principal",
+    "sectionAdmin": "Gestion"
   },
   "commandPalette": {
     "placeholder": "Rechercher commandes, vues, agents...",

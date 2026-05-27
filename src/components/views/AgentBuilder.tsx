@@ -229,8 +229,18 @@ export default function AgentBuilder({ editAgentId, onCancel, onSuccess }: Agent
         </div>
       </div>
 
-      {/* Step indicators */}
-      <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-1">
+      {/* Step indicators with progress bar */}
+      <div className="mb-6">
+        {/* Progress bar */}
+        <div className="h-1.5 rounded-full bg-muted mb-4 overflow-hidden">
+          <motion.div
+            className="h-full rounded-full bg-primary"
+            initial={{ width: '0%' }}
+            animate={{ width: `${((currentStepIndex + 1) / STEPS.length) * 100}%` }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+          />
+        </div>
+        <div className="flex items-center gap-1 overflow-x-auto pb-1">
         {STEPS.map((step, index) => {
           const completed = isStepCompleted(step);
           const isActive = currentStep === step;
@@ -269,6 +279,9 @@ export default function AgentBuilder({ editAgentId, onCancel, onSuccess }: Agent
                   )}
                 </span>
                 {stepLabels[step]}
+                  {completed && !isActive && (
+                    <Check className="w-3 h-3 text-emerald-500" />
+                  )}
               </button>
               {index < STEPS.length - 1 && (
                 <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/30 mx-1 shrink-0" />
@@ -277,15 +290,16 @@ export default function AgentBuilder({ editAgentId, onCancel, onSuccess }: Agent
           );
         })}
       </div>
+      </div>
 
       {/* Step Content */}
       <AnimatePresence mode="wait">
         <motion.div
           key={currentStep}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.2 }}
+          initial={{ opacity: 0, x: currentStepIndex > 0 ? 24 : -24 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: currentStepIndex > 0 ? -24 : 24 }}
+          transition={{ duration: 0.25 }}
         >
           <Card className="rounded-xl">
             <CardHeader className="pb-4">

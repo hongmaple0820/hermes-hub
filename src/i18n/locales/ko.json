@@ -1437,7 +1437,9 @@
     "sectionCommunication": "소통",
     "sectionManagement": "관리",
     "sectionSystem": "시스템",
-    "newBadge": "신규"
+    "newBadge": "신규",
+    "sectionCore": "핵심",
+    "sectionAdmin": "관리"
   },
   "commandPalette": {
     "placeholder": "명령, 보기, Agent 검색...",
