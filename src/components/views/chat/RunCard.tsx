@@ -11,7 +11,7 @@ import { StepTimeline, type Step } from './StepTimeline';
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-export type RunStatus = 'queued' | 'in_progress' | 'completed' | 'failed';
+export type RunStatus = 'queued' | 'in_progress' | 'completed' | 'failed' | 'cancelled';
 
 export interface Run {
   id: string;
@@ -34,6 +34,7 @@ const statusColorMap: Record<RunStatus, string> = {
   in_progress: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
   completed: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30',
   failed: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30',
+  cancelled: 'bg-muted text-muted-foreground border-border',
 };
 
 const statusLabelKey: Record<RunStatus, string> = {
@@ -41,6 +42,7 @@ const statusLabelKey: Record<RunStatus, string> = {
   in_progress: 'chat2.runStatusInProgress',
   completed: 'chat2.runStatusCompleted',
   failed: 'chat2.runStatusFailed',
+  cancelled: 'chat2.runStatusFailed',
 };
 
 export function RunCard({ run }: RunCardProps) {

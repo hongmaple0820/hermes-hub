@@ -21,7 +21,7 @@ export async function GET(
       return NextResponse.json({ error: 'Tool not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ data: tool });
+    return NextResponse.json({ tool });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -72,7 +72,7 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json({ data: tool });
+    return NextResponse.json({ tool });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

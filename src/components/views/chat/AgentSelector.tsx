@@ -1,12 +1,14 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bot, Cpu, Globe, Radio } from 'lucide-react';
+import { Bot, Cpu, Globe, Radio, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/i18n';
 import { useAppStore } from '@/lib/store';
+import { api } from '@/lib/api-client';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,51 +31,40 @@ interface AgentSelectorProps {
 // ---------------------------------------------------------------------------
 export function AgentSelector({ onSelectAgent }: AgentSelectorProps) {
   const { t } = useI18n();
-  const { agents } = useAppStore();
+  const { agents, setAgents, user } = useAppStore();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Convert real agents + add some mock agents if none exist
-  const displayAgents: MockAgent[] =
-    agents.length > 0
-      ? agents.map((a: any) => ({
-          id: a.id,
-          name: a.name,
-          description: a.description || '',
-          status: a.status || 'offline',
-          mode: a.mode || 'builtin',
-          model: a.modelOverride || undefined,
-        }))
-      : [
-          {
-            id: 'mock-agent-1',
-            name: 'Code Assistant',
-            description: 'Expert in code review, debugging, and architecture advice',
-            status: 'online',
-            mode: 'builtin',
-            model: 'gpt-4o',
-          },
-          {
-            id: 'mock-agent-2',
-            name: 'Research Analyst',
-            description: 'Deep research and analysis with web search capability',
-            status: 'online',
-            mode: 'builtin',
-            model: 'claude-3.5',
-          },
-          {
-            id: 'mock-agent-3',
-            name: 'Data Scientist',
-            description: 'Data analysis, visualization, and ML model building',
-            status: 'busy',
-            mode: 'builtin',
-          },
-          {
-            id: 'mock-agent-4',
-            name: 'Creative Writer',
-            description: 'Content creation, storytelling, and copywriting',
-            status: 'offline',
-            mode: 'acrp',
-          },
-        ];
+  // Fetch real agents from API if store is empty
+  useEffect(() => {
+    if (agents.length > 0) return;
+
+    async function fetchAgents() {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await api.getAgents();
+        setAgents(data.agents || []);
+      } catch (err: any) {
+        console.error('[AgentSelector] Failed to fetch agents:', err);
+        setError(err.message || 'Failed to load agents');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchAgents();
+  }, [agents.length, setAgents]);
+
+  // Convert real agents to MockAgent format
+  const displayAgents: MockAgent[] = agents.map((a: any) => ({
+    id: a.id,
+    name: a.name,
+    description: a.description || '',
+    status: a.status || 'offline',
+    mode: a.mode || a.runtime || 'builtin',
+    model: a.model || undefined,
+  }));
 
   const modeIcon = (mode: string) => {
     switch (mode) {
@@ -102,71 +93,91 @@ export function AgentSelector({ onSelectAgent }: AgentSelectorProps) {
           <p className="text-sm text-muted-foreground">{t('chat2.selectAgentDesc')}</p>
         </motion.div>
 
+        {/* Loading state */}
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary mb-3" />
+            <p className="text-sm text-muted-foreground">Loading agents...</p>
+          </div>
+        )}
+
+        {/* Error state */}
+        {error && !loading && (
+          <div className="text-center py-8">
+            <p className="text-sm text-destructive mb-2">{error}</p>
+            <Badge variant="outline" className="text-xs">
+              Please create an agent first
+            </Badge>
+          </div>
+        )}
+
         {/* Agent Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {displayAgents.map((agent, index) => (
-            <motion.div
-              key={agent.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.06, duration: 0.25 }}
-            >
-              <Card
-                className="cursor-pointer hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 rounded-xl"
-                onClick={() => onSelectAgent(agent)}
+        {!loading && !error && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {displayAgents.map((agent, index) => (
+              <motion.div
+                key={agent.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.06, duration: 0.25 }}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={cn(
-                        'w-10 h-10 rounded-xl flex items-center justify-center shrink-0',
-                        agent.status === 'online'
-                          ? 'bg-primary/10'
-                          : 'bg-muted'
-                      )}
-                    >
-                      <Bot
+                <Card
+                  className="cursor-pointer hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 rounded-xl"
+                  onClick={() => onSelectAgent(agent)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div
                         className={cn(
-                          'w-5 h-5',
-                          agent.status === 'online' ? 'text-primary' : 'text-muted-foreground'
+                          'w-10 h-10 rounded-xl flex items-center justify-center shrink-0',
+                          agent.status === 'online'
+                            ? 'bg-primary/10'
+                            : 'bg-muted'
                         )}
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-sm font-medium truncate">{agent.name}</span>
-                        <span
+                      >
+                        <Bot
                           className={cn(
-                            'w-1.5 h-1.5 rounded-full shrink-0',
-                            agent.status === 'online' && 'bg-emerald-500 animate-pulse',
-                            agent.status === 'busy' && 'bg-amber-500',
-                            agent.status === 'offline' && 'bg-muted-foreground/40'
+                            'w-5 h-5',
+                            agent.status === 'online' ? 'text-primary' : 'text-muted-foreground'
                           )}
                         />
                       </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-                        {agent.description}
-                      </p>
-                      <div className="flex items-center gap-1.5">
-                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 gap-0.5">
-                          {modeIcon(agent.mode)}
-                          {agent.mode === 'acrp' ? 'ACRP' : agent.mode === 'custom_api' ? 'Custom' : 'Builtin'}
-                        </Badge>
-                        {agent.model && (
-                          <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
-                            {agent.model}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-sm font-medium truncate">{agent.name}</span>
+                          <span
+                            className={cn(
+                              'w-1.5 h-1.5 rounded-full shrink-0',
+                              agent.status === 'online' && 'bg-emerald-500 animate-pulse',
+                              agent.status === 'busy' && 'bg-amber-500',
+                              agent.status === 'offline' && 'bg-muted-foreground/40'
+                            )}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                          {agent.description}
+                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="outline" className="text-[10px] h-4 px-1.5 gap-0.5">
+                            {modeIcon(agent.mode)}
+                            {agent.mode === 'acrp' ? 'ACRP' : agent.mode === 'custom_api' ? 'Custom' : 'Builtin'}
                           </Badge>
-                        )}
+                          {agent.model && (
+                            <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
+                              {agent.model}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        )}
 
-        {displayAgents.length === 0 && (
+        {!loading && !error && displayAgents.length === 0 && (
           <div className="text-center py-12">
             <Bot className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">{t('chat2.noAgents')}</p>

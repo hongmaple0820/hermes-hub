@@ -2401,3 +2401,266 @@ Stage Summary:
 - **i18n complete** for en.json and zh.json
 - Version badge updated to v2.0
 - Lint passes, dev server running
+
+---
+
+## Task 9-a: Rewrite ToolRegistry component to use real Tool API
+
+### What was done
+
+1. **Rewrote `src/components/views/ToolRegistry.tsx`** to replace all mock data with real API integration:
+   - Removed `mockTools` array and hardcoded `Tool` interface
+   - Added proper `ToolData` interface matching the Prisma schema
+   - Imports `api` from `@/lib/api-client` for all API calls
+   - Imports `useAppStore` from `@/lib/store` for Zustand state management
+   - On mount, calls `api.getTools()` to fetch tools; if empty, calls `api.seedTools()` then fetches again
+   - Stores tools in Zustand store via `setTools`
+   - Fetches agent-tool bindings via `api.getAgentTools()` for each agent
+
+2. **Create Tool dialog** with form fields: name (kebab-case), displayName, description, category, handlerType, parameters (JSON editor), handlerConfig (JSON editor), isPublic toggle
+   - Full validation: kebab-case format check, uniqueness check, required fields, JSON validity
+   - Creates real tool via `api.createTool()`
+
+3. **Edit Tool dialog** (non-system tools only) with same fields (name read-only)
+   - Updates tool via `api.updateTool()`
+
+4. **Tool Detail dialog** shows all tool properties, parameters JSON, handler config JSON, and bound agents list
+   - Edit and Bind buttons in the footer
+
+5. **Bind Tool to Agent dialog** — select an agent to bind a tool to via `api.bindToolToAgent()`
+   - Shows currently bound agents with unbind button
+   - Unbind via `api.unbindToolFromAgent()`
+
+6. **Delete Tool dialog** — confirmation dialog via `api.deleteTool()`
+
+7. **Loading states** — skeleton UI while fetching
+8. **Error state** — error message with retry button
+9. **Agent binding status** — each tool card shows:
+   - "Bound" badge if any agent has it
+   - "System" badge for system tools (userId = null)
+   - "Public" badge for public tools
+   - Agent count ("Used by N agent(s)")
+10. **Kept visual style** — cards, category filters, search, sort, framer-motion animations
+11. **Used shadcn/ui components**: Dialog, Select, Input, Textarea, Label, Switch, Skeleton, Badge, Card, Button, AlertDialog
+
+12. **Added i18n keys** to both `en.json` and `zh.json`:
+   - `toolRegistry.newest`, `toolRegistry.bound`, `toolRegistry.public`
+   - `toolRegistry.bindSuccess`, `toolRegistry.unbindSuccess`
+   - `toolRegistry.boundAgents`, `toolRegistry.noBoundAgents`
+   - `toolRegistry.bindToAgent`, `toolRegistry.bindToAgentDesc`
+   - `toolRegistry.noAgentsAvailable`, `toolRegistry.selectAgent`
+   - `toolRegistry.alreadyBound`, `toolRegistry.currentlyBound`
+
+### Verification
+- `bun run lint` — passes (0 errors, only 1 unrelated warning)
+- Dev server running with no compilation errors
+
+---
+Task ID: 9-c
+Agent: ActivityViewRewriter
+Task: Rewrite ActivityView component to use real Run/Step data instead of mock data
+
+Work Log:
+- Read existing ActivityView.tsx (970 lines, all mock data), api-client.ts, store.ts, Prisma schema, existing API routes
+- Analyzed Run/Step/Thread/Agent data model relationships in Prisma schema
+- Reviewed existing API routes: /api/runs/[runId], /api/runs/[runId]/steps, /api/threads/[threadId]/runs
+- Identified need for a new /api/runs endpoint since no endpoint exists to list all runs across all threads for a user
+
+1. **Created `/api/runs` GET endpoint** (`src/app/api/runs/route.ts`):
+   - Uses `requireAuth()` for authentication
+   - Builds Prisma where clause: runs belonging to threads owned by the current user
+   - Supports query params: `status`, `agentId`, `limit` (default 50)
+   - Joins Thread → Agent to include agent name and thread title
+   - Uses `_count: { select: { steps: true } }` for step count
+   - Computes `durationMs` from startedAt/completedAt timestamps
+   - Returns serialized runs with: id, threadId, status, inputTokens, outputTokens, totalSteps, stepCount, lastError, startedAt, completedAt, createdAt, durationMs, thread info (id, title, agentId, agent)
+
+2. **Added `api.getAllRuns()` method** to api-client.ts:
+   - Accepts optional params: `{ status?: string; agentId?: string; limit?: number }`
+   - Constructs query string and calls GET /runs
+   - Returns `{ runs: any[] }`
+
+3. **Completely rewrote ActivityView.tsx**:
+   - Removed all mock data (9 hardcoded runs with mock steps)
+   - Added `useEffect` + `useCallback` to fetch runs from API on mount and on filter change
+   - Replaced static agent name list with real agents from Zustand store (using agent IDs as filter values)
+   - Added proper loading state with skeleton components (ActivitySkeleton)
+   - Added error state with retry button (ErrorState component)
+   - Added inline error banner for refresh failures
+   - Implemented lazy loading for steps: steps are only fetched when a RunCard is expanded (not on initial load)
+   - Steps are cached per card — once loaded, expanding again doesn't re-fetch
+   - Step detail JSON is parsed safely with `parseDetail()` helper
+   - Tool name, params, and results are extracted from step detail JSON
+   - Added support for `queued` and `requires_action` run statuses
+   - Wired up "View Thread" button: navigates to chat2 view via `setCurrentView('chat2')`
+   - Wired up "Rerun" button: calls `api.createRun(run.threadId)` to create a new run
+   - Wired up refresh button: calls `fetchRuns(true)` with refreshing indicator
+   - Wired up agent filter: passes `agentId` to API query params for server-side filtering
+   - Wired up status filter: passes `status` to API query params for server-side filtering
+   - Active filter badges show agent name (resolved from ID) and status label
+   - Maintained all existing visual design: RunCard with expandable steps, StatsSummary, date grouping, filters, framer-motion animations
+
+4. **Added i18n keys** to both en.json and zh.json:
+   - `activity.statusQueued` ("Queued" / "排队中")
+   - `activity.statusRequiresAction` ("Requires Action" / "需要操作")
+   - `activity.unknownAgent` ("Unknown Agent" / "未知智能体")
+   - `activity.loadError` ("Failed to load activity" / "加载活动记录失败")
+   - `activity.failedToLoadSteps` ("Failed to load steps" / "加载步骤失败")
+   - `activity.noSteps` ("No steps recorded" / "暂无步骤记录")
+   - `activity.navigatingToThread` ("Navigating to thread…" / "正在跳转到线程…")
+   - `activity.rerunFailed` ("Failed to start re-run" / "重新运行失败")
+
+### Verification
+- `bun run lint` — passes clean (0 errors, 1 pre-existing unrelated warning)
+- Dev server running with no compilation errors
+- New API route compiles and responds correctly
+
+Stage Summary:
+- **ActivityView completely rewritten** to use real API data instead of mock data
+- **New /api/runs endpoint** created for listing all runs across all threads for a user
+- **Lazy loading** for step details — only fetched when RunCard is expanded
+- **Proper loading/error/empty states** with skeleton loaders and retry buttons
+- **Filters work with real data** — server-side filtering by agent and status
+- **Rerun button** creates a new run via API, **View Thread** navigates to chat2
+- All i18n keys added for both English and Chinese
+- Zero mock data remaining — everything comes from the real database
+
+---
+Task ID: 9-b
+Agent: ChatView2Rewriter
+Task: Rewrite ChatView2 component to use real Thread/Run API and WebSocket instead of mock data
+
+Work Log:
+- Read all existing files to understand the current structure:
+  - ChatView2.tsx (524 lines) — using hardcoded mock data, simulated responses, setTimeout-based step completion
+  - AgentSelector.tsx — using mock agents fallback when store is empty
+  - ThreadList.tsx — using ThreadInfo type from MessageArea
+  - MessageArea.tsx (463 lines) — containing mock data factories (createMockThreads, createMockMessages)
+  - ChatInput.tsx — no changes needed
+  - RunCard.tsx — using RunStatus without 'cancelled' support
+  - StepTimeline.tsx — using StepStatus without 'cancelled' support
+  - api-client.ts — has Thread/Run/Step API methods already defined
+  - store.ts — has threads, tools, agents, user in Zustand store
+  - agent-runtime/index.ts — Socket.IO server on port 3003
+  - agent-runtime/runtime.ts — Thread→Run→Step execution engine
+  - Prisma schema — Thread, Run, Step, Message, AgentTool models
+  - API routes — /api/threads, /api/threads/[threadId]/messages, /api/threads/[threadId]/runs already exist
+
+### ChatView2.tsx — Complete Rewrite:
+- Removed all mock data and simulated setTimeout responses
+- Added real API integration via `api` from `@/lib/api-client`
+- Added real agent data from `useAppStore().agents`
+- Added Socket.IO WebSocket connection via `io('/?XTransformPort=3003', { auth: { userId: user.id } })`
+- Implemented real Thread CRUD:
+  - `api.getThreads(agentId)` to fetch threads for selected agent
+  - `api.createThread({ agentId, title })` to create new threads
+  - `api.deleteThread(threadId)` to delete threads
+  - `api.getThreadMessages(threadId)` to fetch messages
+  - `api.sendThreadMessage(threadId, content)` to save user messages
+  - `api.createRun(threadId)` to create runs
+  - `api.getThreadRuns(threadId)` to fetch run history
+  - `api.getAgentTools(agentId)` to fetch bound tools
+- Socket.IO event handling:
+  - `run:created` → refresh runs for the thread
+  - `run:complete` → refresh messages (replaces placeholder with real message) + refresh runs + refresh thread list
+  - `run:error` → show error banner, refresh messages and runs
+  - `agent:stream` → accumulate streaming content for live display
+  - `agent:stream-complete` → replace placeholder agent message with final response
+  - `thread:join` / `thread:leave` for room management
+  - `thread:message` to trigger run execution on agent-runtime
+- Added proper loading states: loadingThreads, loadingMessages
+- Added error banner with dismiss button and auto-clear after 5s
+- Added data mappers: mapApiThreadToThreadInfo, mapApiMessageToMessage, mapApiStepToStep, mapApiRunToRun
+- Added extractThreadId helper to handle both `threadId` and `conversationId` (legacy) formats
+- Used activeThreadIdRef to keep socket event handlers in sync with current thread
+- Optimistic message sending: adds user message immediately, replaces with DB version on response
+- Placeholder agent message with Run visualization for in-progress runs
+- Streaming content display with cursor animation
+- Bound tools panel shows real AgentTool data from API
+
+### AgentSelector.tsx — Updated:
+- Removed mock agent fallback data (4 hardcoded agents)
+- Now fetches real agents from API via `api.getAgents()` when store is empty
+- Shows loading spinner while fetching
+- Shows error state with guidance to create agents first
+- Empty state when no agents exist
+
+### ThreadList.tsx — Updated:
+- Added `loading` prop to show spinner during thread fetch
+- Added `ThreadInfo` type definition (moved from MessageArea to break circular dependency)
+- Added loading spinner in thread list area
+- Added `active` status badge color (border-primary/30 text-primary)
+
+### MessageArea.tsx — Updated:
+- Removed all mock data factories (`createMockThreads`, `createMockMessages`)
+- Removed `ThreadInfo` type export (moved to ThreadList)
+- Added `streamingContent` prop for live streaming display
+- Streaming content shows with cursor animation alongside typing indicator
+- Typing indicator hidden when streaming content is active (avoids double indicators)
+- Clean Message type export maintained
+
+### RunCard.tsx — Updated:
+- Added 'cancelled' to RunStatus type union
+- Added cancelled status color and label mapping
+- Cancelled runs show muted styling
+
+### StepTimeline.tsx — Updated:
+- Added 'cancelled' to StepStatus type union
+- Added cancelled dot styling (muted border)
+- Added cancelled status icon (X with muted-foreground color)
+
+### Verification:
+- `bun run lint` passes clean (0 errors, 0 warnings)
+- Dev server running without compilation errors
+- Agent-runtime service running on port 3003
+
+Stage Summary:
+- **ChatView2 completely rewritten** — zero mock data, all data from real API and WebSocket
+- **Socket.IO real-time integration** — run lifecycle events, streaming content, thread room management
+- **Proper loading/error/empty states** — loading spinners, error banners, empty state guidance
+- **All sub-components updated** — AgentSelector, ThreadList, MessageArea, RunCard, StepTimeline
+- **Data flow**: API fetch → display → user action → API write → Socket.IO event → UI update
+- **Streaming support** — live agent response display with cursor animation
+- **Bound tools panel** — shows real AgentTool data from API
+- Lint passes clean, dev server stable
+
+---
+Task ID: 9
+Agent: main
+Task: Hermes Hub 2.0 Phase 1 — Connect new frontend views to real API data
+
+Work Log:
+- Verified all Phase 1 infrastructure was in place from previous session:
+  - Schema: Thread, Run, Step, Tool, AgentTool models ✅
+  - Agent Runtime service on port 3003 ✅ (needed restart)
+  - API routes for threads, runs, steps, tools, agent-tools ✅
+  - Frontend components: ChatView2, ToolRegistry, ActivityView ✅
+- Started agent-runtime service (was not running): `cd mini-services/agent-runtime && bun index.ts`
+- Verified agent-runtime health: `curl http://localhost:3003/internal/health` → 200 OK
+- Added 20+ new API methods to api-client.ts:
+  - Thread CRUD: getThreads, createThread, getThread, updateThread, deleteThread, getThreadMessages, sendThreadMessage
+  - Run management: createRun, getThreadRuns, getRun, getRunSteps, cancelRun, getAllRuns
+  - Tool CRUD: getTools, getTool, createTool, updateTool, deleteTool, seedTools
+  - Agent-Tool binding: getAgentTools, bindToolToAgent, unbindToolFromAgent, updateAgentTool
+- Added `threads` and `tools` state to Zustand store.ts
+- Launched 3 parallel subagents for frontend rewrites:
+  1. ToolRegistry → Real API (Task 9-a): Removed mock data, connected to api.getTools/seedTools/createTool/updateTool/deleteTool, added Create/Edit/Detail/Bind dialogs, agent binding status
+  2. ChatView2 → Real API + WebSocket (Task 9-b): Removed mock data, connected to api.getThreads/createThread/getThreadMessages, Socket.IO on port 3003 for real-time run/streaming events
+  3. ActivityView → Real API (Task 9-c): Created new `/api/runs` GET endpoint, removed 9 mock runs, lazy-loads steps, server-side filtering, real stats
+- Fixed API response format inconsistencies:
+  - Changed `{ data: tools }` → `{ tools }` in /api/tools route
+  - Changed `{ data: tool }` → `{ tool }` in /api/tools/[toolId] route
+  - Changed `{ data: agentTools }` → `{ agentTools }` in /api/agents/[id]/tools route
+- Ran `bun run lint` — passes clean (0 errors)
+- Dev server running without errors
+
+Stage Summary:
+- **Hermes Hub 2.0 Phase 1 Complete**: All new frontend views connected to real API data
+- **ToolRegistry**: Full CRUD with real Tool API, auto-seeding, agent binding, Create/Edit/Detail/Bind dialogs
+- **ChatView2**: Real Thread/Run API + Socket.IO WebSocket for streaming responses
+- **ActivityView**: Real Run/Step data from new `/api/runs` endpoint, lazy step loading, server-side filtering
+- **Agent Runtime**: Running on port 3003, handles Thread/Run lifecycle with builtin/remote executors
+- **API Client**: 20+ new methods for Thread/Run/Step/Tool/AgentTool
+- **Store**: threads and tools state added to Zustand
+- **4 services running**: Next.js (3000), agent-runtime (3003), skill-ws (3004), terminal-service
+- Lint passes clean, no compilation errors

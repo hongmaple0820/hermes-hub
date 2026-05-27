@@ -81,6 +81,14 @@ interface AppState {
   jobs: any[];
   setJobs: (jobs: any[]) => void;
 
+  // Threads (Hermes Hub 2.0)
+  threads: any[];
+  setThreads: (threads: any[]) => void;
+
+  // Tools (Hermes Hub 2.0)
+  tools: any[];
+  setTools: (tools: any[]) => void;
+
   // Profiles
   profiles: any[];
   setProfiles: (profiles: any[]) => void;
@@ -149,6 +157,14 @@ export const useAppStore = create<AppState>((set) => ({
   // Jobs
   jobs: [],
   setJobs: (jobs) => set({ jobs }),
+
+  // Threads (Hermes Hub 2.0)
+  threads: [],
+  setThreads: (threads) => set({ threads }),
+
+  // Tools (Hermes Hub 2.0)
+  tools: [],
+  setTools: (tools) => set({ tools }),
 
   // Profiles
   profiles: [],

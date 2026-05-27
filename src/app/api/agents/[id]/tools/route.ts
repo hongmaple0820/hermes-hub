@@ -24,7 +24,7 @@ export async function GET(
       orderBy: { priority: 'asc' },
     });
 
-    return NextResponse.json({ data: agentTools });
+    return NextResponse.json({ agentTools });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -96,7 +96,7 @@ export async function POST(
       },
     });
 
-    return NextResponse.json({ data: agentTool }, { status: 201 });
+    return NextResponse.json({ agentTool }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -9,7 +9,7 @@ import { useI18n } from '@/i18n';
 // Types
 // ---------------------------------------------------------------------------
 export type StepType = 'message_creation' | 'tool_calls' | 'tool_execution';
-export type StepStatus = 'queued' | 'in_progress' | 'completed' | 'failed';
+export type StepStatus = 'queued' | 'in_progress' | 'completed' | 'failed' | 'cancelled';
 
 export interface Step {
   id: string;
@@ -70,6 +70,7 @@ export function StepTimeline({ steps }: StepTimelineProps) {
                   step.status === 'completed' && 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400',
                   step.status === 'in_progress' && 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400',
                   step.status === 'failed' && 'bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400',
+                  step.status === 'cancelled' && 'bg-muted border-border text-muted-foreground',
                   step.status === 'queued' && 'bg-muted border-border text-muted-foreground'
                 )}
               >
@@ -145,6 +146,8 @@ function getStatusIcon(status: StepStatus): React.ReactNode {
       return <Loader2 className="w-3 h-3 text-amber-500 animate-spin" />;
     case 'failed':
       return <X className="w-3 h-3 text-red-500" />;
+    case 'cancelled':
+      return <X className="w-3 h-3 text-muted-foreground" />;
     case 'queued':
       return <span className="w-3 h-3 rounded-full bg-muted-foreground/30 inline-block" />;
   }

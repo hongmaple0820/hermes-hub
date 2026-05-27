@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       orderBy: { name: 'asc' },
     });
 
-    return NextResponse.json({ data: tools });
+    return NextResponse.json({ tools });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ data: tool }, { status: 201 });
+    return NextResponse.json({ tool }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

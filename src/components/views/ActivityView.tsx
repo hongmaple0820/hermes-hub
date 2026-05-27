@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Activity, RefreshCw, Filter, ChevronDown, ChevronRight,
   Check, X, Loader2, MessageSquare, Wrench, Zap, Clock,
-  ArrowRight, Play, RotateCcw, ExternalLink, BarChart3,
-  Users, Timer, Hash, AlertTriangle
+  ArrowRight, RotateCcw, ExternalLink, BarChart3,
+  Timer, Hash, AlertTriangle
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,14 +24,17 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/i18n';
+import { api } from '@/lib/api-client';
+import { useAppStore } from '@/lib/store';
 import { toast } from 'sonner';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-type RunStatus = 'completed' | 'failed' | 'in_progress' | 'cancelled';
+type RunStatus = 'completed' | 'failed' | 'in_progress' | 'cancelled' | 'queued' | 'requires_action';
 type StepType = 'message_creation' | 'tool_calls' | 'tool_execution';
 type StepStatus = 'queued' | 'in_progress' | 'completed' | 'failed';
 
@@ -39,369 +42,58 @@ interface Step {
   id: string;
   type: StepType;
   status: StepStatus;
-  name?: string;
-  content?: string;
-  toolName?: string;
-  toolParams?: string;
-  toolResult?: string;
-  startedAt?: string;
-  completedAt?: string;
-  durationMs?: number;
+  detail: string; // JSON string
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
 }
 
-interface Run {
+interface RunData {
   id: string;
-  runNumber: number;
-  agentName: string;
+  threadId: string;
   status: RunStatus;
-  steps: Step[];
-  startedAt: string;
-  completedAt?: string;
-  durationMs: number;
-  threadTitle?: string;
   inputTokens: number;
   outputTokens: number;
+  totalSteps: number;
+  stepCount: number;
+  lastError: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  durationMs: number;
+  thread: {
+    id: string;
+    title: string | null;
+    agentId: string;
+    agent: {
+      id: string;
+      name: string;
+      avatar: string | null;
+    };
+  };
 }
-
-// ---------------------------------------------------------------------------
-// Mock Data
-// ---------------------------------------------------------------------------
-const now = new Date();
-const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-const yesterday = new Date(today.getTime() - 86400000);
-const twoDaysAgo = new Date(today.getTime() - 2 * 86400000);
-const threeDaysAgo = new Date(today.getTime() - 3 * 86400000);
-const fiveDaysAgo = new Date(today.getTime() - 5 * 86400000);
-
-function timeStr(base: Date, h: number, m: number, s: number): string {
-  return new Date(base.getFullYear(), base.getMonth(), base.getDate(), h, m, s).toISOString();
-}
-
-const mockRuns: Run[] = [
-  {
-    id: 'run-12',
-    runNumber: 12,
-    agentName: 'GPT Assistant',
-    status: 'completed',
-    startedAt: timeStr(today, 14, 32, 5),
-    completedAt: timeStr(today, 14, 32, 6),
-    durationMs: 1200,
-    threadTitle: 'Help with API',
-    inputTokens: 245,
-    outputTokens: 128,
-    steps: [
-      {
-        id: 's12-1',
-        type: 'message_creation',
-        status: 'completed',
-        content: 'Let me search for that...',
-        durationMs: 300,
-      },
-      {
-        id: 's12-2',
-        type: 'tool_calls',
-        status: 'completed',
-        toolName: 'web_search',
-        toolParams: 'web_search({ query: "REST API best practices" })',
-        durationMs: 100,
-      },
-      {
-        id: 's12-3',
-        type: 'tool_execution',
-        status: 'completed',
-        toolResult: 'Found 10 results about REST API design patterns...',
-        durationMs: 500,
-      },
-      {
-        id: 's12-4',
-        type: 'message_creation',
-        status: 'completed',
-        content: 'Based on my search, here are the key REST API best practices...',
-        durationMs: 300,
-      },
-    ],
-  },
-  {
-    id: 'run-11',
-    runNumber: 11,
-    agentName: 'Code Helper',
-    status: 'failed',
-    startedAt: timeStr(today, 14, 28, 12),
-    completedAt: timeStr(today, 14, 28, 13),
-    durationMs: 800,
-    threadTitle: 'Debug Python script',
-    inputTokens: 180,
-    outputTokens: 45,
-    steps: [
-      {
-        id: 's11-1',
-        type: 'message_creation',
-        status: 'completed',
-        content: 'Let me look at the error...',
-        durationMs: 250,
-      },
-      {
-        id: 's11-2',
-        type: 'tool_calls',
-        status: 'completed',
-        toolName: 'code_execute',
-        toolParams: 'code_execute({ language: "python", code: "import sys; ..." })',
-        durationMs: 150,
-      },
-      {
-        id: 's11-3',
-        type: 'tool_execution',
-        status: 'failed',
-        toolResult: 'Error: ModuleNotFoundError: No module named "pandas"',
-        durationMs: 400,
-      },
-    ],
-  },
-  {
-    id: 'run-10',
-    runNumber: 10,
-    agentName: 'GPT Assistant',
-    status: 'completed',
-    startedAt: timeStr(today, 10, 15, 33),
-    completedAt: timeStr(today, 10, 15, 36),
-    durationMs: 3100,
-    threadTitle: 'Explain transformers',
-    inputTokens: 520,
-    outputTokens: 380,
-    steps: [
-      {
-        id: 's10-1',
-        type: 'message_creation',
-        status: 'completed',
-        content: 'Great question! Let me explain transformer architecture...',
-        durationMs: 200,
-      },
-      {
-        id: 's10-2',
-        type: 'message_creation',
-        status: 'completed',
-        content: 'Transformers use self-attention mechanisms to process...',
-        durationMs: 1500,
-      },
-      {
-        id: 's10-3',
-        type: 'message_creation',
-        status: 'completed',
-        content: 'In summary, the key innovation is...',
-        durationMs: 1400,
-      },
-    ],
-  },
-  {
-    id: 'run-9',
-    runNumber: 9,
-    agentName: 'Code Helper',
-    status: 'in_progress',
-    startedAt: timeStr(today, 15, 45, 0),
-    durationMs: 0,
-    threadTitle: 'Refactor React component',
-    inputTokens: 310,
-    outputTokens: 0,
-    steps: [
-      {
-        id: 's9-1',
-        type: 'message_creation',
-        status: 'completed',
-        content: 'I\'ll help you refactor that component...',
-        durationMs: 280,
-      },
-      {
-        id: 's9-2',
-        type: 'tool_calls',
-        status: 'in_progress',
-        toolName: 'file_read',
-        toolParams: 'file_read({ path: "/src/components/App.tsx" })',
-        durationMs: 0,
-      },
-    ],
-  },
-  {
-    id: 'run-8',
-    runNumber: 8,
-    agentName: 'Data Analyst',
-    status: 'completed',
-    startedAt: timeStr(yesterday, 9, 15, 33),
-    completedAt: timeStr(yesterday, 9, 15, 36),
-    durationMs: 3100,
-    threadTitle: 'Sales report analysis',
-    inputTokens: 450,
-    outputTokens: 290,
-    steps: [
-      {
-        id: 's8-1',
-        type: 'message_creation',
-        status: 'completed',
-        content: 'Analyzing the sales data...',
-        durationMs: 300,
-      },
-      {
-        id: 's8-2',
-        type: 'tool_calls',
-        status: 'completed',
-        toolName: 'calculator',
-        toolParams: 'calculator({ expression: "sum(sales_q4)" })',
-        durationMs: 100,
-      },
-      {
-        id: 's8-3',
-        type: 'tool_execution',
-        status: 'completed',
-        toolResult: 'Result: $1,245,000',
-        durationMs: 200,
-      },
-      {
-        id: 's8-4',
-        type: 'message_creation',
-        status: 'completed',
-        content: 'The Q4 sales total is $1,245,000...',
-        durationMs: 2500,
-      },
-    ],
-  },
-  {
-    id: 'run-7',
-    runNumber: 7,
-    agentName: 'GPT Assistant',
-    status: 'cancelled',
-    startedAt: timeStr(yesterday, 16, 22, 10),
-    completedAt: timeStr(yesterday, 16, 22, 12),
-    durationMs: 2000,
-    threadTitle: 'Write documentation',
-    inputTokens: 120,
-    outputTokens: 30,
-    steps: [
-      {
-        id: 's7-1',
-        type: 'message_creation',
-        status: 'completed',
-        content: 'I\'ll write the documentation for...',
-        durationMs: 300,
-      },
-      {
-        id: 's7-2',
-        type: 'message_creation',
-        status: 'failed',
-        content: 'Run was cancelled by user',
-        durationMs: 1700,
-      },
-    ],
-  },
-  {
-    id: 'run-6',
-    runNumber: 6,
-    agentName: 'Code Helper',
-    status: 'completed',
-    startedAt: timeStr(twoDaysAgo, 11, 30, 0),
-    completedAt: timeStr(twoDaysAgo, 11, 30, 4),
-    durationMs: 4000,
-    threadTitle: 'Fix TypeScript errors',
-    inputTokens: 600,
-    outputTokens: 420,
-    steps: [
-      {
-        id: 's6-1',
-        type: 'message_creation',
-        status: 'completed',
-        content: 'Let me check those TypeScript errors...',
-        durationMs: 400,
-      },
-      {
-        id: 's6-2',
-        type: 'tool_calls',
-        status: 'completed',
-        toolName: 'file_read',
-        toolParams: 'file_read({ path: "/src/utils/helpers.ts" })',
-        durationMs: 150,
-      },
-      {
-        id: 's6-3',
-        type: 'tool_execution',
-        status: 'completed',
-        toolResult: 'File content loaded (142 lines)',
-        durationMs: 300,
-      },
-      {
-        id: 's6-4',
-        type: 'message_creation',
-        status: 'completed',
-        content: 'I found 3 type errors. Here are the fixes...',
-        durationMs: 3150,
-      },
-    ],
-  },
-  {
-    id: 'run-5',
-    runNumber: 5,
-    agentName: 'Data Analyst',
-    status: 'failed',
-    startedAt: timeStr(threeDaysAgo, 14, 0, 0),
-    completedAt: timeStr(threeDaysAgo, 14, 0, 2),
-    durationMs: 2000,
-    threadTitle: 'Generate chart data',
-    inputTokens: 200,
-    outputTokens: 0,
-    steps: [
-      {
-        id: 's5-1',
-        type: 'message_creation',
-        status: 'completed',
-        content: 'I\'ll generate the chart data for you...',
-        durationMs: 300,
-      },
-      {
-        id: 's5-2',
-        type: 'tool_calls',
-        status: 'failed',
-        toolName: 'http_request',
-        toolParams: 'http_request({ url: "https://api.data.com/v1/chart" })',
-        durationMs: 1700,
-      },
-    ],
-  },
-  {
-    id: 'run-4',
-    runNumber: 4,
-    agentName: 'GPT Assistant',
-    status: 'completed',
-    startedAt: timeStr(fiveDaysAgo, 8, 45, 12),
-    completedAt: timeStr(fiveDaysAgo, 8, 45, 13),
-    durationMs: 900,
-    threadTitle: 'Summarize article',
-    inputTokens: 350,
-    outputTokens: 200,
-    steps: [
-      {
-        id: 's4-1',
-        type: 'message_creation',
-        status: 'completed',
-        content: 'Here\'s a summary of the article...',
-        durationMs: 900,
-      },
-    ],
-  },
-];
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function formatTime(iso: string): string {
+function formatTime(iso: string | null): string {
+  if (!iso) return '—';
   const d = new Date(iso);
   return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
 function formatDuration(ms: number): string {
+  if (ms <= 0) return '—';
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
 function getDateGroup(iso: string): string {
   const d = new Date(iso);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const dDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const yesterday = new Date(today.getTime() - 86400000);
   if (dDate.getTime() === today.getTime()) return 'today';
   if (dDate.getTime() === yesterday.getTime()) return 'yesterday';
   const diffDays = Math.floor((today.getTime() - dDate.getTime()) / 86400000);
@@ -421,10 +113,19 @@ function getDateGroupLabel(group: string, t: (key: string) => string): string {
 
 const dateGroupOrder = ['today', 'yesterday', 'thisWeek', 'older'];
 
+/** Parse step detail JSON safely */
+function parseDetail(detail: string): Record<string, unknown> {
+  try {
+    return JSON.parse(detail || '{}');
+  } catch {
+    return {};
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Status helpers
 // ---------------------------------------------------------------------------
-const statusConfig: Record<RunStatus, { icon: React.ReactNode; color: string; label: string }> = {
+const statusConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
   completed: {
     icon: <Check className="w-3.5 h-3.5" />,
     color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
@@ -444,6 +145,16 @@ const statusConfig: Record<RunStatus, { icon: React.ReactNode; color: string; la
     icon: <AlertTriangle className="w-3.5 h-3.5" />,
     color: 'bg-slate-500/10 text-slate-500 dark:text-slate-400 border-slate-500/30',
     label: 'activity.statusCancelled',
+  },
+  queued: {
+    icon: <Clock className="w-3.5 h-3.5" />,
+    color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30',
+    label: 'activity.statusQueued',
+  },
+  requires_action: {
+    icon: <AlertTriangle className="w-3.5 h-3.5" />,
+    color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30',
+    label: 'activity.statusRequiresAction',
   },
 };
 
@@ -481,14 +192,68 @@ const stepStatusConfig: Record<StepStatus, { icon: React.ReactNode; dotColor: st
 // ---------------------------------------------------------------------------
 // Step Timeline Component
 // ---------------------------------------------------------------------------
-function RunStepTimeline({ steps }: { steps: Step[] }) {
+function RunStepTimeline({ steps, loading }: { steps: Step[]; loading: boolean }) {
   const { t } = useI18n();
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex gap-3">
+            <Skeleton className="w-6 h-6 rounded-full shrink-0" />
+            <div className="flex-1 space-y-1">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-2 w-40" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (steps.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground">{t('activity.noSteps')}</p>
+    );
+  }
 
   return (
     <div className="space-y-0">
       {steps.map((step, index) => {
         const isLast = index === steps.length - 1;
-        const sConfig = stepStatusConfig[step.status];
+        const sConfig = stepStatusConfig[step.status as StepStatus] || stepStatusConfig.queued;
+        const detail = parseDetail(step.detail);
+        const stepDuration =
+          step.startedAt && step.completedAt
+            ? new Date(step.completedAt).getTime() - new Date(step.startedAt).getTime()
+            : undefined;
+
+        // Extract tool info from detail
+        const toolName =
+          step.type === 'tool_calls'
+            ? ((detail as Record<string, unknown>)?.calls as Array<Record<string, unknown>>)?.[0]?.name as string | undefined
+            : step.type === 'tool_execution'
+            ? (detail as Record<string, unknown>)?.name as string | undefined
+            : undefined;
+
+        const toolParams =
+          step.type === 'tool_calls' && (detail as Record<string, unknown>)?.calls
+            ? JSON.stringify((detail as Record<string, unknown>)?.calls)
+            : undefined;
+
+        const toolResult =
+          step.type === 'tool_execution'
+            ? ((detail as Record<string, unknown>)?.result as string) ||
+              ((detail as Record<string, unknown>)?.error as string) ||
+              undefined
+            : undefined;
+
+        const messageContent =
+          step.type === 'message_creation'
+            ? ((detail as Record<string, unknown>)?.message_id as string)
+              ? undefined // We don't have the message content from step detail alone
+              : undefined
+            : undefined;
 
         return (
           <motion.div
@@ -509,7 +274,7 @@ function RunStepTimeline({ steps }: { steps: Step[] }) {
                 {step.status === 'in_progress' ? (
                   <Loader2 className="w-3 h-3 animate-spin" />
                 ) : (
-                  stepTypeIcons[step.type]
+                  stepTypeIcons[step.type as StepType] || <MessageSquare className="w-3.5 h-3.5" />
                 )}
               </div>
               {!isLast && (
@@ -526,39 +291,39 @@ function RunStepTimeline({ steps }: { steps: Step[] }) {
             <div className={cn('pb-3 flex-1 min-w-0', isLast && 'pb-0')}>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-foreground/80">
-                  {step.toolName || t(stepTypeLabelKeys[step.type])}
+                  {toolName || t(stepTypeLabelKeys[step.type as StepType] || step.type)}
                 </span>
                 <span className="shrink-0">{sConfig.icon}</span>
-                {step.durationMs !== undefined && step.durationMs > 0 && (
+                {stepDuration !== undefined && stepDuration > 0 && (
                   <span className="text-[10px] text-muted-foreground">
-                    {formatDuration(step.durationMs)}
+                    {formatDuration(stepDuration)}
                   </span>
                 )}
               </div>
 
               {/* Tool params */}
-              {step.type === 'tool_calls' && step.toolParams && (
+              {step.type === 'tool_calls' && toolParams && (
                 <div className="mt-1 text-[11px] text-muted-foreground bg-muted/50 rounded-md px-2 py-1 font-mono truncate max-w-[400px]">
-                  {step.toolParams}
+                  {toolParams}
                 </div>
               )}
 
               {/* Tool result */}
-              {step.type === 'tool_execution' && step.toolResult && (
+              {step.type === 'tool_execution' && toolResult && (
                 <details className="mt-1">
                   <summary className="text-[11px] text-primary cursor-pointer hover:underline">
                     {t('activity.toolResult')}
                   </summary>
                   <div className="mt-1 text-[11px] text-muted-foreground bg-muted/50 rounded-md px-2 py-1.5 font-mono whitespace-pre-wrap max-h-32 overflow-y-auto max-w-[400px]">
-                    {step.toolResult}
+                    {toolResult}
                   </div>
                 </details>
               )}
 
-              {/* Message content */}
-              {step.type === 'message_creation' && step.content && step.status === 'completed' && (
-                <div className="mt-1 text-[11px] text-muted-foreground line-clamp-2">
-                  &ldquo;{step.content}&rdquo;
+              {/* Step error */}
+              {step.status === 'failed' && (detail as Record<string, unknown>)?.error && (
+                <div className="mt-1 text-[11px] text-red-500 bg-red-500/5 rounded-md px-2 py-1">
+                  {(detail as Record<string, unknown>)?.error as string}
                 </div>
               )}
             </div>
@@ -572,25 +337,52 @@ function RunStepTimeline({ steps }: { steps: Step[] }) {
 // ---------------------------------------------------------------------------
 // Run Card Component
 // ---------------------------------------------------------------------------
-function RunCardComponent({ run }: { run: Run }) {
+function RunCardComponent({ run, runIndex }: { run: RunData; runIndex: number }) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
-  const sConfig = statusConfig[run.status];
-  const completedSteps = run.steps.filter((s) => s.status === 'completed').length;
+  const [steps, setSteps] = useState<Step[]>([]);
+  const [stepsLoading, setStepsLoading] = useState(false);
+  const [stepsLoaded, setStepsLoaded] = useState(false);
+
+  const sConfig = statusConfig[run.status] || statusConfig.queued;
+
+  // Lazy-load steps when expanding
+  const handleExpand = useCallback(async () => {
+    const nextExpanded = !expanded;
+    setExpanded(nextExpanded);
+
+    if (nextExpanded && !stepsLoaded) {
+      setStepsLoading(true);
+      try {
+        const result = await api.getRunSteps(run.id);
+        setSteps(result.steps || []);
+        setStepsLoaded(true);
+      } catch (err) {
+        console.error('Failed to load steps:', err);
+        toast.error(t('activity.failedToLoadSteps'));
+      } finally {
+        setStepsLoading(false);
+      }
+    }
+  }, [expanded, stepsLoaded, run.id, t]);
+
+  const completedSteps = steps.filter((s) => s.status === 'completed').length;
+  const agentName = run.thread?.agent?.name || t('activity.unknownAgent');
+  const threadTitle = run.thread?.title;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
-      transition={{ duration: 0.2 }}
+      transition={{ duration: 0.2, delay: runIndex * 0.03 }}
       layout
     >
       <Card className="overflow-hidden hover:shadow-md hover:border-primary/20 dark:hover:border-primary/15 transition-all duration-200">
         <CardContent className="p-0">
           {/* Header - clickable to expand */}
           <button
-            onClick={() => setExpanded((prev) => !prev)}
+            onClick={handleExpand}
             className="w-full text-left px-4 py-3 hover:bg-accent/30 transition-colors"
           >
             <div className="flex items-center gap-2 flex-wrap">
@@ -600,10 +392,10 @@ function RunCardComponent({ run }: { run: Run }) {
                 <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               )}
               <span className="text-xs font-semibold text-foreground/80">
-                {t('activity.run')} #{run.runNumber}
+                {t('activity.run')} #{run.id.slice(-6)}
               </span>
               <span className="text-xs text-muted-foreground">•</span>
-              <span className="text-xs text-muted-foreground">{run.agentName}</span>
+              <span className="text-xs text-muted-foreground">{agentName}</span>
               <Badge
                 variant="outline"
                 className={cn('text-[10px] h-4 px-1.5 border', sConfig.color)}
@@ -612,7 +404,7 @@ function RunCardComponent({ run }: { run: Run }) {
                 {t(sConfig.label)}
               </Badge>
               <span className="text-[10px] text-muted-foreground">
-                • {completedSteps}/{run.steps.length} {t('activity.steps')}
+                • {run.stepCount} {t('activity.steps')}
               </span>
               {run.durationMs > 0 && (
                 <span className="text-[10px] text-muted-foreground">
@@ -621,7 +413,7 @@ function RunCardComponent({ run }: { run: Run }) {
               )}
             </div>
             <div className="ml-6 mt-0.5 flex items-center gap-2 text-[10px] text-muted-foreground/70">
-              <span>{formatTime(run.startedAt)}</span>
+              <span>{formatTime(run.startedAt || run.createdAt)}</span>
               {run.completedAt && (
                 <>
                   <ArrowRight className="w-2.5 h-2.5" />
@@ -642,12 +434,19 @@ function RunCardComponent({ run }: { run: Run }) {
                 className="overflow-hidden"
               >
                 <div className="px-4 pb-4 border-t border-border/50 pt-3">
+                  {/* Error message */}
+                  {run.lastError && (
+                    <div className="mb-3 text-xs text-red-500 bg-red-500/5 rounded-md px-3 py-2">
+                      {run.lastError}
+                    </div>
+                  )}
+
                   {/* Meta row */}
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground mb-3">
-                    {run.threadTitle && (
+                    {threadTitle && (
                       <span className="flex items-center gap-1">
                         <Hash className="w-3 h-3" />
-                        {t('activity.thread')}: &ldquo;{run.threadTitle}&rdquo;
+                        {t('activity.thread')}: &ldquo;{threadTitle}&rdquo;
                       </span>
                     )}
                     {run.durationMs > 0 && (
@@ -669,12 +468,22 @@ function RunCardComponent({ run }: { run: Run }) {
                     <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                       {t('activity.steps')}
                     </h4>
-                    <RunStepTimeline steps={run.steps} />
+                    <RunStepTimeline steps={steps} loading={stepsLoading} />
                   </div>
 
                   {/* Actions */}
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="text-xs h-7 gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7 gap-1.5"
+                      onClick={() => {
+                        // Navigate to chat2 view with the thread
+                        const store = useAppStore.getState();
+                        store.setCurrentView('chat2');
+                        toast.info(t('activity.navigatingToThread'));
+                      }}
+                    >
                       <ExternalLink className="w-3 h-3" />
                       {t('activity.viewThread')}
                     </Button>
@@ -682,7 +491,14 @@ function RunCardComponent({ run }: { run: Run }) {
                       variant="outline"
                       size="sm"
                       className="text-xs h-7 gap-1.5"
-                      onClick={() => toast.info(t('activity.rerunStarted'))}
+                      onClick={async () => {
+                        try {
+                          await api.createRun(run.threadId);
+                          toast.success(t('activity.rerunStarted'));
+                        } catch (err) {
+                          toast.error(t('activity.rerunFailed'));
+                        }
+                      }}
                     >
                       <RotateCcw className="w-3 h-3" />
                       {t('activity.rerun')}
@@ -701,10 +517,10 @@ function RunCardComponent({ run }: { run: Run }) {
 // ---------------------------------------------------------------------------
 // Stats Summary Component
 // ---------------------------------------------------------------------------
-function StatsSummary({ runs }: { runs: Run[] }) {
+function StatsSummary({ runs }: { runs: RunData[] }) {
   const { t } = useI18n();
 
-  const todayRuns = runs.filter((r) => getDateGroup(r.startedAt) === 'today');
+  const todayRuns = runs.filter((r) => getDateGroup(r.startedAt || r.createdAt) === 'today');
   const completedToday = todayRuns.filter((r) => r.status === 'completed');
   const successRate = todayRuns.length > 0 ? Math.round((completedToday.length / todayRuns.length) * 100) : 0;
   const avgDuration = todayRuns.length > 0 && todayRuns.some((r) => r.durationMs > 0)
@@ -767,6 +583,56 @@ function StatsSummary({ runs }: { runs: Run[] }) {
 }
 
 // ---------------------------------------------------------------------------
+// Loading Skeleton
+// ---------------------------------------------------------------------------
+function ActivitySkeleton() {
+  return (
+    <div className="p-4 md:p-6 max-w-7xl mx-auto w-full">
+      {/* Header skeleton */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-20" />
+          <Skeleton className="h-9 w-9" />
+        </div>
+      </div>
+      {/* Stats skeleton */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i}>
+            <CardContent className="p-4 flex items-center gap-3">
+              <Skeleton className="w-4 h-4 rounded" />
+              <div className="flex-1 space-y-1">
+                <Skeleton className="h-5 w-12" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      {/* Run cards skeleton */}
+      <div className="space-y-3">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Card key={i}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-3 w-3" />
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-4 w-16 rounded-full" />
+                <Skeleton className="h-3 w-12" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Empty State
 // ---------------------------------------------------------------------------
 function EmptyActivityState() {
@@ -789,50 +655,143 @@ function EmptyActivityState() {
 }
 
 // ---------------------------------------------------------------------------
+// Error State
+// ---------------------------------------------------------------------------
+function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) {
+  const { t } = useI18n();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="flex flex-col items-center justify-center py-20 text-center"
+    >
+      <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
+        <AlertTriangle className="w-8 h-8 text-red-500/60" />
+      </div>
+      <h3 className="text-lg font-semibold mb-1">{t('activity.loadError')}</h3>
+      <p className="text-sm text-muted-foreground max-w-xs mb-4">{error}</p>
+      <Button variant="outline" onClick={onRetry}>
+        <RefreshCw className="w-4 h-4 mr-2" />
+        {t('common.retry')}
+      </Button>
+    </motion.div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
 export default function ActivityView() {
   const { t } = useI18n();
+  const { agents, setCurrentView } = useAppStore();
+
+  // Data state
+  const [runs, setRuns] = useState<RunData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Filter state
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [refreshing, setRefreshing] = useState(false);
 
-  // Unique agent names
-  const agentNames = useMemo(() => {
-    const names = new Set(mockRuns.map((r) => r.agentName));
-    return Array.from(names).sort();
-  }, []);
+  // Fetch runs
+  const fetchRuns = useCallback(async (showRefreshing = false) => {
+    if (showRefreshing) setRefreshing(true);
+    else setLoading(true);
+    setError(null);
 
-  // Filtered runs
+    try {
+      const params: { status?: string; agentId?: string; limit?: number } = {};
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (agentFilter !== 'all') params.agentId = agentFilter;
+      params.limit = 100;
+
+      const result = await api.getAllRuns(params);
+      setRuns(result.runs || []);
+    } catch (err) {
+      console.error('Failed to fetch runs:', err);
+      setError(err instanceof Error ? err.message : t('activity.loadError'));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [statusFilter, agentFilter, t]);
+
+  // Initial fetch + refetch on filter change
+  useEffect(() => {
+    fetchRuns();
+  }, [fetchRuns]);
+
+  // Agent names for filter dropdown
+  const agentNames = useMemo(() => {
+    const names = new Set(
+      runs
+        .map((r) => r.thread?.agent?.name)
+        .filter(Boolean) as string[]
+    );
+    return Array.from(names).sort();
+  }, [runs]);
+
+  // Agent ID → name mapping for filter display
+  const agentIdToName = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const agent of agents) {
+      map[agent.id] = agent.name;
+    }
+    // Also add from runs
+    for (const run of runs) {
+      if (run.thread?.agent) {
+        map[run.thread.agent.id] = run.thread.agent.name;
+      }
+    }
+    return map;
+  }, [agents, runs]);
+
+  // Filtered runs (client-side additional filtering for display purposes)
   const filteredRuns = useMemo(() => {
-    return mockRuns.filter((run) => {
-      const matchesAgent = agentFilter === 'all' || run.agentName === agentFilter;
-      const matchesStatus = statusFilter === 'all' || run.status === statusFilter;
-      return matchesAgent && matchesStatus;
-    });
-  }, [agentFilter, statusFilter]);
+    return runs;
+  }, [runs]);
 
   // Group runs by date
   const groupedRuns = useMemo(() => {
-    const groups: Record<string, Run[]> = {};
+    const groups: Record<string, RunData[]> = {};
     for (const run of filteredRuns) {
-      const group = getDateGroup(run.startedAt);
+      const group = getDateGroup(run.startedAt || run.createdAt);
       if (!groups[group]) groups[group] = [];
       groups[group].push(run);
     }
     // Sort runs within each group (newest first)
     for (const key of Object.keys(groups)) {
-      groups[key].sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
+      groups[key].sort(
+        (a, b) =>
+          new Date(b.startedAt || b.createdAt).getTime() -
+          new Date(a.startedAt || a.createdAt).getTime()
+      );
     }
     return groups;
   }, [filteredRuns]);
 
   const handleRefresh = async () => {
-    setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setRefreshing(false);
+    await fetchRuns(true);
     toast.success(t('activity.refreshed'));
   };
+
+  // Loading state
+  if (loading) {
+    return <ActivitySkeleton />;
+  }
+
+  // Error state (no runs loaded at all)
+  if (error && runs.length === 0) {
+    return (
+      <div className="p-4 md:p-6 max-w-7xl mx-auto w-full">
+        <ErrorState error={error} onRetry={() => fetchRuns()} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto w-full">
@@ -860,9 +819,9 @@ export default function ActivityView() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">{t('activity.allAgents')}</SelectItem>
-                    {agentNames.map((name) => (
-                      <SelectItem key={name} value={name}>
-                        {name}
+                    {agents.map((agent) => (
+                      <SelectItem key={agent.id} value={agent.id}>
+                        {agent.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -880,6 +839,7 @@ export default function ActivityView() {
                     <SelectItem value="failed">{t('activity.statusFailed')}</SelectItem>
                     <SelectItem value="in_progress">{t('activity.statusInProgress')}</SelectItem>
                     <SelectItem value="cancelled">{t('activity.statusCancelled')}</SelectItem>
+                    <SelectItem value="queued">{t('activity.statusQueued')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -900,7 +860,7 @@ export default function ActivityView() {
       </div>
 
       {/* Stats Summary */}
-      <StatsSummary runs={mockRuns} />
+      <StatsSummary runs={runs} />
 
       {/* Active filters indicators */}
       {(agentFilter !== 'all' || statusFilter !== 'all') && (
@@ -908,7 +868,7 @@ export default function ActivityView() {
           <span className="text-xs text-muted-foreground">{t('activity.filteringBy')}:</span>
           {agentFilter !== 'all' && (
             <Badge variant="outline" className="text-[10px] h-5 px-2 gap-1">
-              {agentFilter}
+              {agentIdToName[agentFilter] || agentFilter}
               <button onClick={() => setAgentFilter('all')} className="hover:text-destructive">
                 <X className="w-2.5 h-2.5" />
               </button>
@@ -916,7 +876,7 @@ export default function ActivityView() {
           )}
           {statusFilter !== 'all' && (
             <Badge variant="outline" className="text-[10px] h-5 px-2 gap-1">
-              {t(`activity.status${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1).replace('_', '')}`)}
+              {statusConfig[statusFilter]?.label ? t(statusConfig[statusFilter].label) : statusFilter}
               <button onClick={() => setStatusFilter('all')} className="hover:text-destructive">
                 <X className="w-2.5 h-2.5" />
               </button>
@@ -933,14 +893,24 @@ export default function ActivityView() {
         </div>
       )}
 
+      {/* Error banner (if runs were loaded but refresh failed) */}
+      {error && runs.length > 0 && (
+        <div className="mb-4 text-xs text-red-500 bg-red-500/5 rounded-md px-3 py-2 flex items-center justify-between">
+          <span>{error}</span>
+          <Button variant="ghost" size="sm" className="text-xs h-5" onClick={() => fetchRuns()}>
+            {t('common.retry')}
+          </Button>
+        </div>
+      )}
+
       {/* Runs grouped by date */}
       {filteredRuns.length === 0 ? (
         <EmptyActivityState />
       ) : (
         <div className="space-y-6">
           {dateGroupOrder.map((group) => {
-            const runs = groupedRuns[group];
-            if (!runs || runs.length === 0) return null;
+            const groupRuns = groupedRuns[group];
+            if (!groupRuns || groupRuns.length === 0) return null;
 
             return (
               <div key={group}>
@@ -950,13 +920,13 @@ export default function ActivityView() {
                     {getDateGroupLabel(group, t)}
                   </h2>
                   <Badge variant="outline" className="text-[10px] h-4 px-1.5">
-                    {runs.length}
+                    {groupRuns.length}
                   </Badge>
                 </div>
                 <div className="space-y-3">
                   <AnimatePresence mode="popLayout">
-                    {runs.map((run) => (
-                      <RunCardComponent key={run.id} run={run} />
+                    {groupRuns.map((run, index) => (
+                      <RunCardComponent key={run.id} run={run} runIndex={index} />
                     ))}
                   </AnimatePresence>
                 </div>
@@ -968,5 +938,3 @@ export default function ActivityView() {
     </div>
   );
 }
-
-

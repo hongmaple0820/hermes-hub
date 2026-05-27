@@ -1833,7 +1833,20 @@
     "updated": "Tool updated successfully!",
     "deleted": "Tool deleted successfully!",
     "deleteTitle": "Delete Tool",
-    "deleteDesc": "Are you sure you want to delete \"{name}\"? This action cannot be undone."
+    "deleteDesc": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
+    "newest": "Newest",
+    "bound": "Bound",
+    "public": "Public",
+    "bindSuccess": "Tool bound to agent successfully!",
+    "unbindSuccess": "Tool unbound from agent successfully!",
+    "boundAgents": "Bound Agents",
+    "noBoundAgents": "Not bound to any agent",
+    "bindToAgent": "Bind to Agent",
+    "bindToAgentDesc": "Select an agent to bind \"{name}\" to",
+    "noAgentsAvailable": "No agents available. Create an agent first.",
+    "selectAgent": "Select an agent",
+    "alreadyBound": "Already bound",
+    "currentlyBound": "Currently Bound"
   },
   "activity": {
     "title": "Activity",
@@ -1872,6 +1885,14 @@
     "allAgents": "All Agents",
     "allStatuses": "All Statuses",
     "filteringBy": "Filtering by",
-    "clearFilters": "Clear filters"
+    "clearFilters": "Clear filters",
+    "statusQueued": "Queued",
+    "statusRequiresAction": "Requires Action",
+    "unknownAgent": "Unknown Agent",
+    "loadError": "Failed to load activity",
+    "failedToLoadSteps": "Failed to load steps",
+    "noSteps": "No steps recorded",
+    "navigatingToThread": "Navigating to thread…",
+    "rerunFailed": "Failed to start re-run"
   }
 }

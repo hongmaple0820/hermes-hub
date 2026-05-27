@@ -655,6 +655,112 @@ class ApiClient {
     return { blob, filename };
   }
 
+  // ==================== Hermes Hub 2.0: Thread/Run/Step/Tool API ====================
+
+  // Threads
+  async getThreads(agentId?: string) {
+    const query = agentId ? `?agentId=${agentId}` : '';
+    return this.get<{ threads: any[] }>(`/threads${query}`);
+  }
+
+  async createThread(data: { agentId: string; title?: string; systemPrompt?: string }) {
+    return this.post<{ thread: any }>('/threads', data);
+  }
+
+  async getThread(threadId: string) {
+    return this.get<{ thread: any }>(`/threads/${threadId}`);
+  }
+
+  async updateThread(threadId: string, data: { title?: string; status?: string; metadata?: any }) {
+    return this.patch<{ thread: any }>(`/threads/${threadId}`, data);
+  }
+
+  async deleteThread(threadId: string) {
+    return this.del(`/threads/${threadId}`);
+  }
+
+  async getThreadMessages(threadId: string) {
+    return this.get<{ messages: any[] }>(`/threads/${threadId}/messages`);
+  }
+
+  async sendThreadMessage(threadId: string, content: string) {
+    return this.post<{ message: any }>(`/threads/${threadId}/messages`, { content });
+  }
+
+  // Runs
+  async createRun(threadId: string) {
+    return this.post<{ run: any }>(`/threads/${threadId}/runs`, {});
+  }
+
+  async getThreadRuns(threadId: string) {
+    return this.get<{ runs: any[] }>(`/threads/${threadId}/runs`);
+  }
+
+  async getRun(runId: string) {
+    return this.get<{ run: any }>(`/runs/${runId}`);
+  }
+
+  async getRunSteps(runId: string) {
+    return this.get<{ steps: any[] }>(`/runs/${runId}/steps`);
+  }
+
+  async cancelRun(threadId: string, runId: string) {
+    return this.post<{ run: any }>(`/threads/${threadId}/runs/${runId}/cancel`);
+  }
+
+  async getAllRuns(params?: { status?: string; agentId?: string; limit?: number }) {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.agentId) query.set('agentId', params.agentId);
+    if (params?.limit) query.set('limit', String(params.limit));
+    return this.get<{ runs: any[] }>(`/runs?${query.toString()}`);
+  }
+
+  // Tools
+  async getTools(category?: string) {
+    const query = category ? `?category=${category}` : '';
+    return this.get<{ tools: any[] }>(`/tools${query}`);
+  }
+
+  async getTool(toolId: string) {
+    return this.get<{ tool: any }>(`/tools/${toolId}`);
+  }
+
+  async createTool(data: { name: string; displayName: string; description: string; category?: string; parameters?: any; handlerType?: string; handlerConfig?: any; icon?: string; isPublic?: boolean }) {
+    return this.post<{ tool: any }>('/tools', data);
+  }
+
+  async updateTool(toolId: string, data: any) {
+    return this.patch<{ tool: any }>(`/tools/${toolId}`, data);
+  }
+
+  async deleteTool(toolId: string) {
+    return this.del(`/tools/${toolId}`);
+  }
+
+  async seedTools() {
+    return this.post('/tools/seed');
+  }
+
+  // Agent Tools (bind/unbind tools to agents)
+  async getAgentTools(agentId: string) {
+    return this.get<{ agentTools: any[] }>(`/agents/${agentId}/tools`);
+  }
+
+  async bindToolToAgent(agentId: string, toolId: string, config?: any) {
+    return this.post<{ agentTool: any }>(`/agents/${agentId}/tools`, { toolId, config });
+  }
+
+  async unbindToolFromAgent(agentId: string, toolId: string) {
+    return this.del(`/agents/${agentId}/tools/${toolId}`);
+  }
+
+  async updateAgentTool(agentId: string, toolId: string, data: any) {
+    return this.patch<{ agentTool: any }>(`/agents/${agentId}/tools/${toolId}`, data);
+  }
+
+  // ==================== End Hermes Hub 2.0 API ====================
+
   // Audit Logs
   async getAuditLogs(params?: { page?: number; limit?: number; action?: string; resource?: string; startDate?: string; endDate?: string }) {
     const searchParams = new URLSearchParams();

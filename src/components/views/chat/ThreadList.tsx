@@ -8,10 +8,22 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Plus, Search, Trash2, X, MessageSquare, Menu } from 'lucide-react';
+import { Plus, Search, Trash2, X, MessageSquare, Menu, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/i18n';
-import type { ThreadInfo } from './MessageArea';
+
+// ---------------------------------------------------------------------------
+// Types — imported from ChatView2 instead of MessageArea to break circular dep
+// ---------------------------------------------------------------------------
+export interface ThreadInfo {
+  id: string;
+  title: string;
+  lastMessage: string;
+  updatedAt: string;
+  status: string;
+  runCount: number;
+  agentId: string;
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -24,6 +36,7 @@ interface ThreadListProps {
   onDeleteThread: (id: string) => void;
   agentName?: string;
   isMobile?: boolean;
+  loading?: boolean;
 }
 
 function formatTimestamp(dateStr: string): string {
@@ -49,6 +62,7 @@ export function ThreadList({
   onDeleteThread,
   agentName,
   isMobile,
+  loading,
 }: ThreadListProps) {
   const { t } = useI18n();
   const [search, setSearch] = useState('');
@@ -69,7 +83,7 @@ export function ThreadList({
       <div className="p-3 border-b border-border">
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-semibold text-sm">{agentName || t('chat2.title')}</h2>
-          <Button size="icon" className="w-7 h-7" variant="outline" onClick={onNewThread}>
+          <Button size="icon" className="w-7 h-7" variant="outline" onClick={onNewThread} disabled={loading}>
             <Plus className="w-4 h-4" />
           </Button>
         </div>
@@ -96,83 +110,93 @@ export function ThreadList({
       {/* Thread List */}
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-0.5">
-          <AnimatePresence>
-            {filtered.map((thread, index) => (
-              <motion.div
-                key={thread.id}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -8 }}
-                transition={{ delay: index * 0.03, duration: 0.15 }}
-                className="relative group"
-              >
-                <button
-                  onClick={() => onSelectThread(thread.id)}
-                  className={cn(
-                    'w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all duration-200',
-                    activeThreadId === thread.id
-                      ? 'bg-accent shadow-sm'
-                      : 'hover:bg-accent/50 hover:shadow-sm hover:scale-[1.01]'
-                  )}
-                >
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <MessageSquare className="w-3.5 h-3.5 text-primary" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-medium truncate">{thread.title}</p>
-                      <span className="text-[10px] text-muted-foreground shrink-0 ml-2">
-                        {formatTimestamp(thread.updatedAt)}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                      {thread.lastMessage}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          'text-[9px] h-3.5 px-1',
-                          thread.status === 'completed' && 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400',
-                          thread.status === 'in_progress' && 'border-amber-500/30 text-amber-600 dark:text-amber-400',
-                          thread.status === 'failed' && 'border-red-500/30 text-red-600 dark:text-red-400',
-                          thread.status === 'queued' && 'border-border text-muted-foreground'
-                        )}
-                      >
-                        {thread.status}
-                      </Badge>
-                      {thread.runCount > 0 && (
-                        <span className="text-[9px] text-muted-foreground">
-                          {thread.runCount} run{thread.runCount > 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </button>
-                {/* Delete button on hover */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-2 top-2 w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeleteConfirmId(thread.id);
-                  }}
-                >
-                  <Trash2 className="w-3 h-3" />
-                </Button>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+          {/* Loading state */}
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
 
-          {filtered.length === 0 && search.trim() && (
+          {!loading && (
+            <AnimatePresence>
+              {filtered.map((thread, index) => (
+                <motion.div
+                  key={thread.id}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ delay: index * 0.03, duration: 0.15 }}
+                  className="relative group"
+                >
+                  <button
+                    onClick={() => onSelectThread(thread.id)}
+                    className={cn(
+                      'w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all duration-200',
+                      activeThreadId === thread.id
+                        ? 'bg-accent shadow-sm'
+                        : 'hover:bg-accent/50 hover:shadow-sm hover:scale-[1.01]'
+                    )}
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <MessageSquare className="w-3.5 h-3.5 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium truncate">{thread.title}</p>
+                        <span className="text-[10px] text-muted-foreground shrink-0 ml-2">
+                          {formatTimestamp(thread.updatedAt)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                        {thread.lastMessage}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-[9px] h-3.5 px-1',
+                            thread.status === 'completed' && 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400',
+                            thread.status === 'in_progress' && 'border-amber-500/30 text-amber-600 dark:text-amber-400',
+                            thread.status === 'failed' && 'border-red-500/30 text-red-600 dark:text-red-400',
+                            thread.status === 'active' && 'border-primary/30 text-primary',
+                            thread.status === 'queued' && 'border-border text-muted-foreground'
+                          )}
+                        >
+                          {thread.status}
+                        </Badge>
+                        {thread.runCount > 0 && (
+                          <span className="text-[9px] text-muted-foreground">
+                            {thread.runCount} run{thread.runCount > 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                  {/* Delete button on hover */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-2 w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteConfirmId(thread.id);
+                    }}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          )}
+
+          {!loading && filtered.length === 0 && search.trim() && (
             <div className="py-8 text-center">
               <Search className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
               <p className="text-xs text-muted-foreground">{t('chat2.noThreads')}</p>
             </div>
           )}
 
-          {threads.length === 0 && !search.trim() && (
+          {!loading && threads.length === 0 && !search.trim() && (
             <div className="py-6 text-center">
               <MessageSquare className="w-6 h-6 text-muted-foreground/40 mx-auto mb-1" />
               <p className="text-xs text-muted-foreground">{t('chat2.noThreads')}</p>

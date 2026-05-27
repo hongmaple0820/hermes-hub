@@ -1833,7 +1833,20 @@
     "updated": "工具更新成功！",
     "deleted": "工具删除成功！",
     "deleteTitle": "删除工具",
-    "deleteDesc": "确定要删除 \"{name}\" 吗？此操作不可撤销。"
+    "deleteDesc": "确定要删除 \"{name}\" 吗？此操作不可撤销。",
+    "newest": "最新",
+    "bound": "已绑定",
+    "public": "公开",
+    "bindSuccess": "工具已成功绑定到智能体！",
+    "unbindSuccess": "工具已从智能体解绑！",
+    "boundAgents": "已绑定智能体",
+    "noBoundAgents": "未绑定到任何智能体",
+    "bindToAgent": "绑定到智能体",
+    "bindToAgentDesc": "选择一个智能体来绑定 \"{name}\"",
+    "noAgentsAvailable": "暂无可用智能体，请先创建一个智能体。",
+    "selectAgent": "选择智能体",
+    "alreadyBound": "已绑定",
+    "currentlyBound": "当前绑定"
   },
   "activity": {
     "title": "活动",
@@ -1872,6 +1885,14 @@
     "allAgents": "全部智能体",
     "allStatuses": "全部状态",
     "filteringBy": "筛选条件",
-    "clearFilters": "清除筛选"
+    "clearFilters": "清除筛选",
+    "statusQueued": "排队中",
+    "statusRequiresAction": "需要操作",
+    "unknownAgent": "未知智能体",
+    "loadError": "加载活动记录失败",
+    "failedToLoadSteps": "加载步骤失败",
+    "noSteps": "暂无步骤记录",
+    "navigatingToThread": "正在跳转到线程…",
+    "rerunFailed": "重新运行失败"
   }
 }
