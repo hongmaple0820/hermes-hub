@@ -8,10 +8,14 @@ import { I18nProvider } from '@/i18n';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Dashboard } from '@/components/views/Dashboard';
 import { AgentManager } from '@/components/views/AgentManager';
+import AgentBuilder from '@/components/views/AgentBuilder';
 import { AgentDetail } from '@/components/views/AgentDetail';
 import { ProviderManager } from '@/components/views/ProviderManager';
 import { SkillMarketplace } from '@/components/views/SkillMarketplace';
 import { ChatView } from '@/components/views/ChatView';
+import ChatView2 from '@/components/views/ChatView2';
+import { ToolRegistry } from '@/components/views/ToolRegistry';
+import ActivityView from '@/components/views/ActivityView';
 import { ChatRoomManager } from '@/components/views/ChatRoomManager';
 import { Settings } from '@/components/views/Settings';
 import { ChannelsView } from '@/components/views/ChannelsView';
@@ -177,13 +181,15 @@ function AppContent() {
       // Number shortcuts for navigation
       const viewMap: Record<string, ViewMode> = {
         '1': 'dashboard',
-        '2': 'agents',
-        '3': 'providers',
-        '4': 'skills',
-        '5': 'agent-control',
-        '6': 'channels',
+        '2': 'agentBuilder',
+        '3': 'toolRegistry',
+        '4': 'agents',
+        '5': 'skills',
+        '6': 'agent-control',
         '7': 'chat',
-        '8': 'chat-rooms',
+        '8': 'providers',
+        '9': 'chat2',
+        '0': 'activity',
       };
 
       if (e.key === ',') {
@@ -300,6 +306,8 @@ function AppContent() {
         return <Dashboard />;
       case 'agents':
         return <AgentManager />;
+      case 'agentBuilder':
+        return <AgentBuilder onCancel={() => setCurrentView('agents')} onSuccess={() => setCurrentView('agents')} />;
       case 'agent-detail':
         return <AgentDetail />;
       case 'providers':
@@ -309,6 +317,8 @@ function AppContent() {
 
       case 'chat':
         return <ChatView />;
+      case 'chat2':
+        return <ChatView2 />;
       case 'chat-rooms':
         return <ChatRoomManager />;
       case 'channels':
@@ -329,6 +339,12 @@ function AppContent() {
         return <TerminalView />;
       case 'agent-control':
         return <AgentControlCenter />;
+      case 'agentBuilder':
+        return <AgentBuilder />;
+      case 'toolRegistry':
+        return <ToolRegistry />;
+      case 'activity':
+        return <ActivityView />;
       case 'notifications':
         return <NotificationPanel />;
       case 'settings':

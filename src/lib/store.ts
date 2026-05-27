@@ -7,6 +7,7 @@ export type ViewMode =
   | 'providers'
   | 'skills'
   | 'chat'
+  | 'chat2'
   | 'chat-rooms'
   | 'settings'
   | 'channels'
@@ -18,7 +19,10 @@ export type ViewMode =
   | 'files'
   | 'terminal'
   | 'agent-control'
-  | 'notifications';
+  | 'notifications'
+  | 'agentBuilder'
+  | 'toolRegistry'
+  | 'activity';
 
 export interface Notification {
   id: string;

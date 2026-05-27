@@ -72,6 +72,11 @@ export function AgentManager() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<AgentForm>({ ...defaultForm });
 
+  // Navigate to Agent Builder for new creation
+  const handleOpenBuilder = () => {
+    setCurrentView('agentBuilder');
+  };
+
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -433,7 +438,7 @@ export function AgentManager() {
           <p className="text-muted-foreground text-sm">{t('agents.subtitle')}</p>
         </div>
         <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) setForm({ ...defaultForm }); }}>
-          <Button className="gap-2" onClick={() => setShowCreate(true)}>
+          <Button className="gap-2" onClick={handleOpenBuilder}>
             <Plus className="w-4 h-4" /> {t('agents.create')}
           </Button>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto w-[calc(100vw-2rem)] sm:max-w-lg">

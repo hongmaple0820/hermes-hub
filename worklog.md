@@ -1943,3 +1943,461 @@ Stage Summary:
 - **CLI Quick Start tab** — Beautiful step-by-step guide in Agent Control Center
 - All three services running: Next.js (3000), chat-service (3003), skill-ws (3004)
 - Packages: /home/z/my-project/packages/hermes-cli/, /home/z/my-project/packages/agent-sdk/
+
+---
+Task ID: 1
+Agent: SchemaUpdater
+Task: Update Prisma schema for Hermes Hub 2.0 - Thread/Run/Step execution model + Simplified Tool System
+
+Work Log:
+- Read worklog.md and current prisma/schema.prisma to understand project history and existing schema
+- Added 5 new models to prisma/schema.prisma:
+  - Thread: agent conversation thread with context management (contextWindow, systemPrompt override), status tracking
+  - Run: execution run within a thread with status lifecycle (queued → in_progress → completed/failed/requires_action/cancelled), token tracking, timing
+  - Step: individual execution step within a run (message_creation, tool_calls, tool_execution), with detail JSON and timing
+  - Tool: simplified tool system with JSON Schema parameters, multiple handler types (builtin/http/websocket/code), handler config
+  - AgentTool: many-to-many join between Agent and Tool with enabled/config/priority overrides, unique constraint on [agentId, toolId]
+- Updated existing Agent model:
+  - Added `runtime String @default("builtin")` field (values: builtin, remote, workflow) — existing `mode` field preserved for backward compatibility
+  - Added `threads Thread[]` relation
+  - Added `agentTools AgentTool[]` relation
+- Updated existing User model:
+  - Added `threads Thread[]` relation
+  - Added `tools Tool[]` relation
+- Updated existing Message model:
+  - Added `threadId String?` optional field
+  - Added `thread Thread? @relation(fields: [threadId], references: [id])` optional relation
+  - Added `@@index([threadId])` index
+- Ran `bun run db:push` — database synced successfully, Prisma Client regenerated
+- Ran `bun run lint` — passes clean with 0 errors
+
+Stage Summary:
+- **Prisma schema updated for Hermes Hub 2.0 architecture** with 5 new models and 3 existing models extended
+- **Thread/Run/Step execution model** enables structured agent conversation with run lifecycle management
+- **Simplified Tool System** provides flexible tool registration with multiple handler types (builtin, HTTP, WebSocket, code sandbox)
+- **All existing models and relations preserved** — only additive changes, no removals or renames
+- **Database synced** — Prisma client regenerated, new tables created
+- **Lint passes clean**, dev server stable
+
+---
+Task ID: 4
+Agent: ChatView2Builder
+Task: Create ChatView2 - Thread/Run/Step execution model chat experience
+
+Work Log:
+- Read worklog.md and project context (Tasks 1-8c)
+- Analyzed existing ChatView.tsx (~1000+ lines), store.ts, i18n system, page.tsx, and Sidebar.tsx
+- Added 'chat2' to ViewMode type in /src/lib/store.ts
+- Added i18n keys under "chat2" namespace to en.json (38 keys) and zh.json (38 keys)
+- Added nav.chat2 key to both locale files
+- Added ChatView2 to Sidebar navigation (communication section, with ⌘9 shortcut and "NEW" badge)
+- Added keyboard shortcut '9' → 'chat2' in page.tsx
+- Created 7 new component files:
+
+### Component Files Created:
+
+1. **`/src/components/views/chat/StepTimeline.tsx`** (145 lines)
+   - Types: StepType (message_creation, tool_calls, tool_execution), StepStatus (queued, in_progress, completed, failed)
+   - Step interface with id, type, status, content, toolName, toolParams, toolResult, timestamps
+   - Timeline visualization with vertical connector line and status-colored dots
+   - Icons: 🤖 message_creation, 🔧 tool_calls, ⚡ tool_execution
+   - Status indicators: ✓ completed, ⏳ in_progress (Loader2 spin), ❌ failed, ● queued
+   - Tool params shown in monospace truncated block
+   - Tool result expandable via <details>
+   - Framer Motion stagger animation (delay: index * 0.06)
+
+2. **`/src/components/views/chat/RunCard.tsx`** (95 lines)
+   - Types: RunStatus (queued, in_progress, completed, failed), Run interface
+   - Expandable/collapsible card with chevron toggle
+   - Header: "Run #X" + status badge + step progress (X/Y steps)
+   - Status badge with color coding: green=completed, amber=in_progress, red=failed, gray=queued
+   - AnimatePresence for smooth expand/collapse
+   - Framer Motion entrance animation
+
+3. **`/src/components/views/chat/ChatInput.tsx`** (85 lines)
+   - Auto-resizing textarea (1-4 lines)
+   - Paperclip attach button (UI only)
+   - Send button with gradient when active, muted when disabled
+   - Enter to send, Shift+Enter for newline
+   - Disabled state during Run in progress
+   - Run in progress indicator bar
+
+4. **`/src/components/views/chat/AgentSelector.tsx`** (135 lines)
+   - Grid of agent cards (1 column mobile, 2 columns desktop)
+   - Shows: name, status dot (online/busy/offline with pulse), description, mode badge, model badge
+   - Falls back to 4 mock agents if no real agents exist
+   - Agent icons: Cpu (builtin), Radio (acrp), Globe (custom_api)
+   - Framer Motion stagger animation on cards
+
+5. **`/src/components/views/chat/ThreadList.tsx`** (200 lines)
+   - Desktop: inline 72-width sidebar panel
+   - Mobile: Sheet/drawer with Menu trigger button
+   - Search with clear button
+   - Thread items: title, last message preview, timestamp (relative), status badge, run count
+   - "New Thread" button in header
+   - Delete button on hover + Dialog confirmation
+   - AnimatePresence for smooth list transitions
+   - Empty state with icon and description
+
+6. **`/src/components/views/chat/MessageArea.tsx`** (350 lines)
+   - Types: ThreadInfo, Message (role: user/agent/system), ThreadStatus
+   - User messages: right-aligned, primary background, rounded-2xl rounded-br-md
+   - Agent messages: left-aligned, card background with border, avatar with Bot icon
+   - System messages: centered, muted background, italic
+   - RunCard embedded within agent messages
+   - Typing indicator: bouncing dots with agent name
+   - Auto-scroll to bottom on new messages
+   - Empty state with quick suggestion buttons (Sparkles, Code, Globe, Zap icons)
+   - Mock data factory: createMockThreads() and createMockMessages()
+   - 3 mock threads with rich conversations including tool calls:
+     - Thread 1: "Web Search Demo" (2 runs with web_search tool)
+     - Thread 2: "Code Review Request" (1 run, pure message_creation steps)
+     - Thread 3: "Active Research Thread" (in_progress run with queued steps)
+
+7. **`/src/components/views/ChatView2.tsx`** (525 lines)
+   - Main container with state management via useState
+   - Two-phase render: AgentSelector (no agent) → Chat UI (agent selected)
+   - Chat Header: back button, avatar, agent name, status dot, mode badge, tool panel toggle
+   - Thread list: desktop (inline) + mobile (Sheet)
+   - MessageArea + ChatInput in center
+   - Collapsible Tool Panel at bottom (AnimatePresence)
+   - Simulated Run execution on message send:
+     - Creates in_progress Run with 4 steps
+     - Step 1 (message_creation) completes at 800ms
+     - Step 2 (tool_calls) → Step 3 (tool_execution) completes at 2500ms
+     - Step 4 (message_creation) + full Run completes at 4000ms
+     - Real-time step status updates via setMessagesMap mutations
+   - Quick suggestion click handler
+   - Back to agents navigation
+
+### Integration:
+- Imported ChatView2 in page.tsx, added to renderView switch case
+- Added 'chat2' ViewMode to store.ts
+- Added nav.chat2 to Sidebar with MessageSquare icon, ⌘9 shortcut, isNew badge
+- Added keyboard shortcut '9' → 'chat2' in page.tsx
+- Added chat2 i18n namespace (38 keys) + nav.chat2 key to en.json and zh.json
+
+### Verification:
+- `bun run lint` passes clean (0 errors)
+- JSON validation passes for en.json and zh.json
+- Dev server running, no module resolution errors
+- All import paths corrected (./chat/ subdirectory)
+
+Stage Summary:
+- **ChatView2 fully implemented** as a standalone Thread/Run/Step chat component
+- 7 new component files created in /src/components/views/chat/ subdirectory
+- Core features: Agent selector, Thread list, Message area with Run visualization, Step timeline, Chat input, Tool panel
+- Run visualization with color-coded status badges, expandable step timeline, real-time step updates
+- Mobile responsive: Thread list becomes Sheet/drawer on mobile
+- Dark mode support with consistent shadcn/ui theming
+- Framer Motion animations throughout
+- Mock data with 3 pre-built threads showcasing tool call conversations
+- Simulated real-time Run execution on message send
+- Ready for API integration (replace mock functions with real API calls)
+- Lint passes clean, dev server running without errors
+
+---
+Task ID: 3
+Agent: APIRouteBuilder
+Task: Create Thread, Run, Step, Tool, and AgentTool CRUD API routes for Hermes Hub 2.0
+
+Work Log:
+- Read worklog.md to understand project history (Tasks 1-8c)
+- Analyzed existing patterns from /api/agents/route.ts (auth, error handling, response format)
+- Reviewed Prisma schema: Thread, Run, Step, Tool, AgentTool models already defined
+- Created 12 API route files across 4 resource groups:
+
+### 1. Thread API Routes (3 files)
+- `/api/threads/route.ts` (GET + POST):
+  - GET: List threads for authenticated user with agentId/status filters, includes agent info, last message, run count, ordered by updatedAt desc
+  - POST: Create thread with required agentId, optional title/systemPrompt/contextWindow/metadata, validates agent ownership
+- `/api/threads/[threadId]/route.ts` (GET + PATCH + DELETE):
+  - GET: Get thread with agent, messages (last 50 reversed), runs with steps
+  - PATCH: Update thread (title, systemPrompt, status, metadata) with ownership check
+  - DELETE: Soft delete (set status to 'deleted') with ownership check
+- `/api/threads/[threadId]/messages/route.ts` (GET + POST):
+  - GET: Paginated messages with before/after cursor, limit, ordered by createdAt asc
+  - POST: Add message with required content, optional type/metadata, auto-sets senderId/senderType/senderName
+
+### 2. Run API Routes (4 files)
+- `/api/threads/[threadId]/runs/route.ts` (GET + POST):
+  - GET: List runs with steps, paginated, ordered by createdAt desc
+  - POST: Create run in "queued" status (execution happens async via Agent Runtime)
+- `/api/threads/[threadId]/runs/[runId]/route.ts` (GET):
+  - GET: Get run with steps, verify thread ownership
+- `/api/threads/[threadId]/runs/[runId]/cancel/route.ts` (POST):
+  - POST: Cancel run (only queued/in_progress), set status to 'cancelled'
+- `/api/threads/[threadId]/runs/[runId]/steps/route.ts` (GET):
+  - GET: List steps for run, ordered by createdAt asc
+
+### 3. Tool API Routes (3 files)
+- `/api/tools/route.ts` (GET + POST):
+  - GET: List user's own + public + system tools (userId=null), filter by category/handlerType, search by name/displayName/description
+  - POST: Create tool with kebab-case name validation, uniqueness check, required fields (name, displayName, description)
+- `/api/tools/[toolId]/route.ts` (GET + PATCH + DELETE):
+  - GET: Get tool (accessible if owner, public, or system)
+  - PATCH: Update tool with ownership check
+  - DELETE: Delete tool with ownership check, cannot delete system tools (userId=null)
+- `/api/tools/seed/route.ts` (POST):
+  - POST: Seed 6 built-in system tools (userId=null, isPublic=true):
+    1. web_search - Web Search (builtin, utility)
+    2. code_execute - Code Execute (builtin, development)
+    3. file_read - File Read (builtin, utility)
+    4. file_write - File Write (builtin, utility)
+    5. calculator - Calculator (builtin, utility)
+    6. http_request - HTTP Request (http handler, development)
+  - Each with proper JSON Schema parameters
+  - Skips tools that already exist
+
+### 4. AgentTool Binding Routes (2 files)
+- `/api/agents/[id]/tools/route.ts` (GET + POST):
+  - GET: List tools bound to agent via AgentTool, include tool details, order by priority
+  - POST: Bind tool to agent with optional config/priority, validate agent ownership and tool accessibility
+  - Note: Uses [id] to match existing agents route pattern (not [agentId])
+- `/api/agents/[id]/tools/[toolId]/route.ts` (PATCH + DELETE):
+  - PATCH: Update binding (isEnabled, config, priority) with ownership check
+  - DELETE: Unbind tool from agent with ownership check
+
+### Bug Fix
+- Initially created AgentTool routes under `/api/agents/[agentId]/tools/` which conflicted with existing `/api/agents/[id]/` routes (Next.js error: "different slug names for the same dynamic path")
+- Fixed by moving to `/api/agents/[id]/tools/` to match the existing `[id]` convention
+- Cleared .next cache to resolve stale route compilation
+
+### Verification
+- `bun run lint` passes clean (0 errors)
+- All 12 route files follow consistent pattern: requireAuth(), ownership checks, try/catch, JSON response format `{ data }` or `{ error, details? }`
+
+Stage Summary:
+- **12 API route files created** covering Thread (3), Run (4), Tool (3), AgentTool (2) CRUD operations
+- **All routes authenticated** via requireAuth(request) with proper error handling
+- **Ownership verification** on all mutation endpoints (PATCH/DELETE)
+- **Tool seed endpoint** creates 6 built-in system tools with proper JSON Schema parameters
+- **AgentTool bindings** support priority ordering, enable/disable, and config overrides
+- **Run execution model** creates runs in "queued" status for async processing by Agent Runtime service
+- Lint passes clean
+
+---
+Task ID: 6+7
+Agent: ViewCreator
+Task: Create Tool Registry and Activity page view components
+
+Work Log:
+- Read worklog.md to understand full project history (Tasks 1-8)
+- Analyzed existing project structure: store.ts, Sidebar.tsx, page.tsx, i18n setup, existing view components
+- Found that store.ts already had `toolRegistry` and `activity` ViewMode entries from a prior task
+- Found that Sidebar.tsx already had navigation entries for both views
+- Found that page.tsx already had renderView cases for both views
+
+### ToolRegistry.tsx Created:
+- Full component at `/src/components/views/ToolRegistry.tsx`
+- **Tool Grid**: Responsive card grid (1/2/3 columns) showing system and custom tools
+- **System Tools section**: Read-only display of 6 builtin tools (web_search, calculator, file_read, file_write, http_request, code_execute)
+- **Custom Tools section**: Editable tools with dropdown menu (Edit/Delete)
+- **Tool Card**: Icon (emoji), display name, handler type badge (color-coded: emerald=builtin, sky=http, violet=websocket, amber=code), description (2-line clamp), category badge (color-coded), used-by-agents count, coming soon status
+- **Search + Filter**: Search by name/description with clear button, Category dropdown, Handler Type dropdown
+- **Create Tool Dialog**: Full form with icon picker, kebab-case name (validated), display name, description, category, handler type, parameters JSON Schema, handler config JSON, form validation with error messages
+- **Edit Tool Dialog**: Pre-filled form, same validation
+- **Delete Confirmation**: AlertDialog with tool name
+- **Empty State**: "Create your first tool" CTA with icon, title, description, and create button
+- **Mock Data**: 6 system tools + 2 custom tools, useState for local state management
+- **Animations**: Framer Motion card entry (opacity/y/scale), AnimatePresence for exit, layout animations
+- **Dark mode**: Full support with proper contrast classes
+- **Mobile responsive**: Grid adapts from 1 to 3 columns
+
+### ActivityView.tsx Created:
+- Full component at `/src/components/views/ActivityView.tsx`
+- **Stats Summary**: 4 stat cards (Total Runs Today, Success Rate, Avg Duration, Total Tokens) with stagger animation
+- **Run List**: Grouped by date (Today, Yesterday, This Week, Older) with date headers and count badges
+- **Run Card**: Clickable to expand/collapse, shows run number, agent name, status badge (color-coded: green=completed, red=failed, amber=in_progress, gray=cancelled), step count, duration, timestamp range
+- **Run Detail (expanded)**: Thread title, duration, token usage (in/out), full step timeline with tool call arguments and results, View Thread and Re-run action buttons
+- **Step Timeline**: Reuse design pattern from ChatView2's StepTimeline component — circular status dots, connector lines, step type icons, tool params, tool results (expandable), message content
+- **Filter Popover**: Filter by agent and status, with active filter badges and clear all button
+- **Refresh Button**: Animated spinner during refresh
+- **Empty State**: "No Activity Yet" with icon and description
+- **Mock Data**: 9 runs across 3 agents (GPT Assistant, Code Helper, Data Analyst), 4 statuses, 5 date groups, including runs with tool calls
+- **Animations**: Framer Motion card entry, AnimatePresence expand/collapse, step timeline stagger, stat card stagger
+- **Dark mode**: Full support with proper contrast classes
+- **Mobile responsive**: Stats grid adapts from 2 to 4 columns, filter controls stack vertically
+
+### i18n Keys Added:
+- Added `toolRegistry` namespace (32 keys) to en.json and zh.json
+  - title, subtitle, createTool, searchPlaceholder, category, handlerType, allCategories, allTypes, systemTools, customTools, usedByAgents, comingSoon, noCustomTools, noCustomToolsDesc, createFirstTool, createTitle, createTitleDesc, editTitle, editTitleDesc, icon, nameLabel, displayNameLabel, descriptionLabel, parametersSchema, handlerConfig, nameRequired, nameKebab, nameExists, displayNameRequired, descriptionRequired, invalidJson, creating, saving, created, updated, deleted, deleteTitle, deleteDesc
+- Added `activity` namespace (33 keys) to en.json and zh.json
+  - title, subtitle, filter, refreshed, today, yesterday, thisWeek, older, run, steps, step, statusCompleted, statusFailed, statusInProgress, statusCancelled, stepMessageCreation, stepToolCalls, stepToolExecution, toolResult, thread, tokensIn, tokensOut, viewThread, rerun, rerunStarted, totalRunsToday, successRate, avgDuration, totalTokens, noActivity, noActivityDesc, filterByAgent, filterByStatus, allAgents, allStatuses, filteringBy, clearFilters
+
+### Integration:
+- page.tsx: Updated imports to use default exports (ToolRegistry, ActivityView)
+- store.ts: Already had ViewMode entries ('toolRegistry', 'activity')
+- Sidebar.tsx: Already had navigation entries (Wrench icon for Tools, Activity icon for Activity)
+
+### Verification:
+- `bun run lint` passes clean (0 errors)
+- Both components export as default
+- All TypeScript types properly defined
+- Framer Motion animations for expand/collapse, list entry, and stagger effects
+- Dark mode support with proper text contrast
+- Mobile responsive with breakpoint-aware grids
+
+Stage Summary:
+- **ToolRegistry component fully implemented** with tool grid, CRUD dialogs, search/filter, mock data, animations
+- **ActivityView component fully implemented** with run history, step timeline, stats summary, filters, mock data, animations
+- **i18n keys added** — 32 toolRegistry keys + 33 activity keys in both en.json and zh.json
+- **All integrations verified** — store, sidebar, page.tsx already wired up from prior task
+- Lint passes clean, dev server running without errors
+
+---
+Task ID: 5
+Agent: AgentBuilderCreator
+Task: Create Agent Builder page — a streamlined, Tool-centric approach for creating/editing agents
+
+Work Log:
+- Read worklog.md (Tasks 1-8c) and existing project code: AgentManager.tsx, Prisma schema, store.ts, page.tsx, i18n files
+- Analyzed the existing Agent creation flow (dialog-based in AgentManager.tsx)
+- Added `agentBuilder` i18n namespace with 48+ keys in en.json and zh.json covering:
+  - title, createTitle, editTitle
+  - steps (runtime, identity, config, tools)
+  - runtimeTypes (builtin, remote, workflow) with descriptions and "coming soon"
+  - identity form fields (name, description, avatar, systemPrompt, isPublic)
+  - runtime config fields (provider, model, temperature, maxTokens, endpointType, endpointUrl, authToken)
+  - tool binding fields (available, bound, search, add, remove, enabled, disabled, category, priority)
+  - button labels (cancel, create, save, creating, saving)
+  - validation messages (nameRequired, runtimeRequired, providerRequired, endpointRequired)
+- Created 5 new component files:
+
+  1. `/src/components/views/agent-builder/RuntimeSelector.tsx` (Step 1)
+     - 3 runtime type cards: Builtin (🤖), Remote (🌐), Workflow (🔄, disabled/coming soon)
+     - Selected card highlighted with ring + colored background
+     - Brief description under each option
+     - Framer Motion stagger animation on load
+     - Green checkmark indicator on selected card
+     - Lock overlay on disabled Workflow option
+
+  2. `/src/components/views/agent-builder/IdentityForm.tsx` (Step 2)
+     - Name input (required, with red asterisk)
+     - Description textarea
+     - Avatar: text input with emoji placeholder, max 4 chars
+     - System Prompt: large textarea with character count (max 4000)
+     - Public/Private toggle with description text
+     - Responsive grid layout (avatar + description side by side on sm+)
+
+  3. `/src/components/views/agent-builder/RuntimeConfig.tsx` (Step 3)
+     - **Builtin**: Provider dropdown, Model dropdown (dynamic from selected provider), Temperature slider (0-2 with Precise/Creative labels), Max Tokens input
+     - **Remote**: Endpoint Type (HTTP/WebSocket), Endpoint URL input, Auth Token (password) input
+     - **Workflow**: "Coming soon" card with icon and description
+     - Animated transitions between runtime types using AnimatePresence
+     - Mock providers: OpenAI (5 models), Anthropic (3 models), Google Gemini (3 models)
+     - Accepts real providers from store to override mock data
+
+  4. `/src/components/views/agent-builder/ToolBinder.tsx` (Step 4)
+     - Two-column layout: Available Tools (left) → Bound Tools (right)
+     - 10 mock tools: web_search, calculator, file_read, file_write, http_request, code_execute, database_query, image_generate, schedule_task, translate
+     - Search/filter available tools
+     - Click "+" to bind a tool (with AnimatePresence pop layout animation)
+     - Click "✕" to unbind a tool
+     - Each bound tool can be enabled/disabled via Switch toggle
+     - Category badges with color coding (communication=sky, productivity=amber, development=emerald, etc.)
+     - Priority display (#1, #2, etc.) with GripVertical drag handle (visual only)
+     - ScrollArea with 320px max height for both lists
+     - Empty states with icons and helpful text
+
+  5. `/src/components/views/AgentBuilder.tsx` (Main container)
+     - 4-step wizard: Runtime → Identity → Config → Tools
+     - Step indicator bar with numbered pills, active state, completed (green checkmark), disabled states
+     - Back button in header to navigate to agents list
+     - Previous/Next/Create buttons at bottom
+     - Step validation: Name required, runtime required, provider for builtin, endpoint for remote
+     - Edit mode: pre-fills all fields from existing agent data
+     - Title changes to "Edit Agent" in edit mode, button to "Save Changes"
+     - Framer Motion page transitions between steps
+     - Submission: calls api.createAgent() or api.updateAgent() with tool binding data
+     - On success: navigates back to agents list with toast notification
+
+- Integrated AgentBuilder into the app:
+  - Added `AgentBuilder` import to page.tsx
+  - Added `case 'agentBuilder'` in renderView() switch
+  - Modified AgentManager.tsx: "Create Agent" button now navigates to AgentBuilder view instead of opening dialog
+  - Fixed pre-existing bug: ToolRegistry import was using default export but component uses named export
+- Lint passes clean with 0 errors
+- Page compiled successfully (verified via dev server log: "GET / 200")
+
+Stage Summary:
+- **Agent Builder fully implemented** as a 4-step wizard with Runtime Selector, Identity Form, Runtime Config, and Tool Binder
+- **Component structure**: 5 files in agent-builder/ subdirectory + main AgentBuilder.tsx
+- **i18n complete**: 48+ keys in both en.json and zh.json
+- **Integration complete**: "Create Agent" button in AgentManager now navigates to AgentBuilder
+- **Mock data ready**: 3 providers with 11 models, 10 tools across 6 categories
+- **Edit mode supported**: Pre-fills all fields from existing agent, including tool bindings
+- Lint passes clean, page compiles successfully
+
+---
+Task ID: 8
+Agent: SidebarNavUpdater
+Task: Update Sidebar navigation for Hermes Hub 2.0, update page.tsx router, add new views
+
+Work Log:
+- Read worklog.md to understand project history (Tasks 1-8c)
+- Analyzed current store.ts, Sidebar.tsx, page.tsx, and i18n files
+
+### 1. Updated Zustand Store (store.ts)
+- Added `'agentBuilder' | 'toolRegistry' | 'activity'` to ViewMode type union
+- All existing view modes preserved
+
+### 2. Updated Sidebar Navigation (Sidebar.tsx)
+- Added new icon imports: Wrench, Activity, ArrowLeftRight
+- Updated sectionLabelKeys: replaced 'communication' with 'create' and 'legacy'
+- Restructured nav sections to Hermes Hub 2.0 layout:
+  - **Main**: Dashboard (⌘1), Thread Chat (⌘9, NEW badge), Activity (⌘0)
+  - **Create**: Agent Builder (⌘2), Tools (⌘3)
+  - **Legacy** (collapsed by default, reduced opacity): Chat (⌘7), Agents (⌘4), Skills (⌘5), Agent Control (⌘6)
+  - **Management**: Files, Memory, Jobs, Channels, Usage, Profiles
+  - **System**: Settings (⌘,), Logs, Terminal, Providers (⌘8)
+- Added `defaultCollapsedSections` array with 'legacy' section
+- Updated `getCollapsedSections()` to return legacy as collapsed by default
+- Added `isLegacy` flag to legacy section with subtle styling (opacity-60 hover:opacity-100)
+- Legacy section header uses muted-foreground/40 for extra subtlety
+- Updated version badge from v1.0 to v2.0
+
+### 3. Created New View Components
+- **AgentBuilder.tsx**: Agent creation interface with template selection, search, configuration form
+  - 4 agent templates (Assistant, Code Expert, Research Analyst, Security Agent)
+  - Template selection with visual feedback
+  - Agent name and system prompt configuration
+  - Quick stats card (Available Tools, Skill Templates)
+- **ToolRegistry.tsx**: Tool browsing and management interface
+  - 8 mock tools across 6 categories (Web, Code, Data, Comms, Media, Utility)
+  - Category filter chips with search
+  - Sort by name or popularity
+  - Install/Configure buttons with installed badge
+  - Tool metadata (version, author, downloads)
+- **ActivityView.tsx**: Agent execution history and monitoring
+  - 10 mock activity entries (success, error, warning, running)
+  - Stats cards (Successful, Errors, Running, Total Events)
+  - Filter by type with search
+  - Running items show spinning icon
+  - Duration and token badges
+
+### 4. Updated page.tsx Router
+- Added imports for AgentBuilder, ToolRegistry, ActivityView
+- Added switch cases: 'agentBuilder' → AgentBuilder, 'toolRegistry' → ToolRegistry, 'activity' → ActivityView
+- Updated keyboard shortcut mapping:
+  - ⌘1: dashboard, ⌘2: agentBuilder, ⌘3: toolRegistry
+  - ⌘4: agents, ⌘5: skills, ⌘6: agent-control
+  - ⌘7: chat, ⌘8: providers, ⌘9: chat2, ⌘0: activity
+
+### 5. Updated i18n Files
+- **en.json**: Added nav.agentBuilder ("Agent Builder"), nav.toolRegistry ("Tools"), nav.activity ("Activity"), nav.legacy ("Legacy"), sidebar.sectionCreate ("Create"), sidebar.sectionLegacy ("Legacy")
+- **zh.json**: Added nav.agentBuilder ("构建智能体"), nav.toolRegistry ("工具库"), nav.activity ("执行记录"), nav.legacy ("旧版"), sidebar.sectionCreate ("创建"), sidebar.sectionLegacy ("旧版")
+
+### Verification
+- `bun run lint` passes clean (0 errors)
+- Dev server running on port 3000, serving pages correctly
+- All existing views and navigation preserved
+
+Stage Summary:
+- **Sidebar restructured** with 5 sections (Main, Create, Legacy, Management, System)
+- **Legacy section** collapsed by default with reduced opacity styling
+- **3 new views** created: AgentBuilder, ToolRegistry, ActivityView
+- **Keyboard shortcuts** updated to prioritize new views
+- **i18n complete** for en.json and zh.json
+- Version badge updated to v2.0
+- Lint passes, dev server running

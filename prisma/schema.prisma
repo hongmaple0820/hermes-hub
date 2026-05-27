@@ -40,6 +40,8 @@ model User {
   appSettings     AppSettings[]
   oAuthTokens     OAuthToken[]
   skills          Skill[]
+  threads         Thread[]
+  tools           Tool[]
   auditLogs              AuditLog[]
   conversationTemplates  ConversationTemplate[]
 }
@@ -92,6 +94,7 @@ model Agent {
   avatar      String?
   systemPrompt String?
   mode        String   @default("builtin") // builtin, acrp
+  runtime     String   @default("builtin") // builtin, remote, workflow
   isPublic    Boolean  @default(false)
   status      String   @default("offline") // online, offline, busy, error
 
@@ -130,6 +133,8 @@ model Agent {
   memories      AgentMemory[]
   usageRecords  UsageRecord[]
   jobs          Job[]
+  threads       Thread[]
+  agentTools    AgentTool[]
 }
 
 // ==================== Skill/Plugin System ====================
@@ -318,11 +323,15 @@ model Message {
   metadata       String   @default("{}") // JSON: reactions, mentions, attachments
   createdAt      DateTime @default(now())
 
+  threadId      String?
+
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User?        @relation("MessageSender", fields: [senderId], references: [id])
+  thread       Thread?      @relation(fields: [threadId], references: [id])
 
   @@index([conversationId, createdAt])
   @@index([senderId])
+  @@index([threadId])
 }
 
 // ==================== Chat Rooms (Multi-Agent) ====================
@@ -669,6 +678,147 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ==================== Hermes Hub 2.0: Thread/Run/Step Execution Model ====================
+
+model Thread {
+  id            String   @id @default(cuid())
+  agentId       String
+  userId        String
+  title         String?
+  metadata      String   @default("{}")
+  
+  // Context management
+  contextWindow Int      @default(4096)
+  systemPrompt  String?  // Thread-level system prompt override
+  
+  // Status
+  status        String   @default("active") // active, archived, deleted
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  agent         Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages      Message[]
+  runs          Run[]
+  
+  @@index([agentId])
+  @@index([userId])
+  @@index([status])
+}
+
+model Run {
+  id              String    @id @default(cuid())
+  threadId        String
+  status          String    @default("queued")
+  // queued → in_progress → completed / failed / requires_action / cancelled
+  
+  // Execution stats
+  inputTokens     Int       @default(0)
+  outputTokens    Int       @default(0)
+  totalSteps      Int       @default(0)
+  
+  // Action required
+  requiredAction  String?   // JSON: { type, tool_call_id, ... }
+  lastError       String?
+  
+  // Timing
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  
+  thread          Thread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  steps           Step[]
+  
+  @@index([threadId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Step {
+  id          String    @id @default(cuid())
+  runId       String
+  type        String    
+  // message_creation: LLM generates message
+  // tool_calls: LLM requests tool calls
+  // tool_execution: Tool execution result
+  
+  status      String    @default("in_progress")
+  // in_progress → completed / failed
+  
+  detail      String    @default("{}")
+  // message_creation: { message_id }
+  // tool_calls: { calls: [{ id, name, arguments }] }
+  // tool_execution: { call_id, name, result, error, duration_ms }
+  
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  
+  run         Run       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  
+  @@index([runId])
+  @@index([type])
+}
+
+// ==================== Hermes Hub 2.0: Simplified Tool System ====================
+
+model Tool {
+  id            String   @id @default(cuid())
+  userId        String?  // null = system built-in
+  name          String   @unique  // Unique identifier: "web_search", "code_execute"
+  displayName   String
+  description   String
+  category      String   @default("general") // communication, productivity, development, data, media, utility, general
+  
+  // Parameter Schema (JSON Schema format, directly usable by LLM function calling)
+  parameters    String   @default("{}")
+  
+  // Execution method
+  handlerType   String   @default("builtin")
+  // builtin: Hub built-in implementation
+  // http: HTTP callback
+  // websocket: Execute via connected remote agent's WS
+  // code: Sandbox code execution (future)
+  
+  handlerConfig String   @default("{}")
+  // http: { url, method, headers, auth }
+  // websocket: { agentId }
+  // builtin: { impl: "web_search" | "code_execute" | ... }
+  
+  icon          String?
+  isPublic      Boolean  @default(false)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  user          User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agents        AgentTool[]
+  
+  @@index([userId])
+  @@index([category])
+  @@index([handlerType])
+}
+
+model AgentTool {
+  id        String   @id @default(cuid())
+  agentId   String
+  toolId    String
+  isEnabled Boolean  @default(true)
+  config    String   @default("{}") // Tool-level config override
+  priority  Int      @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  tool      Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  
+  @@unique([agentId, toolId])
+  @@index([agentId])
+  @@index([toolId])
 }
 
 // ==================== Conversation Templates ====================

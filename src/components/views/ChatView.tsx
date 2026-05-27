@@ -1294,6 +1294,7 @@ function RoomsPanel() {
     if (!user?.id) return;
 
     const socket = io('/?XTransformPort=3003', {
+      path: '/socket.io/',
       auth: {
         userId: user.id,
         username: user.name || user.email || 'User',

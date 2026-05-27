@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Bot, Server, Puzzle, MessageSquare, Users, Settings,
   LogOut, ChevronLeft, ChevronRight, Zap, Languages,
   Radio, Clock, BarChart3, UserCircle, Brain, ScrollText, Folder, Terminal,
-  Monitor, ChevronDown, Menu,
+  Monitor, ChevronDown, Menu, Wrench, Activity, ArrowLeftRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -25,46 +25,59 @@ interface SidebarProps {
 
 const sectionLabelKeys: Record<string, string> = {
   main: 'sidebar.sectionMain',
-  communication: 'sidebar.sectionCommunication',
+  create: 'sidebar.sectionCreate',
+  legacy: 'sidebar.sectionLegacy',
   management: 'sidebar.sectionManagement',
   system: 'sidebar.sectionSystem',
 };
+
+// Sections that should be collapsed by default
+const defaultCollapsedSections = ['legacy'];
 
 const navSections = [
   {
     label: 'main',
     items: [
       { id: 'dashboard' as ViewMode, labelKey: 'nav.dashboard', icon: LayoutDashboard, shortcut: '⌘1' },
-      { id: 'agents' as ViewMode, labelKey: 'nav.agents', icon: Bot, shortcut: '⌘2' },
-      { id: 'providers' as ViewMode, labelKey: 'nav.providers', icon: Server, shortcut: '⌘3' },
-      { id: 'skills' as ViewMode, labelKey: 'nav.skills', icon: Puzzle, shortcut: '⌘4' },
-      { id: 'agent-control' as ViewMode, labelKey: 'nav.agentControl', icon: Monitor, shortcut: '⌘5', isNew: true },
-      { id: 'channels' as ViewMode, labelKey: 'nav.channels', icon: Radio, shortcut: '⌘6' },
+      { id: 'chat2' as ViewMode, labelKey: 'nav.chat2', icon: MessageSquare, shortcut: '⌘9', isNew: true },
+      { id: 'activity' as ViewMode, labelKey: 'nav.activity', icon: Activity, shortcut: '⌘0' },
     ],
   },
   {
-    label: 'communication',
+    label: 'create',
     items: [
-      { id: 'chat' as ViewMode, labelKey: 'nav.chat', icon: MessageSquare, shortcut: '⌘7' },
-      { id: 'chat-rooms' as ViewMode, labelKey: 'nav.chatRooms', icon: Users, shortcut: '⌘8' },
+      { id: 'agentBuilder' as ViewMode, labelKey: 'nav.agentBuilder', icon: Bot, shortcut: '⌘2' },
+      { id: 'toolRegistry' as ViewMode, labelKey: 'nav.toolRegistry', icon: Wrench, shortcut: '⌘3' },
+    ],
+  },
+  {
+    label: 'legacy',
+    isLegacy: true,
+    items: [
+      { id: 'chat' as ViewMode, labelKey: 'nav.chat', icon: ArrowLeftRight, shortcut: '⌘7' },
+      { id: 'agents' as ViewMode, labelKey: 'nav.agents', icon: Bot, shortcut: '⌘4' },
+      { id: 'skills' as ViewMode, labelKey: 'nav.skills', icon: Puzzle, shortcut: '⌘5' },
+      { id: 'agent-control' as ViewMode, labelKey: 'nav.agentControl', icon: Monitor, shortcut: '⌘6' },
     ],
   },
   {
     label: 'management',
     items: [
+      { id: 'files' as ViewMode, labelKey: 'nav.files', icon: Folder },
+      { id: 'memory' as ViewMode, labelKey: 'nav.memory', icon: Brain },
       { id: 'jobs' as ViewMode, labelKey: 'nav.jobs', icon: Clock },
+      { id: 'channels' as ViewMode, labelKey: 'nav.channels', icon: Radio },
       { id: 'usage' as ViewMode, labelKey: 'nav.usage', icon: BarChart3 },
       { id: 'profiles' as ViewMode, labelKey: 'nav.profiles', icon: UserCircle },
-      { id: 'memory' as ViewMode, labelKey: 'nav.memory', icon: Brain },
     ],
   },
   {
     label: 'system',
     items: [
-      { id: 'logs' as ViewMode, labelKey: 'nav.logs', icon: ScrollText },
-      { id: 'files' as ViewMode, labelKey: 'nav.files', icon: Folder },
-      { id: 'terminal' as ViewMode, labelKey: 'nav.terminal', icon: Terminal },
       { id: 'settings' as ViewMode, labelKey: 'nav.settings', icon: Settings, shortcut: '⌘,' },
+      { id: 'logs' as ViewMode, labelKey: 'nav.logs', icon: ScrollText },
+      { id: 'terminal' as ViewMode, labelKey: 'nav.terminal', icon: Terminal },
+      { id: 'providers' as ViewMode, labelKey: 'nav.providers', icon: Server, shortcut: '⌘8' },
     ],
   },
 ];
@@ -74,9 +87,17 @@ function getCollapsedSections(): Record<string, boolean> {
   if (typeof window === 'undefined') return {};
   try {
     const stored = localStorage.getItem('sidebar-collapsed-sections');
-    return stored ? JSON.parse(stored) : {};
+    if (stored) {
+      return JSON.parse(stored);
+    }
+    // Default: legacy section is collapsed
+    const defaults: Record<string, boolean> = {};
+    defaultCollapsedSections.forEach(s => { defaults[s] = true; });
+    return defaults;
   } catch {
-    return {};
+    const defaults: Record<string, boolean> = {};
+    defaultCollapsedSections.forEach(s => { defaults[s] = true; });
+    return defaults;
   }
 }
 
@@ -178,7 +199,7 @@ function SidebarContent({
                   variant="outline"
                   className="h-3.5 px-1 text-[8px] font-mono leading-none border-primary/20 text-primary/60"
                 >
-                  v1.0
+                  v2.0
                 </Badge>
               </div>
             </div>
@@ -223,8 +244,10 @@ function SidebarContent({
                 const isSectionCollapsed = collapsedSections[section.label] === true;
                 const sectionLabelKey = sectionLabelKeys[section.label];
 
+                const isLegacy = (section as any).isLegacy === true;
+
                 return (
-                  <div key={section.label}>
+                  <div key={section.label} className={cn(isLegacy && 'opacity-60 hover:opacity-100 transition-opacity duration-200')}>
                     {/* Separator line between groups */}
                     {sectionIndex > 0 && (
                       <div className="px-3 py-2">
@@ -235,7 +258,10 @@ function SidebarContent({
                     {/* Section Header - non-clickable label */}
                     {navSections.length > 1 && !effectivelyCollapsed && (
                       <div className="flex items-center gap-1.5 px-3 pt-2 pb-1.5 group cursor-pointer" onClick={() => toggleSection(section.label)}>
-                        <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-[0.12em] flex-1 select-none">
+                        <span className={cn(
+                          'text-[10px] font-semibold uppercase tracking-[0.12em] flex-1 select-none',
+                          isLegacy ? 'text-muted-foreground/40' : 'text-muted-foreground/60'
+                        )}>
                           {t(sectionLabelKey)}
                         </span>
                         <ChevronDown
