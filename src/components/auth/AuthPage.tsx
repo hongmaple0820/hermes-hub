@@ -25,7 +25,7 @@ import {
   Globe,
   ArrowRight,
   Cpu,
-  Network,
+  Network as NetworkIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -185,16 +185,15 @@ function FloatingLabelInput({
   const isActive = focused || value.length > 0;
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <div className="relative">
         {/* Floating label */}
         <motion.label
           htmlFor={id}
-          className="absolute left-3 z-10 pointer-events-none origin-left"
+          className="absolute left-3.5 z-10 pointer-events-none origin-left text-sm"
           animate={{
-            y: isActive ? -10 : 0,
-            x: isActive ? 0 : 0,
-            scale: isActive ? 0.75 : 1,
+            y: isActive ? -22 : 0,
+            scale: isActive ? 0.78 : 1,
             color: focused
               ? 'rgb(16, 185, 129)'
               : error
@@ -222,13 +221,13 @@ function FloatingLabelInput({
             onBlur={() => setFocused(false)}
             required={required}
             minLength={minLength}
-            className={`pt-5 pb-2 transition-all duration-300 bg-background/60 backdrop-blur-sm border-border/50 focus:bg-background/80 focus:border-emerald-500/50 focus-visible:ring-emerald-500/20 ${
+            className={`h-12 px-3.5 pt-5 pb-1 text-sm transition-all duration-300 bg-background/60 backdrop-blur-sm border-border/50 focus:bg-background/80 focus:border-emerald-500/50 focus-visible:ring-emerald-500/20 rounded-lg ${
               error ? 'border-destructive focus:border-destructive focus-visible:ring-destructive/30' : ''
-            } ${rightElement ? 'pr-10' : ''} ${className}`}
+            } ${rightElement ? 'pr-11' : ''} ${className}`}
           />
           {/* Focus indicator line */}
           <motion.div
-            className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-emerald-500 to-cyan-500"
+            className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-b-lg"
             initial={{ scaleX: 0 }}
             animate={{ scaleX: focused ? 1 : 0 }}
             transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
@@ -238,7 +237,7 @@ function FloatingLabelInput({
 
         {/* Right element (e.g. password toggle) */}
         {rightElement && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 z-20">
             {rightElement}
           </div>
         )}
@@ -248,11 +247,11 @@ function FloatingLabelInput({
       <AnimatePresence>
         {error && (
           <motion.p
-            initial={{ opacity: 0, y: -5, height: 0 }}
+            initial={{ opacity: 0, y: -4, height: 0 }}
             animate={{ opacity: 1, y: 0, height: 'auto' }}
-            exit={{ opacity: 0, y: -5, height: 0 }}
+            exit={{ opacity: 0, y: -4, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="text-xs text-destructive overflow-hidden"
+            className="text-xs text-destructive pl-1 overflow-hidden"
           >
             {error}
           </motion.p>
@@ -713,7 +712,7 @@ export function AuthPage({ onAuth }: AuthPageProps) {
       </div>
 
       {/* ===== RIGHT PANEL - Form Side ===== */}
-      <div className="flex-1 flex items-center justify-center relative p-4 sm:p-6 lg:p-8">
+      <div className="flex-1 flex items-center justify-center relative px-5 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-8">
         {/* Right panel ambient gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-accent/5" />
         {/* Subtle ambient orbs on right side */}
@@ -724,7 +723,7 @@ export function AuthPage({ onAuth }: AuthPageProps) {
           <FloatingOrb className="bg-emerald-500/5 blur-3xl" size={200} delay={3} duration={18} />
         </div>
 
-        <div className="w-full max-w-md relative z-10">
+        <div className="w-full max-w-[440px] relative z-10">
           <AnimatePresence mode="wait">
             <motion.div
               key={isRegister ? 'register' : 'login'}
@@ -735,14 +734,14 @@ export function AuthPage({ onAuth }: AuthPageProps) {
             >
               {/* Mobile Header */}
               <motion.div
-                className="flex flex-col items-center mb-8 lg:hidden"
+                className="flex flex-col items-center mb-6 lg:hidden"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
               >
                 <motion.div
-                  className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/20 relative"
-                  animate={{ y: [0, -4, 0] }}
+                  className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-3 shadow-lg shadow-emerald-500/20 relative"
+                  animate={{ y: [0, -3, 0] }}
                   transition={{
                     duration: 3,
                     repeat: Infinity,
@@ -751,7 +750,7 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                   }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <Zap className="w-8 h-8 text-white" />
+                  <Zap className="w-7 h-7 text-white" />
                   <motion.div
                     className="absolute inset-0 rounded-2xl border border-white/20"
                     animate={{ opacity: [0.2, 0.5, 0.2] }}
@@ -760,24 +759,24 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                 </motion.div>
                 <h1 className="text-2xl font-bold tracking-tight">
                   <span>Hermes </span>
-                  <span className="bg-gradient-to-r from-emerald-500 to-cyan-600 bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-emerald-500 to-teal-600 bg-clip-text text-transparent">
                     Hub
                   </span>
                 </h1>
-                <p className="text-muted-foreground text-sm mt-1">{t('auth.subtitle')}</p>
+                <p className="text-muted-foreground text-xs mt-1">{t('auth.subtitle')}</p>
               </motion.div>
 
               {/* Desktop Header inside form area */}
               <motion.div
-                className="hidden lg:block mb-8"
+                className="hidden lg:block mb-7"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
               >
-                <h2 className="text-2xl font-bold tracking-tight">
+                <h2 className="text-[26px] font-bold tracking-tight">
                   {isRegister ? t('auth.createAccount') : t('auth.welcomeBack')}
                 </h2>
-                <p className="text-muted-foreground text-sm mt-1.5">
+                <p className="text-muted-foreground text-sm mt-1">
                   {isRegister ? t('auth.signUp') : t('auth.signIn')}
                 </p>
               </motion.div>
@@ -788,27 +787,27 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
               >
-                <Card className="shadow-2xl border-border/40 bg-card/70 backdrop-blur-xl relative overflow-hidden">
+                <Card className="shadow-2xl border-border/40 bg-card/70 backdrop-blur-xl relative overflow-hidden rounded-2xl">
                   {/* Subtle border glow effect */}
-                  <div className="absolute inset-0 rounded-xl border border-primary/10 pointer-events-none" />
+                  <div className="absolute inset-0 rounded-2xl border border-primary/10 pointer-events-none" />
                   {/* Top accent gradient */}
                   <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
 
-                  <CardContent className="pt-6 relative z-10">
+                  <CardContent className="px-7 pt-7 pb-6 relative z-10">
                     <Tabs
                       value={isRegister ? 'register' : 'login'}
                       onValueChange={handleTabChange}
                     >
-                      <TabsList className="w-full mb-6 bg-muted/50 backdrop-blur-sm">
+                      <TabsList className="w-full mb-6 bg-muted/50 backdrop-blur-sm h-10 rounded-lg p-1">
                         <TabsTrigger
                           value="login"
-                          className="flex-1 transition-all data-[state=active]:shadow-sm data-[state=active]:bg-background"
+                          className="flex-1 text-sm font-medium transition-all data-[state=active]:shadow-sm data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md"
                         >
                           {t('auth.signIn')}
                         </TabsTrigger>
                         <TabsTrigger
                           value="register"
-                          className="flex-1 transition-all data-[state=active]:shadow-sm data-[state=active]:bg-background"
+                          className="flex-1 text-sm font-medium transition-all data-[state=active]:shadow-sm data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md"
                         >
                           {t('auth.signUp')}
                         </TabsTrigger>
@@ -816,16 +815,16 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                     </Tabs>
 
                     {/* Social Login Buttons - Enhanced */}
-                    <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="grid grid-cols-2 gap-3 mb-5 mt-5">
                       <motion.div
-                        whileHover={{ scale: 1.03, y: -1 }}
+                        whileHover={{ scale: 1.02, y: -1 }}
                         whileTap={{ scale: 0.97 }}
                         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                       >
                         <Button
                           type="button"
                           variant="outline"
-                          className="gap-2.5 w-full h-11 bg-background/50 backdrop-blur-sm border-border/50 hover:bg-[#24292e]/5 hover:border-[#24292e]/30 dark:hover:bg-[#24292e]/20 dark:hover:border-[#24292e]/40 transition-all duration-300 hover:shadow-md group"
+                          className="gap-2.5 w-full h-12 bg-background/50 backdrop-blur-sm border-border/50 hover:bg-[#24292e]/5 hover:border-[#24292e]/30 dark:hover:bg-[#24292e]/20 dark:hover:border-[#24292e]/40 transition-all duration-300 hover:shadow-md group rounded-lg"
                           onClick={() => handleSocialLogin(t('auth.github'))}
                         >
                           <Github className="w-4 h-4 group-hover:text-[#24292e] dark:group-hover:text-white transition-colors" />
@@ -833,14 +832,14 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                         </Button>
                       </motion.div>
                       <motion.div
-                        whileHover={{ scale: 1.03, y: -1 }}
+                        whileHover={{ scale: 1.02, y: -1 }}
                         whileTap={{ scale: 0.97 }}
                         transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                       >
                         <Button
                           type="button"
                           variant="outline"
-                          className="gap-2.5 w-full h-11 bg-background/50 backdrop-blur-sm border-border/50 hover:bg-[#4285F4]/5 hover:border-[#4285F4]/30 dark:hover:bg-[#4285F4]/20 dark:hover:border-[#4285F4]/40 transition-all duration-300 hover:shadow-md group"
+                          className="gap-2.5 w-full h-12 bg-background/50 backdrop-blur-sm border-border/50 hover:bg-[#4285F4]/5 hover:border-[#4285F4]/30 dark:hover:bg-[#4285F4]/20 dark:hover:border-[#4285F4]/40 transition-all duration-300 hover:shadow-md group rounded-lg"
                           onClick={() => handleSocialLogin(t('auth.google'))}
                         >
                           <GoogleIcon />
@@ -852,16 +851,16 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                     {/* Divider */}
                     <div className="relative my-5">
                       <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t border-border/60" />
+                        <span className="w-full border-t border-border/40" />
                       </div>
                       <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-card/80 backdrop-blur-sm px-3 text-muted-foreground">
+                        <span className="bg-card/90 backdrop-blur-sm px-3 text-muted-foreground/80 tracking-wider">
                           {isRegister ? t('auth.signUp') : t('auth.signIn')} with email
                         </span>
                       </div>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleSubmit} className="space-y-4 mt-1">
                       {/* Name field - Register only */}
                       <AnimatePresence>
                         {isRegister && (
@@ -922,7 +921,7 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                             <button
                               type="button"
                               onClick={() => setShowPassword(!showPassword)}
-                              className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-accent/50"
+                              className="text-muted-foreground/70 hover:text-foreground transition-colors p-1.5 rounded-md hover:bg-accent/50"
                               aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
                             >
                               {showPassword ? (
@@ -982,7 +981,7 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                       </div>
 
                       {/* Forgot password + Remember me row */}
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between pt-1">
                         <AnimatePresence>
                           {!isRegister && (
                             <motion.div
@@ -996,10 +995,11 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                                 id="remember"
                                 checked={rememberMe}
                                 onCheckedChange={(checked) => setRememberMe(checked === true)}
+                                className="data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
                               />
                               <Label
                                 htmlFor="remember"
-                                className="text-sm text-muted-foreground cursor-pointer select-none"
+                                className="text-sm text-muted-foreground cursor-pointer select-none leading-none"
                               >
                                 {t('auth.rememberMe')}
                               </Label>
@@ -1026,7 +1026,7 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                       >
                         <Button
                           type="submit"
-                          className="w-full h-11 relative overflow-hidden bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 transition-all duration-300 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 font-medium"
+                          className="w-full h-12 relative overflow-hidden bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 font-semibold text-[15px] rounded-lg"
                           disabled={loading}
                         >
                           {/* Shimmer effect on idle */}
@@ -1085,13 +1085,10 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                     </AnimatePresence>
 
                     {/* Features footer */}
-                    <div className="mt-6 pt-4 border-t border-border/40">
-                      <div className="flex items-center justify-center gap-4">
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Network className="w-3.5 h-3.5" />
-                          <span className="text-xs">{t('auth.features')}</span>
-                        </div>
-                      </div>
+                    <div className="mt-5 pt-4 border-t border-border/30">
+                      <p className="text-center text-[11px] text-muted-foreground/50 font-medium">
+                        {t('auth.features')}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>

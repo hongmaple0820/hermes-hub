@@ -3136,3 +3136,79 @@ Stage Summary:
 - All i18n keys added for English and Chinese
 - Lint clean, dev server stable, VLM QA passed
 - Remaining: Gateway WS integration for Tool system websocket handlerType
+
+---
+Task ID: 9
+Agent: main
+Task: Fix AuthPage login/registration form styling issues
+
+Work Log:
+- User reported "登录注册框样式有问题" (login/registration form styling issues)
+- Used agent-browser to screenshot both desktop (1440x900) and mobile (390x844) views
+- Used VLM (z-ai vision) to analyze screenshots and identify specific issues
+- Desktop VLM analysis found: floating label positioning issues, input field inconsistency, card spacing problems, tab active/inactive lack of differentiation, password toggle icon misalignment
+- Mobile VLM analysis found: form not centered vertically, touch targets too small, spacing issues, footer text cutoff, floating labels not working correctly
+
+### Fixes Applied:
+
+1. **FloatingLabelInput component overhaul:**
+   - Fixed label animation: changed y from -10 to -22 for proper upward positioning above input
+   - Changed scale from 0.75 to 0.78 for better readability when floating
+   - Added `text-sm` class for consistent label sizing
+   - Added `left-3.5` for better label-to-input alignment
+   - Set consistent `h-12` height on all inputs
+   - Added `px-3.5`, `pt-5`, `pb-1` for proper padding with floating labels
+   - Added `rounded-lg` for consistent border radius
+   - Fixed rightElement positioning: `right-2`, `z-20` for proper layering
+   - Added `pl-1` to error messages for alignment
+
+2. **Card container improvements:**
+   - Changed `max-w-md` to `max-w-[440px]` for better form width
+   - Changed `rounded-xl` to `rounded-2xl` for modern feel
+   - Increased padding: `px-7 pt-7 pb-6` (from `pt-6`)
+   - Improved right panel padding: `px-5 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-8`
+
+3. **Tab navigation improvements:**
+   - Added `h-10 rounded-lg p-1` to TabsList for proper sizing
+   - Added `text-sm font-medium rounded-md` to TabsTrigger
+   - Added `data-[state=active]:text-foreground` for clear active state
+
+4. **Social login buttons:**
+   - Increased height from h-11 to h-12 for 48px touch target
+   - Added `rounded-lg` for consistent border radius
+   - Reduced hover scale from 1.03 to 1.02 for subtler effect
+
+5. **Submit button improvements:**
+   - Increased height from h-11 to h-12 for 48px touch target
+   - Changed gradient from `to-cyan-600` to `to-teal-600` for smoother transition
+   - Increased text size from default to `text-[15px]`
+   - Changed from `font-medium` to `font-semibold`
+   - Added `rounded-lg` for consistency
+   - Enhanced shadow: `shadow-emerald-500/25 hover:shadow-emerald-500/40`
+
+6. **Mobile optimizations:**
+   - Reduced mobile header logo from w-16 to w-14 for better proportion
+   - Reduced mobile logo icon from w-8 to w-7
+   - Changed mobile subtitle from text-sm to text-xs
+   - Reduced mobile header margin from mb-8 to mb-6
+
+7. **Other improvements:**
+   - Divider text: added `tracking-wider` and `text-muted-foreground/80`
+   - Password toggle: increased padding from p-1 to p-1.5 for easier tapping
+   - Remember me: added `leading-none` to label, styled checkbox with emerald-500
+   - Forgot password row: added `pt-1` for spacing
+   - Features footer: replaced English-only icons with i18n `t('auth.features')`
+   - Renamed `Network` import to `NetworkIcon` to avoid confusion
+
+### Verification:
+- VLM rating improved from ~5/10 to 8/10 on both desktop and mobile
+- Login flow tested: works correctly (register → auto-login → dashboard)
+- `bun run lint` passes clean
+- Dev server compiles without errors
+
+Stage Summary:
+- **AuthPage styling significantly improved** with consistent sizing, proper floating labels, and better touch targets
+- Desktop: 8/10 visual quality, mobile: 8/10 visual quality (per VLM analysis)
+- Login/registration flow verified working end-to-end
+- Key improvements: floating label positioning, input height consistency (h-12), 48px touch targets, proper spacing, i18n footer
+- Lint passes, no compilation errors
