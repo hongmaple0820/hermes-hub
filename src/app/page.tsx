@@ -32,6 +32,7 @@ import { SessionSearch } from '@/components/views/SessionSearch';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { Toaster, toast } from 'sonner';
 import { CommandPalette } from '@/components/shared/CommandPalette';
+import { KeyboardShortcutsHelp } from '@/components/shared/KeyboardShortcutsHelp';
 import { WelcomeOnboarding, isOnboardingCompleted } from '@/components/shared/WelcomeOnboarding';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import { NotificationPanel } from '@/components/shared/NotificationPanel';
@@ -412,6 +413,7 @@ function AppContent() {
       <SessionSearch />
       <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
       <WelcomeOnboarding open={showOnboarding} onComplete={() => setShowOnboarding(false)} />
+      <KeyboardShortcutsHelp />
       <Toaster />
     </div>
   );

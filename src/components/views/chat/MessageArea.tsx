@@ -86,27 +86,60 @@ export function MessageArea({
     runNumberMap.set(run.id, run.runNumber);
   });
 
-  // Empty state
+  // Empty state — with subtle floating animation
   if (showEmptyState || messages.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6">
-        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-          <Bot className="w-7 h-7 text-primary" />
-        </div>
-        <h3 className="text-lg font-semibold mb-1">{threadTitle || agentName}</h3>
-        <p className="text-sm text-muted-foreground mb-6">{t('chat2.quickStartDesc')}</p>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
+          className="relative mb-6"
+        >
+          {/* Floating glow effect */}
+          <motion.div
+            animate={{
+              scale: [1, 1.08, 1],
+              opacity: [0.4, 0.6, 0.4],
+            }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            className="absolute inset-0 rounded-3xl bg-primary/10 blur-xl"
+          />
+          <div className="relative w-16 h-16 rounded-3xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/10 flex items-center justify-center">
+            <Bot className="w-8 h-8 text-primary" />
+          </div>
+        </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
+        <motion.h3
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="text-lg font-semibold mb-1"
+        >
+          {threadTitle || agentName}
+        </motion.h3>
+        <motion.p
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="text-sm text-muted-foreground mb-6"
+        >
+          {t('chat2.quickStartDesc')}
+        </motion.p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-md">
           {quickSuggestions.map((suggestion, i) => (
             <motion.button
               key={i}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06, duration: 0.2 }}
+              initial={{ opacity: 0, y: 10, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ delay: 0.3 + i * 0.07, duration: 0.25 }}
+              whileHover={{ y: -1, scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
               onClick={() => onSuggestionClick?.(suggestion.text)}
-              className="flex items-center gap-2.5 p-3 rounded-xl border border-border hover:bg-accent/50 hover:border-primary/30 hover:shadow-sm transition-all duration-200 text-left"
+              className="flex items-center gap-2.5 p-3.5 rounded-xl border border-border hover:bg-accent/50 hover:border-primary/30 hover:shadow-sm transition-all duration-200 text-left"
             >
-              <span className="text-muted-foreground shrink-0">{suggestion.icon}</span>
+              <span className="text-primary/70 shrink-0">{suggestion.icon}</span>
               <span className="text-xs text-muted-foreground">{suggestion.text}</span>
             </motion.button>
           ))}

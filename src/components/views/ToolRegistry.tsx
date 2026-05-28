@@ -579,6 +579,15 @@ export function ToolRegistry() {
             const agentCount = toolAgentCount(tool.id);
             const isBound = agentCount > 0;
             const isSystem = tool.userId === null;
+            const categoryGradient: Record<string, string> = {
+              utility: 'from-amber-500/15 to-orange-500/8',
+              development: 'from-blue-500/15 to-cyan-500/8',
+              data: 'from-emerald-500/15 to-teal-500/8',
+              communication: 'from-violet-500/15 to-purple-500/8',
+              media: 'from-pink-500/15 to-rose-500/8',
+              productivity: 'from-cyan-500/15 to-sky-500/8',
+              general: 'from-primary/15 to-primary/8',
+            };
             return (
               <motion.div
                 key={tool.id}
@@ -586,14 +595,14 @@ export function ToolRegistry() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.04 }}
               >
-                <Card className="rounded-xl hover:shadow-md hover:scale-[1.01] transition-all duration-200 hover:border-primary/20 group">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
+                <Card className="rounded-xl hover:shadow-md dark:hover:shadow-lg hover:scale-[1.01] transition-all duration-200 hover:border-primary/20 dark:hover:border-primary/15 group">
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-4">
                       <div
-                        className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center shrink-0 group-hover:from-primary/15 group-hover:to-primary/10 transition-colors cursor-pointer"
+                        className={`w-11 h-11 rounded-xl bg-gradient-to-br ${categoryGradient[tool.category] || categoryGradient.general} flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-200 cursor-pointer`}
                         onClick={() => openDetailDialog(tool)}
                       >
-                        <Icon className="w-5 h-5 text-primary/70" />
+                        <Icon className="w-5 h-5 text-primary/70 group-hover:text-primary transition-colors" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -619,10 +628,10 @@ export function ToolRegistry() {
                             </Badge>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{tool.description}</p>
-                        <div className="flex items-center gap-3 mt-2 flex-wrap">
-                          <span className="text-[10px] text-muted-foreground/70">{tool.category}</span>
-                          <span className="text-[10px] text-muted-foreground/70">{tool.handlerType}</span>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{tool.description}</p>
+                        <div className="flex items-center gap-3 mt-2.5 flex-wrap">
+                          <span className="text-[10px] text-muted-foreground/70 capitalize bg-muted/50 px-1.5 py-0.5 rounded">{tool.category}</span>
+                          <span className="text-[10px] text-muted-foreground/70 capitalize bg-muted/50 px-1.5 py-0.5 rounded">{tool.handlerType}</span>
                           {agentCount > 0 && (
                             <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
                               {t('toolRegistry.usedByAgents', { count: agentCount })}
@@ -686,23 +695,54 @@ export function ToolRegistry() {
             transition={{ duration: 0.3 }}
             className="flex flex-col items-center justify-center py-16 text-center"
           >
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-              <Wrench className="w-8 h-8 text-primary/50" />
-            </div>
-            <h3 className="text-base font-semibold mb-1">{t('toolRegistry.noCustomTools')}</h3>
-            <p className="text-sm text-muted-foreground max-w-xs">{t('toolRegistry.noCustomToolsDesc')}</p>
-            <Button
-              size="sm"
-              className="mt-4 rounded-lg gap-1.5"
-              onClick={() => {
-                setFormData(emptyForm);
-                setFormErrors({});
-                setShowCreateDialog(true);
-              }}
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <Plus className="w-3.5 h-3.5" />
-              {t('toolRegistry.createFirstTool')}
-            </Button>
+              <div className="relative">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center">
+                  <Wrench className="w-10 h-10 text-primary/50" />
+                </div>
+                <motion.div
+                  animate={{ rotate: [0, 45, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-500/25 border-2 border-background"
+                />
+              </div>
+            </motion.div>
+            <h3 className="text-base font-semibold mb-1 mt-5">{t('toolRegistry.noCustomTools')}</h3>
+            <p className="text-sm text-muted-foreground max-w-xs">{t('toolRegistry.noCustomToolsDesc')}</p>
+            <div className="flex items-center gap-3 mt-5">
+              <Button
+                size="sm"
+                className="rounded-lg gap-1.5"
+                onClick={async () => {
+                  try {
+                    await api.seedTools();
+                    toast.success(t('toolRegistry.seedSuccess') || 'Default tools seeded');
+                    fetchTools();
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : 'Failed to seed tools');
+                  }
+                }}
+              >
+                <Zap className="w-3.5 h-3.5" />
+                {t('toolRegistry.seedDefaultTools') || 'Seed Default Tools'}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-lg gap-1.5"
+                onClick={() => {
+                  setFormData(emptyForm);
+                  setFormErrors({});
+                  setShowCreateDialog(true);
+                }}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {t('toolRegistry.createFirstTool')}
+              </Button>
+            </div>
           </motion.div>
         )}
       </div>

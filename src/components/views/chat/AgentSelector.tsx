@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Bot,
   Cpu,
@@ -59,21 +60,21 @@ interface QuickStartCard {
 
 const QUICK_START_CARDS: QuickStartCard[] = [
   {
-    icon: <MessageSquare className="w-5 h-5" />,
+    icon: <MessageSquare className="w-7 h-7" />,
     titleKey: 'chat2.quickChat',
     descKey: 'chat2.quickChatDesc',
     prompt: 'Hello! I need help with a conversation assistant.',
     gradient: 'from-cyan-500/10 to-blue-500/10',
   },
   {
-    icon: <Code2 className="w-5 h-5" />,
+    icon: <Code2 className="w-7 h-7" />,
     titleKey: 'chat2.quickCode',
     descKey: 'chat2.quickCodeDesc',
     prompt: 'Help me write and review code.',
     gradient: 'from-emerald-500/10 to-green-500/10',
   },
   {
-    icon: <PenTool className="w-5 h-5" />,
+    icon: <PenTool className="w-7 h-7" />,
     titleKey: 'chat2.quickWrite',
     descKey: 'chat2.quickWriteDesc',
     prompt: 'Help me with writing and content creation.',
@@ -316,53 +317,65 @@ export function AgentSelector({ onSelectAgent }: AgentSelectorProps) {
             </motion.p>
           </motion.div>
 
-          {/* Quick-start suggestion cards */}
+          {/* Quick-start suggestion cards — proper cards with hover effects */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8"
+            className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8"
           >
             {QUICK_START_CARDS.map((card, i) => (
-              <motion.button
+              <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 + i * 0.08 }}
-                whileHover={{ y: -2, scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                initial={{ opacity: 0, y: 16, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ delay: 0.5 + i * 0.1, duration: 0.35, ease: 'easeOut' }}
+                whileHover={{ y: -4, scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => {
-                  // Navigate to agent builder with a hint
                   handleCreateAgent();
                 }}
                 className={cn(
-                  'relative flex flex-col items-center gap-2 p-4 rounded-xl border border-border/80 bg-card hover:border-primary/30 hover:shadow-md transition-all duration-200 text-center group',
+                  'relative flex flex-col items-center gap-3 p-5 rounded-2xl border border-border/60 bg-card cursor-pointer',
+                  'hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 dark:hover:shadow-primary/10',
+                  'transition-all duration-200 text-center group',
                   'bg-gradient-to-br',
                   card.gradient
                 )}
               >
-                <div className="w-9 h-9 rounded-xl bg-background/80 border border-border/50 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                {/* Large prominent icon */}
+                <div className={cn(
+                  'w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg',
+                  'group-hover:scale-110 group-hover:shadow-xl transition-all duration-300',
+                  i === 0 && 'bg-gradient-to-br from-cyan-500 to-blue-600 shadow-cyan-500/25',
+                  i === 1 && 'bg-gradient-to-br from-emerald-500 to-green-600 shadow-emerald-500/25',
+                  i === 2 && 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-500/25'
+                )}>
                   {card.icon}
                 </div>
-                <span className="text-sm font-medium">{t(card.titleKey)}</span>
-                <span className="text-[11px] text-muted-foreground leading-tight">{t(card.descKey)}</span>
-              </motion.button>
+                <span className="text-sm font-semibold">{t(card.titleKey)}</span>
+                <span className="text-xs text-muted-foreground leading-relaxed">{t(card.descKey)}</span>
+                {/* Subtle arrow indicator on hover */}
+                <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <ArrowRight className="w-4 h-4 text-primary/50" />
+                </div>
+              </motion.div>
             ))}
           </motion.div>
 
-          {/* Primary CTA — only ONE create agent button */}
+          {/* Primary CTA — prominent Create New Agent button */}
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
+            transition={{ delay: 0.8 }}
             className="flex flex-col items-center gap-3"
           >
             <Button
               size="lg"
-              className="gap-2 px-8 h-11 text-sm font-medium rounded-xl shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all"
+              className="gap-2 px-10 h-12 text-sm font-semibold rounded-2xl shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/35 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
               onClick={handleCreateAgent}
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-5 h-5" />
               {t('chat2.createAgent')}
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
@@ -429,9 +442,8 @@ export function AgentSelector({ onSelectAgent }: AgentSelectorProps) {
             </button>
           </div>
           <Button
-            variant="outline"
             size="sm"
-            className="gap-1.5 h-8 text-xs rounded-lg shrink-0"
+            className="gap-1.5 h-8 text-xs rounded-lg shrink-0 shadow-sm hover:shadow-md"
             onClick={handleCreateAgent}
           >
             <Plus className="w-3.5 h-3.5" />
@@ -481,12 +493,12 @@ export function AgentSelector({ onSelectAgent }: AgentSelectorProps) {
                   >
                     <Card
                       className={cn(
-                        'cursor-pointer hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 rounded-xl group',
-                        hoveredAgent === agent.id && 'border-primary/40 shadow-md -translate-y-0.5',
+                        'cursor-pointer hover:border-primary/40 hover:shadow-md dark:hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 rounded-xl group',
+                        hoveredAgent === agent.id && 'border-primary/40 shadow-md dark:shadow-lg -translate-y-0.5',
                         // Gradient backgrounds based on mode
-                        agent.mode === 'acrp' && 'bg-gradient-to-br from-card to-cyan-500/5',
-                        agent.mode === 'custom_api' && 'bg-gradient-to-br from-card to-amber-500/5',
-                        agent.mode === 'builtin' && 'bg-gradient-to-br from-card to-emerald-500/5',
+                        agent.mode === 'acrp' && 'bg-gradient-to-br from-card to-cyan-500/5 dark:from-card dark:to-cyan-500/10',
+                        agent.mode === 'custom_api' && 'bg-gradient-to-br from-card to-amber-500/5 dark:from-card dark:to-amber-500/10',
+                        agent.mode === 'builtin' && 'bg-gradient-to-br from-card to-emerald-500/5 dark:from-card dark:to-emerald-500/10',
                         viewMode === 'list' && 'hover:-translate-y-0'
                       )}
                       onClick={() => onSelectAgent(agent)}
@@ -498,19 +510,27 @@ export function AgentSelector({ onSelectAgent }: AgentSelectorProps) {
                         {viewMode === 'grid' ? (
                           <div className="flex items-start gap-3">
                             <div
-                              className={cn(
-                                'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 relative',
-                                agent.status === 'online'
-                                  ? 'bg-primary/10'
-                                  : 'bg-muted'
-                              )}
+                              className="shrink-0 relative"
                             >
-                              <Bot
-                                className={cn(
-                                  'w-5 h-5',
-                                  agent.status === 'online' ? 'text-primary' : 'text-muted-foreground'
-                                )}
-                              />
+                              <Avatar className={cn(
+                                'w-10 h-10 rounded-xl',
+                                agent.status === 'online'
+                                  ? 'ring-2 ring-emerald-500/30'
+                                  : agent.status === 'busy'
+                                    ? 'ring-2 ring-amber-500/30'
+                                    : ''
+                              )}>
+                                <AvatarFallback className={cn(
+                                  'rounded-xl text-xs font-semibold',
+                                  agent.status === 'online'
+                                    ? 'bg-emerald-500/15 text-emerald-600'
+                                    : agent.status === 'busy'
+                                      ? 'bg-amber-500/15 text-amber-600'
+                                      : 'bg-primary/10 text-primary'
+                                )}>
+                                  {agent.name.slice(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
                               {/* Status indicator with pulse */}
                               {agent.status === 'online' && (
                                 <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
@@ -586,20 +606,33 @@ export function AgentSelector({ onSelectAgent }: AgentSelectorProps) {
                         ) : (
                           /* List view layout */
                           <div className="flex items-center gap-3">
-                            <div
-                              className={cn(
-                                'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 relative',
+                            <div className="shrink-0 relative">
+                              <Avatar className={cn(
+                                'w-8 h-8 rounded-lg',
                                 agent.status === 'online'
-                                  ? 'bg-primary/10'
-                                  : 'bg-muted'
-                              )}
-                            >
-                              <Bot
-                                className={cn(
-                                  'w-4 h-4',
-                                  agent.status === 'online' ? 'text-primary' : 'text-muted-foreground'
-                                )}
-                              />
+                                  ? 'ring-2 ring-emerald-500/30'
+                                  : agent.status === 'busy'
+                                    ? 'ring-2 ring-amber-500/30'
+                                    : ''
+                              )}>
+                                <AvatarFallback className={cn(
+                                  'rounded-lg text-[10px] font-semibold',
+                                  agent.status === 'online'
+                                    ? 'bg-emerald-500/15 text-emerald-600'
+                                    : agent.status === 'busy'
+                                      ? 'bg-amber-500/15 text-amber-600'
+                                      : 'bg-primary/10 text-primary'
+                                )}>
+                                  {agent.name.slice(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              {/* Mini status dot */}
+                              <span className={cn(
+                                'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-background',
+                                agent.status === 'online' && 'bg-emerald-500',
+                                agent.status === 'busy' && 'bg-amber-500',
+                                agent.status === 'offline' && 'bg-muted-foreground/40'
+                              )} />
                             </div>
                             <div className="min-w-0 flex-1 flex items-center gap-2">
                               <span className="text-sm font-medium truncate">{agent.name}</span>

@@ -163,7 +163,7 @@ function SidebarContent({
       <aside
         className={cn(
           'h-screen flex flex-col border-r border-border bg-card transition-all duration-300 ease-in-out relative',
-          effectivelyCollapsed ? 'w-16' : 'w-64'
+          effectivelyCollapsed ? 'w-16' : 'w-60'
         )}
       >
         {/* ====== LOGO SECTION (fixed top) ====== */}
@@ -227,7 +227,7 @@ function SidebarContent({
             ref={navRef}
             className="h-full overflow-y-auto py-2 px-2 sidebar-scroll smooth-scroll"
           >
-            <div className="space-y-1">
+            <div className="space-y-2">
               {navSections.map((section, sectionIndex) => {
                 const isSectionCollapsed = collapsedSections[section.label] === true;
                 const sectionLabelKey = sectionLabelKeys[section.label];
@@ -250,7 +250,7 @@ function SidebarContent({
 
                     {/* Section Header - non-clickable label */}
                     {navSections.length > 1 && !effectivelyCollapsed && (
-                      <div className="flex items-center gap-1.5 px-3 pt-2 pb-1.5 group cursor-pointer" onClick={() => toggleSection(section.label)}>
+                      <div className="flex items-center gap-1.5 pl-9 pr-3 pt-2 pb-1.5 group cursor-pointer" onClick={() => toggleSection(section.label)}>
                         <span className={cn(
                           'text-[10px] font-semibold uppercase tracking-[0.12em] flex-1 select-none',
                           isPrimary ? 'text-foreground/60' : 'text-muted-foreground/60'
@@ -287,13 +287,13 @@ function SidebarContent({
                             key={item.id}
                             onClick={() => handleNavClick(item.id)}
                             className={cn(
-                              'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm relative group/item',
+                              'w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm relative group/item',
                               'transition-all duration-200 ease-out',
                               // Hover effects
                               'hover:bg-accent/80 hover:text-accent-foreground',
                               // Active vs inactive styling
                               isActive
-                                ? 'text-primary font-semibold'
+                                ? 'text-primary font-bold'
                                 : isPrimary
                                   ? 'text-foreground/80 font-medium'
                                   : 'text-muted-foreground',
@@ -304,7 +304,7 @@ function SidebarContent({
                             {isActive && (
                               <motion.div
                                 layoutId="sidebar-active-bg"
-                                className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/10 via-primary/[0.06] to-primary/[0.02] dark:from-primary/[0.15] dark:via-primary/[0.08] dark:to-primary/[0.03] pointer-events-none"
+                                className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/15 via-primary/10 to-primary/[0.03] dark:from-primary/20 dark:via-primary/12 dark:to-primary/[0.04] pointer-events-none"
                                 transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                               />
                             )}
@@ -313,7 +313,7 @@ function SidebarContent({
                             {isActive && !effectivelyCollapsed && (
                               <motion.div
                                 layoutId="sidebar-active-border"
-                                className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full bg-gradient-to-b from-primary via-primary/80 to-primary/50 pointer-events-none"
+                                className="absolute left-0 top-0.5 bottom-0.5 w-[3px] rounded-full bg-gradient-to-b from-primary via-primary to-primary/70 pointer-events-none shadow-[0_0_8px] shadow-primary/40"
                                 transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                               />
                             )}
@@ -452,6 +452,26 @@ function SidebarContent({
           </Popover>
         </div>
 
+        {/* ====== KEYBOARD SHORTCUT HINT ====== */}
+        {!effectivelyCollapsed && (
+          <div className="px-3 pb-2 shrink-0">
+            <button
+              onClick={() => {
+                const openFn = (window as unknown as Record<string, () => void>).__openShortcutsHelp;
+                if (openFn) openFn();
+              }}
+              className="w-full flex items-center gap-2 text-xs text-muted-foreground/60 hover:text-muted-foreground transition-all duration-200 rounded-lg px-2 py-1.5 hover:bg-accent/50"
+            >
+              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M7 16h10" />
+              </svg>
+              <span>{t('sidebar.pressForShortcuts')}</span>
+              <Badge variant="outline" className="ml-auto text-[9px] px-1 py-0 font-mono border-border/60 text-muted-foreground/50">?</Badge>
+            </button>
+          </div>
+        )}
+
         {/* ====== USER PROFILE SECTION (fixed bottom) ====== */}
         <Separator />
         <div className={cn('p-3 shrink-0', effectivelyCollapsed && 'flex justify-center')}>
@@ -560,7 +580,7 @@ export function Sidebar({ onLogout }: SidebarProps) {
         </button>
 
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetContent side="left" className="p-0 w-64 bg-card border-r border-border">
+          <SheetContent side="left" className="p-0 w-80 bg-card border-r border-border">
             <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
             <SidebarContent
               effectivelyCollapsed={false}

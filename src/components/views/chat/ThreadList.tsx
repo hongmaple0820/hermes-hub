@@ -54,6 +54,12 @@ function formatTimestamp(dateStr: string): string {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
+function formatCreationTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) +
+    ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 export function ThreadList({
   threads,
   activeThreadId,
@@ -147,6 +153,7 @@ export function ThreadList({
                           {formatTimestamp(thread.updatedAt)}
                         </span>
                       </div>
+                      {/* Last message preview */}
                       <p className="text-[11px] text-muted-foreground truncate mt-0.5">
                         {thread.lastMessage}
                       </p>
@@ -169,6 +176,10 @@ export function ThreadList({
                             {thread.runCount} run{thread.runCount > 1 ? 's' : ''}
                           </span>
                         )}
+                        {/* Creation time */}
+                        <span className="text-[9px] text-muted-foreground/60 ml-auto">
+                          {formatCreationTime(thread.updatedAt)}
+                        </span>
                       </div>
                     </div>
                   </button>

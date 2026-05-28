@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Bot, Server, Puzzle, MessageSquare,
@@ -15,7 +16,9 @@ import {
   CheckCircle, Eye, Timer,
   ArrowDownRight, RefreshCw, AlertTriangle, ArrowRight,
   Sun, MoonStar, BookOpen, Wrench,
-  PlayCircle, XCircle, Loader2, Hash, Layers, Gauge
+  PlayCircle, XCircle, Loader2, Hash, Layers, Gauge,
+  Info, Search, Code2, Microscope, BarChart2, PenTool, Languages, Bug,
+  Terminal
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -481,11 +484,11 @@ export function Dashboard() {
 
   // Run Activity Stats for the stats grid
   const runActivityStats = [
-    { label: t('dashboard.totalRuns'), value: runStats.weekRuns, icon: PlayCircle, color: 'text-emerald-600', bgColor: 'bg-emerald-500/10', borderColor: 'border-l-emerald-500', gradientFrom: 'from-emerald-50/60 dark:from-emerald-950/20', detail: t('dashboard.todayRuns', { count: runStats.todayRuns }) },
-    { label: t('dashboard.successRate'), value: runStats.successRate, icon: CheckCircle, color: 'text-amber-600', bgColor: 'bg-amber-500/10', borderColor: 'border-l-amber-500', gradientFrom: 'from-amber-50/60 dark:from-amber-950/20', detail: `${runStats.completed} / ${runStats.total}`, suffix: '%' },
-    { label: t('dashboard.avgDuration'), value: runStats.avgDurationMs ? Math.round(runStats.avgDurationMs / 1000) : 0, icon: Timer, color: 'text-violet-600', bgColor: 'bg-violet-500/10', borderColor: 'border-l-violet-500', gradientFrom: 'from-violet-50/60 dark:from-violet-950/20', detail: t('dashboard.ofCompletedRuns'), suffix: 's' },
-    { label: t('dashboard.totalTokens'), value: runStats.totalTokens, icon: Hash, color: 'text-rose-600', bgColor: 'bg-rose-500/10', borderColor: 'border-l-rose-500', gradientFrom: 'from-rose-50/60 dark:from-rose-950/20', detail: 'input + output' },
-    { label: t('dashboard.activeThreads'), value: threads.length, icon: Layers, color: 'text-cyan-600', bgColor: 'bg-cyan-500/10', borderColor: 'border-l-cyan-500', gradientFrom: 'from-cyan-50/60 dark:from-cyan-950/20', detail: `${conversations.length} ${t('dashboard.legacyConversations')}` },
+    { label: t('dashboard.totalRuns'), value: runStats.weekRuns, icon: PlayCircle, color: 'text-emerald-600 dark:text-emerald-400', bgColor: 'bg-emerald-500/10', accentColor: 'bg-emerald-500', detail: t('dashboard.todayRuns', { count: runStats.todayRuns }) },
+    { label: t('dashboard.successRate'), value: runStats.successRate, icon: CheckCircle, color: 'text-amber-600 dark:text-amber-400', bgColor: 'bg-amber-500/10', accentColor: 'bg-amber-500', detail: `${runStats.completed} / ${runStats.total}`, suffix: '%' },
+    { label: t('dashboard.avgDuration'), value: runStats.avgDurationMs ? Math.round(runStats.avgDurationMs / 1000) : 0, icon: Timer, color: 'text-violet-600 dark:text-violet-400', bgColor: 'bg-violet-500/10', accentColor: 'bg-violet-500', detail: t('dashboard.ofCompletedRuns'), suffix: 's' },
+    { label: t('dashboard.totalTokens'), value: runStats.totalTokens, icon: Hash, color: 'text-rose-600 dark:text-rose-400', bgColor: 'bg-rose-500/10', accentColor: 'bg-rose-500', detail: 'input + output' },
+    { label: t('dashboard.activeThreads'), value: threads.length, icon: Layers, color: 'text-cyan-600 dark:text-cyan-400', bgColor: 'bg-cyan-500/10', accentColor: 'bg-cyan-500', detail: `${conversations.length} ${t('dashboard.legacyConversations')}` },
   ];
 
   // Stats grid with sparklines (existing agents/providers etc)
@@ -498,13 +501,11 @@ export function Dashboard() {
       icon: Bot,
       color: 'text-emerald-600 dark:text-emerald-400',
       bgColor: 'bg-emerald-500/10',
-      borderColor: 'border-l-emerald-500',
+      accentColor: 'bg-emerald-500',
       view: 'agents' as const,
       detail: `${builtinAgents.length} builtin · ${acrpAgents.length} ACRP`,
       sparkline: [3, 5, 4, 7, agents.length],
       sparklineColor: 'bg-emerald-500/60',
-      gradientFrom: 'from-emerald-50/80 dark:from-emerald-950/30',
-      gradientTo: 'to-card dark:to-card',
       emptyMessage: agents.length === 0 ? t('dashboard.createFirstAgent') : undefined,
     },
     {
@@ -514,13 +515,11 @@ export function Dashboard() {
       icon: Server,
       color: 'text-amber-600 dark:text-amber-400',
       bgColor: 'bg-amber-500/10',
-      borderColor: 'border-l-amber-500',
+      accentColor: 'bg-amber-500',
       view: 'providers' as const,
       detail: `${activeProviders.length} ${t('dashboard.active')}`,
       sparkline: [1, 2, 2, 3, providers.length],
       sparklineColor: 'bg-amber-500/60',
-      gradientFrom: 'from-amber-50/80 dark:from-amber-950/30',
-      gradientTo: 'to-card dark:to-card',
       emptyMessage: providers.length === 0 ? t('dashboard.setUpProvider') : undefined,
     },
     {
@@ -530,16 +529,90 @@ export function Dashboard() {
       icon: MessageSquare,
       color: 'text-cyan-600 dark:text-cyan-400',
       bgColor: 'bg-cyan-500/10',
-      borderColor: 'border-l-cyan-500',
+      accentColor: 'bg-cyan-500',
       view: 'chat' as const,
       detail: `${chatRooms.length} ${t('dashboard.rooms')}`,
       sparkline: [5, 8, 12, 10, conversations.length],
       sparklineColor: 'bg-cyan-500/60',
-      gradientFrom: 'from-cyan-50/80 dark:from-cyan-950/30',
-      gradientTo: 'to-card dark:to-card',
       emptyMessage: conversations.length === 0 ? t('dashboard.startConversation') : undefined,
     },
   ];
+
+  // Template presets with system prompts for creating agents
+  const templatePresets: Record<string, { name: string; systemPrompt: string; description: string }> = {
+    codeReview: {
+      name: 'Code Review Assistant',
+      systemPrompt: 'You are an expert code reviewer. Analyze code for bugs, security vulnerabilities, performance issues, and best practices. Provide constructive feedback with specific suggestions for improvement. Focus on code quality, maintainability, and adherence to established patterns. Always explain your reasoning and offer alternative approaches when relevant.',
+      description: 'AI-powered code review and quality checks',
+    },
+    researchAssistant: {
+      name: 'Research Assistant',
+      systemPrompt: 'You are a thorough research assistant. Help users find, analyze, and synthesize information from various sources. Provide well-structured summaries, compare different viewpoints, and highlight key findings. Always cite your reasoning and distinguish between facts, theories, and opinions. Present balanced perspectives on complex topics.',
+      description: 'Deep research and information synthesis',
+    },
+    dataAnalysis: {
+      name: 'Data Analysis Expert',
+      systemPrompt: 'You are a data analysis expert. Help users interpret data, create visualizations concepts, identify trends and patterns, and draw meaningful insights. Guide users through statistical analysis, explain methodology choices, and present findings clearly. Suggest appropriate analytical approaches based on the data type and research questions.',
+      description: 'Data visualization and insight extraction',
+    },
+    creativeWriting: {
+      name: 'Creative Writing Assistant',
+      systemPrompt: 'You are a creative writing assistant. Help users with storytelling, copywriting, poetry, and creative content. Adapt your tone and style to match the desired genre or audience. Offer vivid descriptions, engaging dialogue, and compelling narratives. Provide constructive feedback on pacing, character development, and thematic depth.',
+      description: 'Story, copywriting, and creative content generation',
+    },
+    translation: {
+      name: 'Translation Expert',
+      systemPrompt: 'You are a professional multilingual translator. Provide accurate, natural-sounding translations that preserve the original meaning, tone, and cultural nuances. Explain idiomatic expressions and cultural context when relevant. Offer alternatives for ambiguous terms and suggest the most appropriate translation based on context and target audience.',
+      description: 'Professional multilingual translation service',
+    },
+    debugHelper: {
+      name: 'Debug Helper',
+      systemPrompt: 'You are a debugging and troubleshooting expert. Help users identify and fix bugs in their code systematically. Analyze error messages, trace execution flows, and identify root causes. Suggest debugging strategies, explain common pitfalls, and provide step-by-step solutions. Help write test cases to prevent regressions.',
+      description: 'Code debugging and troubleshooting',
+    },
+  };
+
+  // Handle template button click - create agent and navigate to chat
+  const [creatingTemplate, setCreatingTemplate] = useState<string | null>(null);
+
+  const handleUseTemplate = useCallback(async (templateKey: string) => {
+    const preset = templatePresets[templateKey];
+    if (!preset) return;
+
+    setCreatingTemplate(templateKey);
+    try {
+      // Use first active provider if available, otherwise let the agent be provider-less
+      const firstProvider = activeProviders[0];
+      const result = await api.createAgent({
+        name: preset.name,
+        description: preset.description,
+        systemPrompt: preset.systemPrompt,
+        mode: 'builtin',
+        providerId: firstProvider?.id || undefined,
+        model: firstProvider?.defaultModel || undefined,
+      });
+      const agentId = result?.agent?.id;
+      if (agentId) {
+        setSelectedAgentId(agentId);
+        setCurrentView('chat2');
+        addNotification({
+          type: 'success',
+          title: t('dashboard.activityAgentCreated'),
+          message: `${preset.name} created from template`,
+          actionUrl: `/agents/${agentId}`,
+          metadata: { agentId },
+        });
+      }
+    } catch (error) {
+      addNotification({
+        type: 'error',
+        title: 'Template Error',
+        message: 'Failed to create agent from template. Please try again.',
+      });
+    } finally {
+      setCreatingTemplate(null);
+    }
+  }, [activeProviders, templatePresets, setSelectedAgentId, setCurrentView, addNotification, t]);
 
   return (
     <>
@@ -576,7 +649,7 @@ export function Dashboard() {
               <p className="text-sm text-muted-foreground/80">{t('dashboard.welcomeSubtitle')}</p>
             </div>
             <div className="flex items-center gap-4 flex-wrap justify-end">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-xs text-foreground/60 dark:text-muted-foreground/90">
                 <RefreshCw className="w-3 h-3" style={isRefreshing ? { animation: 'refreshSpin 0.6s linear infinite' } : undefined} />
                 <span>{formatLastUpdated(lastUpdated)}</span>
               </div>
@@ -602,39 +675,75 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Provider Setup Card */}
+        {/* Provider Setup Banner */}
         {activeProviders.length === 0 && (
-          <motion.div initial={{ opacity: 0, y: 12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.5, delay: 0.05, ease: 'easeOut' }}>
-            <div className="relative overflow-hidden rounded-xl p-5 sm:p-6 shadow-sm border-2 bg-amber-50 dark:bg-amber-500/5 border-amber-200 dark:border-amber-500/20">
-              <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, transparent, rgba(245,158,11,0.5), rgba(251,146,60,0.4), transparent)', backgroundSize: '200% 100%', animation: 'shimmer 3s ease infinite' }} />
-              <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-amber-500/5 blur-3xl pointer-events-none" />
-              <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-semibold text-amber-900 dark:text-amber-200">{t('dashboard.noProviderTitle')}</h3>
-                  <p className="text-sm text-amber-800/80 dark:text-amber-300/70 mt-1">{t('dashboard.noProviderDesc')}</p>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <Button onClick={() => setCurrentView('providers')} className="gap-2 bg-amber-600 hover:bg-amber-700 text-white shadow-sm rounded-lg">
-                    {t('dashboard.setUpProvider')} <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </div>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.05, ease: 'easeOut' }}>
+            <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5 shadow-sm" style={{ borderLeftWidth: '4px', borderLeftColor: 'rgb(245, 158, 11)' }}>
+              <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-amber-900 dark:text-amber-200">{t('dashboard.noProviderTitle')}</p>
+                <p className="text-xs text-amber-800/80 dark:text-amber-300/80 hidden sm:block">{t('dashboard.noProviderDesc')}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-8 text-amber-800 dark:text-amber-200 hover:text-amber-900 dark:hover:text-amber-100 hover:bg-amber-50 dark:hover:bg-amber-900/20">
+                      <Info className="w-3.5 h-3.5" />
+                      {t('dashboard.learnMore')}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent side="bottom" align="end" className="w-80 p-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                          <Server className="w-3.5 h-3.5 text-amber-600" />
+                        </div>
+                        <h4 className="text-sm font-semibold">Getting API Keys</h4>
+                      </div>
+                      <div className="space-y-2 text-xs text-muted-foreground">
+                        <p>To use Hermes Hub, you need an API key from at least one LLM provider:</p>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 p-1.5 rounded-md bg-muted/50">
+                            <span className="text-base">🤖</span>
+                            <div><span className="font-medium text-foreground">OpenAI</span> — platform.openai.com/api-keys</div>
+                          </div>
+                          <div className="flex items-center gap-2 p-1.5 rounded-md bg-muted/50">
+                            <span className="text-base">🧠</span>
+                            <div><span className="font-medium text-foreground">Anthropic</span> — console.anthropic.com</div>
+                          </div>
+                          <div className="flex items-center gap-2 p-1.5 rounded-md bg-muted/50">
+                            <span className="text-base">💎</span>
+                            <div><span className="font-medium text-foreground">Google Gemini</span> — aistudio.google.com/apikey</div>
+                          </div>
+                          <div className="flex items-center gap-2 p-1.5 rounded-md bg-muted/50">
+                            <span className="text-base">🦙</span>
+                            <div><span className="font-medium text-foreground">Ollama</span> — Local, no key needed (ollama.com)</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <Button onClick={() => setCurrentView('providers')} size="sm" className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white shadow-sm rounded-lg h-8 text-xs">
+                  {t('dashboard.setUpProvider')} <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
               </div>
             </div>
           </motion.div>
         )}
 
         {/* ===== Run Activity Stats Grid ===== */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           {runActivityStats.map((stat, index) => (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: index * 0.06, ease: 'easeOut' }}>
-              <Card className={cn('rounded-xl border border-border/60 shadow-sm transition-all duration-300 cursor-pointer group', 'border-l-4', stat.borderColor, 'hover:shadow-md hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98]', 'bg-gradient-to-br', stat.gradientFrom, 'to-card')}>
+              <Card className="rounded-xl border border-border shadow-sm transition-all duration-300 cursor-pointer group hover:shadow-md hover:-translate-y-0.5">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110', stat.bgColor)}>
-                      <stat.icon className={cn('w-4.5 h-4.5', stat.color)} />
+                    <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 relative', stat.bgColor)}>
+                      <stat.icon className={cn('w-4 h-4', stat.color)} />
+                      <div className={cn('absolute -left-4 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full', stat.accentColor)} />
                     </div>
                   </div>
                   {runsLoading ? (
@@ -650,8 +759,8 @@ export function Dashboard() {
                       )}
                     </div>
                   )}
-                  <p className="text-sm text-muted-foreground dark:text-muted-foreground/90 mt-0.5">{stat.label}</p>
-                  {stat.detail && <p className="text-xs text-muted-foreground/60 dark:text-muted-foreground/60 mt-0.5">{stat.detail}</p>}
+                  <p className="text-sm text-foreground/60 dark:text-muted-foreground/90 mt-0.5">{stat.label}</p>
+                  {stat.detail && <p className="text-xs text-foreground/50 dark:text-muted-foreground/70 mt-0.5">{stat.detail}</p>}
                 </CardContent>
               </Card>
             </motion.div>
@@ -665,7 +774,7 @@ export function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Recent Runs Timeline */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3, ease: 'easeOut' }}>
-            <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl h-full border-l-4 border-l-emerald-500/30">
+            <Card className="hover:shadow-lg transition-all duration-300 rounded-xl h-full border border-border">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -758,7 +867,7 @@ export function Dashboard() {
 
           {/* Execution Health */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4, ease: 'easeOut' }}>
-            <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl h-full border-l-4 border-l-violet-500/30">
+            <Card className="hover:shadow-lg transition-all duration-300 rounded-xl h-full border border-border">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Gauge className="w-4 h-4 text-violet-500" />
@@ -774,13 +883,22 @@ export function Dashboard() {
                     <Skeleton className="h-12 w-full" />
                   </div>
                 ) : !executionHealth.hasData ? (
-                  <div className="flex flex-col items-center justify-center py-10 relative">
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-violet-50/30 to-cyan-50/20 dark:from-violet-950/10 dark:to-cyan-950/10 -z-10" />
-                    <div className="w-14 h-14 rounded-2xl bg-violet-500/10 flex items-center justify-center mb-3">
-                      <Activity className="w-7 h-7 text-violet-500/60" />
+                  <div className="flex flex-col items-center justify-center py-12 relative">
+                    <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-violet-50/40 via-cyan-50/20 to-emerald-50/30 dark:from-violet-950/15 dark:via-cyan-950/10 dark:to-emerald-950/10 -z-10" />
+                    <div className="relative">
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/15 to-cyan-500/10 flex items-center justify-center mb-4">
+                        <Terminal className="w-8 h-8 text-violet-500/70" />
+                      </div>
+                      <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-400/30 flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-cyan-400" />
+                      </div>
                     </div>
                     <p className="text-sm font-medium text-muted-foreground">{t('dashboard.noExecutionData')}</p>
-                    <p className="text-xs text-muted-foreground/60 mt-1">{t('dashboard.runsWillAppear')}</p>
+                    <p className="text-xs text-muted-foreground/60 mt-1 max-w-[200px] text-center">{t('dashboard.runsWillAppear')}</p>
+                    <Button variant="outline" size="sm" className="mt-3 gap-1.5 text-xs h-7" onClick={() => setCurrentView('chat2')}>
+                      <MessageSquare className="w-3 h-3" />
+                      {t('dashboard.startConversation')}
+                    </Button>
                   </div>
                 ) : (
                   <>
@@ -873,7 +991,7 @@ export function Dashboard() {
 
           {/* Quick Start Cards + Most-used agents */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5, ease: 'easeOut' }}>
-            <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl h-full border-l-4 border-l-amber-500/30">
+            <Card className="hover:shadow-lg transition-all duration-300 rounded-xl h-full border border-border">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-amber-500" />
@@ -965,7 +1083,7 @@ export function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Runs per Day Bar Chart */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5, ease: 'easeOut' }}>
-            <Card className="rounded-2xl hover:shadow-lg transition-all duration-300 border-l-4 border-l-emerald-500/30">
+            <Card className="rounded-xl hover:shadow-lg transition-all duration-300 border border-border">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <PlayCircle className="w-4 h-4 text-emerald-500" />
@@ -991,7 +1109,7 @@ export function Dashboard() {
 
           {/* Conversations per Day Bar Chart */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.55, ease: 'easeOut' }}>
-            <Card className="rounded-2xl hover:shadow-lg transition-all duration-300 border-l-4 border-l-cyan-500/30">
+            <Card className="rounded-xl hover:shadow-lg transition-all duration-300 border border-border">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-cyan-500" />
@@ -1010,16 +1128,17 @@ export function Dashboard() {
             {stats.map((stat, index) => (
               <Card
                 key={stat.title}
-                className={cn('transition-all duration-300 cursor-pointer group rounded-xl', 'border-l-4', stat.borderColor, 'hover:-translate-y-0.5 hover:shadow-lg hover:scale-[1.02]', 'bg-gradient-to-br', stat.gradientFrom, stat.gradientTo)}
+                className="rounded-xl border border-border transition-all duration-300 cursor-pointer group hover:-translate-y-0.5 hover:shadow-lg hover:scale-[1.02]"
                 onClick={() => setCurrentView(stat.view)}
               >
                 <CardContent className="p-3 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:scale-110', stat.bgColor)}>
+                    <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:scale-110 relative', stat.bgColor)}>
                       <stat.icon className={cn('w-4 h-4', stat.color)} />
+                      <div className={cn('absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full', stat.accentColor)} />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground/60 dark:text-muted-foreground/60">{stat.title}</p>
+                      <p className="text-sm text-foreground/60 dark:text-muted-foreground/80">{stat.title}</p>
                       <div className="flex items-center gap-2">
                         <span className="text-2xl font-semibold tracking-tight">
                           <AnimatedCounter target={stat.value} duration={800 + index * 80} />
@@ -1027,7 +1146,7 @@ export function Dashboard() {
                         <TrendIndicator values={stat.sparkline} />
                       </div>
                       {stat.value === 0 && stat.emptyMessage && (
-                        <p className="text-xs text-muted-foreground/50 dark:text-muted-foreground/50 mt-0.5">{stat.emptyMessage}</p>
+                        <p className="text-xs text-foreground/45 dark:text-muted-foreground/65 mt-0.5">{stat.emptyMessage}</p>
                       )}
                     </div>
                   </div>
@@ -1040,7 +1159,7 @@ export function Dashboard() {
 
         {/* Conversation Templates */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.65, ease: 'easeOut' }}>
-          <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl border-l-4 border-l-rose-500/30">
+          <Card className="hover:shadow-lg transition-all duration-300 rounded-xl border border-border">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -1050,31 +1169,30 @@ export function Dashboard() {
                   </CardTitle>
                   <CardDescription>{t('templates.subtitle')}</CardDescription>
                 </div>
-                <Button variant="ghost" size="sm" className="text-xs h-7 gap-1" onClick={() => setCurrentView('chat2')}>
-                  {t('templates.useTemplate')} <ArrowRight className="w-3 h-3" />
-                </Button>
               </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
                 {[
-                  { emoji: '🔍', name: t('templates.codeReview'), desc: t('templates.codeReviewDesc'), color: 'border-violet-200 dark:border-violet-800 hover:border-violet-400 dark:hover:border-violet-600 bg-violet-50/50 dark:bg-violet-900/10' },
-                  { emoji: '🔬', name: t('templates.researchAssistant'), desc: t('templates.researchAssistantDesc'), color: 'border-emerald-200 dark:border-emerald-800 hover:border-emerald-400 dark:hover:border-emerald-600 bg-emerald-50/50 dark:bg-emerald-900/10' },
-                  { emoji: '📊', name: t('templates.dataAnalysis'), desc: t('templates.dataAnalysisDesc'), color: 'border-amber-200 dark:border-amber-800 hover:border-amber-400 dark:hover:border-amber-600 bg-amber-50/50 dark:bg-amber-900/10' },
-                  { emoji: '✍️', name: t('templates.creativeWriting'), desc: t('templates.creativeWritingDesc'), color: 'border-rose-200 dark:border-rose-800 hover:border-rose-400 dark:hover:border-rose-600 bg-rose-50/50 dark:bg-rose-900/10' },
-                  { emoji: '🌐', name: t('templates.translation'), desc: t('templates.translationDesc'), color: 'border-cyan-200 dark:border-cyan-800 hover:border-cyan-400 dark:hover:border-cyan-600 bg-cyan-50/50 dark:bg-cyan-900/10' },
-                  { emoji: '🐛', name: t('templates.debugHelper'), desc: t('templates.debugHelperDesc'), color: 'border-orange-200 dark:border-orange-800 hover:border-orange-400 dark:hover:border-orange-600 bg-orange-50/50 dark:bg-orange-900/10' },
+                  { key: 'codeReview', emoji: '🔍', name: t('templates.codeReview'), desc: t('templates.codeReviewDesc'), color: 'border-violet-200 dark:border-violet-800 hover:border-violet-400 dark:hover:border-violet-600 bg-violet-50/50 dark:bg-violet-900/10', icon: Code2 },
+                  { key: 'researchAssistant', emoji: '🔬', name: t('templates.researchAssistant'), desc: t('templates.researchAssistantDesc'), color: 'border-emerald-200 dark:border-emerald-800 hover:border-emerald-400 dark:hover:border-emerald-600 bg-emerald-50/50 dark:bg-emerald-900/10', icon: Microscope },
+                  { key: 'dataAnalysis', emoji: '📊', name: t('templates.dataAnalysis'), desc: t('templates.dataAnalysisDesc'), color: 'border-amber-200 dark:border-amber-800 hover:border-amber-400 dark:hover:border-amber-600 bg-amber-50/50 dark:bg-amber-900/10', icon: BarChart2 },
+                  { key: 'creativeWriting', emoji: '✍️', name: t('templates.creativeWriting'), desc: t('templates.creativeWritingDesc'), color: 'border-rose-200 dark:border-rose-800 hover:border-rose-400 dark:hover:border-rose-600 bg-rose-50/50 dark:bg-rose-900/10', icon: PenTool },
+                  { key: 'translation', emoji: '🌐', name: t('templates.translation'), desc: t('templates.translationDesc'), color: 'border-cyan-200 dark:border-cyan-800 hover:border-cyan-400 dark:hover:border-cyan-600 bg-cyan-50/50 dark:bg-cyan-900/10', icon: Languages },
+                  { key: 'debugHelper', emoji: '🐛', name: t('templates.debugHelper'), desc: t('templates.debugHelperDesc'), color: 'border-orange-200 dark:border-orange-800 hover:border-orange-400 dark:hover:border-orange-600 bg-orange-50/50 dark:bg-orange-900/10', icon: Bug },
                 ].map((template, index) => (
                   <motion.button
-                    key={template.name}
+                    key={template.key}
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.4 + index * 0.06 }}
-                    className={cn('w-full text-left p-3 rounded-xl border transition-all duration-200', template.color, 'hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]')}
-                    onClick={() => setCurrentView('chat2')}
+                    className={cn('w-full text-left p-3 rounded-xl border transition-all duration-200', template.color, 'hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]', creatingTemplate === template.key && 'opacity-60 pointer-events-none')}
+                    onClick={() => handleUseTemplate(template.key)}
+                    disabled={creatingTemplate !== null}
                   >
                     <div className="flex items-start gap-2">
-                      <span className="text-lg leading-none shrink-0">{template.emoji}</span>
+                      <span className="text-lg leading-none shrink-0">{creatingTemplate === template.key ? '' : template.emoji}</span>
+                      {creatingTemplate === template.key && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground shrink-0" />}
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold truncate">{template.name}</p>
                         <p className="text-[10px] text-muted-foreground dark:text-muted-foreground/90 line-clamp-2 mt-0.5">{template.desc}</p>

@@ -44,6 +44,7 @@ model User {
   tools           Tool[]
   auditLogs              AuditLog[]
   conversationTemplates  ConversationTemplate[]
+  notificationPreferences NotificationPreference[]
 }
 
 model Friendship {
@@ -841,4 +842,19 @@ model ConversationTemplate {
   @@index([userId])
   @@index([isPublic])
   @@map("conversation_templates")
+}
+
+// ==================== Notification Preferences ====================
+
+model NotificationPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String   // "agent_status", "run_complete", "skill_update", "acrp_event"
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, type])
+  @@index([userId])
 }

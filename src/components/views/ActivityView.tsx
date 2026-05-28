@@ -88,6 +88,27 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
+function getRelativeTimestamp(iso: string | null): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffSec < 5) return 'just now';
+  if (diffSec < 60) return `${diffSec} seconds ago`;
+  if (diffMin === 1) return '1 minute ago';
+  if (diffMin < 60) return `${diffMin} minutes ago`;
+  if (diffHour === 1) return '1 hour ago';
+  if (diffHour < 24) return `${diffHour} hours ago`;
+  if (diffDay === 1) return 'yesterday';
+  if (diffDay < 7) return `${diffDay} days ago`;
+  return date.toLocaleDateString();
+}
+
 function getDateGroup(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
@@ -382,12 +403,25 @@ function RunCardComponent({ run, runIndex }: { run: RunData; runIndex: number })
       transition={{ duration: 0.2, delay: runIndex * 0.03 }}
       layout
     >
-      <Card className="overflow-hidden hover:shadow-md hover:border-primary/20 dark:hover:border-primary/15 transition-all duration-200">
+      <Card className="rounded-xl overflow-hidden hover:shadow-md dark:hover:shadow-lg hover:border-primary/20 dark:hover:border-primary/15 transition-all duration-200 hover:-translate-y-0.5">
         <CardContent className="p-0">
+          {/* Timeline dot on the left side */}
+          <div className="flex">
+            <div className="flex flex-col items-center pl-4 py-3 shrink-0">
+              <div className={cn(
+                'w-3 h-3 rounded-full border-2 shrink-0 mt-1',
+                run.status === 'completed' ? 'bg-emerald-500 border-emerald-400' :
+                run.status === 'failed' ? 'bg-red-500 border-red-400' :
+                run.status === 'in_progress' ? 'bg-amber-500 border-amber-400 animate-pulse' :
+                'bg-muted-foreground/40 border-muted-foreground/30'
+              )} />
+              <div className="w-px flex-1 min-h-[20px] bg-border" />
+            </div>
+            <div className="flex-1 min-w-0">
           {/* Header - clickable to expand */}
           <button
             onClick={handleExpand}
-            className="w-full text-left px-4 py-3 hover:bg-accent/30 transition-colors"
+            className="w-full text-left px-4 py-3 hover:bg-accent/30 transition-colors rounded-r-lg"
           >
             <div className="flex items-center gap-2 flex-wrap">
               {expanded ? (
@@ -423,6 +457,9 @@ function RunCardComponent({ run, runIndex }: { run: RunData; runIndex: number })
                   <ArrowRight className="w-2.5 h-2.5" />
                   <span>{formatTime(run.completedAt)}</span>
                 </>
+              )}
+              {getRelativeTimestamp(run.startedAt || run.createdAt) && (
+                <span className="text-muted-foreground/50 ml-1">({getRelativeTimestamp(run.startedAt || run.createdAt)})</span>
               )}
             </div>
           </button>
@@ -512,6 +549,8 @@ function RunCardComponent({ run, runIndex }: { run: RunData; runIndex: number })
               </motion.div>
             )}
           </AnimatePresence>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </motion.div>
@@ -569,7 +608,7 @@ function StatsSummary({ runs }: { runs: RunData[] }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.05, duration: 0.2 }}
         >
-          <Card className="rounded-xl hover:shadow-sm transition-shadow">
+          <Card className="rounded-xl hover:shadow-md dark:hover:shadow-lg transition-all duration-200">
             <CardContent className="p-4 flex items-center gap-3">
               <div className={cn('shrink-0', stat.color)}>
                 {stat.icon}
@@ -785,6 +824,7 @@ export default function ActivityView() {
   // Filter state
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
   const [refreshing, setRefreshing] = useState(false);
 
   // Fetch runs
@@ -956,6 +996,21 @@ export default function ActivityView() {
                     <SelectItem value="in_progress">{t('activity.statusInProgress')}</SelectItem>
                     <SelectItem value="cancelled">{t('activity.statusCancelled')}</SelectItem>
                     <SelectItem value="queued">{t('activity.statusQueued')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">{t('activity.filterByType') || 'Filter by Type'}</Label>
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('activity.allTypes') || 'All Types'}</SelectItem>
+                    <SelectItem value="run">Run</SelectItem>
+                    <SelectItem value="step">Step</SelectItem>
+                    <SelectItem value="tool_invocation">Tool Invocation</SelectItem>
+                    <SelectItem value="message">Message</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

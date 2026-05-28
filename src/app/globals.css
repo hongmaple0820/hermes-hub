@@ -118,6 +118,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Smooth dark mode transition */
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
   /* Focus-visible styles for keyboard navigation */
   :focus-visible {
@@ -132,6 +134,19 @@
   [role="button"]:focus-visible,
   [tabindex]:focus-visible {
     @apply outline-2 outline-offset-2 outline-ring rounded-sm;
+  }
+  /* Smooth transition for cards and containers on theme change */
+  .card,
+  [data-slot="card"] {
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  /* Smooth transition for common UI elements */
+  input,
+  select,
+  textarea,
+  [data-slot="input"],
+  [data-slot="select-trigger"] {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease;
   }
 }
 
@@ -246,6 +261,38 @@
   .text-\[9px\].text-muted-foreground,
   .text-\[11px\].text-muted-foreground {
     color: oklch(0.6 0 0);
+  }
+
+  /* Ensure dialog content has proper dark background */
+  [data-slot="dialog-content"] {
+    background-color: oklch(0.22 0 0);
+    border-color: oklch(1 0 0 / 15%);
+  }
+
+  /* Ensure tabs content has good contrast */
+  [data-slot="tabs-content"] {
+    color: oklch(0.9 0 0);
+  }
+
+  /* Ensure popover content has proper dark background */
+  [data-slot="popover-content"] {
+    background-color: oklch(0.22 0 0);
+    border-color: oklch(1 0 0 / 15%);
+  }
+
+  /* Ensure separator is visible in dark mode */
+  [data-slot="separator"] {
+    background-color: oklch(1 0 0 / 12%);
+  }
+
+  /* Ensure table headers readable */
+  th {
+    color: oklch(0.8 0 0);
+  }
+
+  /* Ensure dropdown menu items readable */
+  [data-slot="dropdown-menu-item"] {
+    color: oklch(0.85 0 0);
   }
 }
 

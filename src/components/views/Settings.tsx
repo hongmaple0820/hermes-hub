@@ -33,7 +33,7 @@ import {
   XCircle, Wifi, WifiOff, Server, Database, Globe, Monitor, Heart,
   RefreshCw, EyeIcon, Sun, Moon, MonitorSmartphone, Zap, Hexagon,
   Loader2, ChevronLeft, ChevronRight, FileText, FileSpreadsheet,
-  ScrollText
+  ScrollText, CheckSquare, Square, Keyboard
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -49,7 +49,7 @@ interface SettingRowProps {
 
 function SettingRow({ label, description, children }: SettingRowProps) {
   return (
-    <div className="flex items-center justify-between py-3">
+    <div className="flex items-center justify-between py-3 transition-colors duration-200 hover:bg-accent/30 -mx-2 px-2 rounded-md">
       <div className="flex-1 mr-4">
         <p className="text-sm font-medium">{label}</p>
         {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
@@ -59,11 +59,12 @@ function SettingRow({ label, description, children }: SettingRowProps) {
   );
 }
 
-function SectionHeader({ icon: Icon, title, description }: { icon: React.ElementType; title: string; description?: string }) {
+function SectionHeader({ icon: Icon, title, description, gradient }: { icon: React.ElementType; title: string; description?: string; gradient?: string }) {
+  const gradientClass = gradient || 'from-primary/20 to-primary/5';
   return (
     <div className="flex items-start gap-3 mb-4">
-      <div className="mt-0.5 p-2 rounded-lg bg-muted dark:bg-muted/80">
-        <Icon className="w-4 h-4 text-muted-foreground dark:text-muted-foreground/90" />
+      <div className={`mt-0.5 p-2 rounded-lg bg-gradient-to-br ${gradientClass} dark:from-primary/25 dark:to-primary/10 transition-all duration-300`}>
+        <Icon className="w-4 h-4 text-primary/70 dark:text-primary/80" />
       </div>
       <div>
         <h3 className="text-sm font-semibold">{title}</h3>
@@ -156,6 +157,47 @@ export function Settings({ onLogout }: SettingsProps) {
   const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('json');
   const [exportType, setExportType] = useState<string>('all');
   const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const [selectedExportTypes, setSelectedExportTypes] = useState<string[]>(['agents', 'skills', 'providers', 'conversations']);
+
+  // Notification preferences (API-backed)
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
+  const [notifPrefsLoading, setNotifPrefsLoading] = useState(false);
+  const notifPrefTypes = [
+    { key: 'agent_status', label: 'settingsPage.notifAgentStatus', desc: 'settingsPage.notifAgentStatusDesc' },
+    { key: 'run_complete', label: 'settingsPage.notifRunComplete', desc: 'settingsPage.notifRunCompleteDesc' },
+    { key: 'skill_update', label: 'settingsPage.notifSkillUpdate', desc: 'settingsPage.notifSkillUpdateDesc' },
+    { key: 'acrp_event', label: 'settingsPage.notifAcrpEvent', desc: 'settingsPage.notifAcrpEventDesc' },
+  ];
+
+  const loadNotifPrefs = useCallback(async () => {
+    setNotifPrefsLoading(true);
+    try {
+      const result = await api.getNotificationPreferences();
+      const prefsMap: Record<string, boolean> = {};
+      for (const pref of result.preferences) {
+        prefsMap[pref.type] = pref.enabled;
+      }
+      // Set defaults for missing types
+      for (const t of notifPrefTypes) {
+        if (!(t.key in prefsMap)) prefsMap[t.key] = true;
+      }
+      setNotifPrefs(prefsMap);
+    } catch {
+      // Default all to enabled
+      const defaults: Record<string, boolean> = {};
+      for (const t of notifPrefTypes) {
+        defaults[t.key] = true;
+      }
+      setNotifPrefs(defaults);
+    } finally {
+      setNotifPrefsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNotifPrefs();
+  }, [loadNotifPrefs]);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -423,11 +465,17 @@ export function Settings({ onLogout }: SettingsProps) {
     }
   };
 
-  // Accent color handler
-  const handleNotificationToggle = (key: string, value: boolean, setter: (v: boolean) => void) => {
-    setter(value);
-    localStorage.setItem(`hermes-${key}`, String(value));
-    toast.success(t('settingsPage.saved'));
+  // Notification preference toggle (API-backed)
+  const handleNotifPrefToggle = async (type: string, enabled: boolean) => {
+    setNotifPrefs(prev => ({ ...prev, [type]: enabled }));
+    try {
+      await api.updateNotificationPreference(type, enabled);
+      toast.success(t('settingsPage.saved'));
+    } catch {
+      // Revert on error
+      setNotifPrefs(prev => ({ ...prev, [type]: !enabled }));
+      toast.error(t('common.error'));
+    }
   };
 
   const handleAccentChange = (accentId: string) => {
@@ -508,11 +556,15 @@ export function Settings({ onLogout }: SettingsProps) {
     return date.toLocaleDateString();
   };
 
-  // Data Export handler
+  // Data Export handler with progress
   const handleDataExport = async () => {
     setExporting(true);
+    setExportProgress(10);
     try {
-      const { blob, filename } = await api.exportData(exportFormat, exportType);
+      const typeParam = selectedExportTypes.length === 4 ? 'all' : selectedExportTypes.join(',');
+      setExportProgress(30);
+      const { blob, filename } = await api.exportData(exportFormat, typeParam);
+      setExportProgress(70);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -521,13 +573,27 @@ export function Settings({ onLogout }: SettingsProps) {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      setExportProgress(100);
       toast.success(t('dataExport.success'));
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('dataExport.failed');
       toast.error(msg);
     } finally {
-      setExporting(false);
+      setTimeout(() => {
+        setExporting(false);
+        setExportProgress(0);
+      }, 500);
     }
+  };
+
+  const toggleExportType = (type: string) => {
+    setSelectedExportTypes(prev => {
+      if (prev.includes(type)) {
+        if (prev.length <= 1) return prev; // Keep at least one selected
+        return prev.filter(t => t !== type);
+      }
+      return [...prev, type];
+    });
   };
 
   const conversationCount = conversations?.length || 0;
@@ -567,6 +633,7 @@ export function Settings({ onLogout }: SettingsProps) {
                   icon={Palette}
                   title={t('settingsPage.displayTab')}
                   description={t('settingsPage.displayDesc')}
+                  gradient="from-violet-500/20 to-pink-500/10"
                 />
               </CardHeader>
               <CardContent className="space-y-1">
@@ -574,40 +641,48 @@ export function Settings({ onLogout }: SettingsProps) {
                   label={t('settingsPage.streaming')}
                   description={t('settingsPage.streamingDesc')}
                 >
-                  <Switch
-                    checked={getSetting('streaming', true) as boolean}
-                    onCheckedChange={(v) => updateSetting('streaming', v)}
-                  />
+                  <div className="transition-transform duration-150 hover:scale-110">
+                    <Switch
+                      checked={getSetting('streaming', true) as boolean}
+                      onCheckedChange={(v) => updateSetting('streaming', v)}
+                    />
+                  </div>
                 </SettingRow>
                 <Separator />
                 <SettingRow
                   label={t('settingsPage.compactMode')}
                   description={t('settingsPage.compactModeDesc')}
                 >
-                  <Switch
-                    checked={getSetting('compactMode', false) as boolean}
-                    onCheckedChange={(v) => updateSetting('compactMode', v)}
-                  />
+                  <div className="transition-transform duration-150 hover:scale-110">
+                    <Switch
+                      checked={getSetting('compactMode', false) as boolean}
+                      onCheckedChange={(v) => updateSetting('compactMode', v)}
+                    />
+                  </div>
                 </SettingRow>
                 <Separator />
                 <SettingRow
                   label={t('settingsPage.reasoningDisplay')}
                   description={t('settingsPage.reasoningDisplayDesc')}
                 >
-                  <Switch
-                    checked={getSetting('reasoningDisplay', true) as boolean}
-                    onCheckedChange={(v) => updateSetting('reasoningDisplay', v)}
-                  />
+                  <div className="transition-transform duration-150 hover:scale-110">
+                    <Switch
+                      checked={getSetting('reasoningDisplay', true) as boolean}
+                      onCheckedChange={(v) => updateSetting('reasoningDisplay', v)}
+                    />
+                  </div>
                 </SettingRow>
                 <Separator />
                 <SettingRow
                   label={t('settingsPage.costDisplay')}
                   description={t('settingsPage.costDisplayDesc')}
                 >
-                  <Switch
-                    checked={getSetting('costDisplay', false) as boolean}
-                    onCheckedChange={(v) => updateSetting('costDisplay', v)}
-                  />
+                  <div className="transition-transform duration-150 hover:scale-110">
+                    <Switch
+                      checked={getSetting('costDisplay', false) as boolean}
+                      onCheckedChange={(v) => updateSetting('costDisplay', v)}
+                    />
+                  </div>
                 </SettingRow>
                 <Separator />
                 <SettingRow
@@ -631,10 +706,12 @@ export function Settings({ onLogout }: SettingsProps) {
                   label={t('settingsPage.bellOnComplete')}
                   description={t('settingsPage.bellOnCompleteDesc')}
                 >
-                  <Switch
-                    checked={getSetting('bellOnComplete', false) as boolean}
-                    onCheckedChange={(v) => updateSetting('bellOnComplete', v)}
-                  />
+                  <div className="transition-transform duration-150 hover:scale-110">
+                    <Switch
+                      checked={getSetting('bellOnComplete', false) as boolean}
+                      onCheckedChange={(v) => updateSetting('bellOnComplete', v)}
+                    />
+                  </div>
                 </SettingRow>
               </CardContent>
             </Card>
@@ -646,6 +723,7 @@ export function Settings({ onLogout }: SettingsProps) {
                   icon={Sun}
                   title={t('settingsPage.theme')}
                   description={t('settingsPage.themeDesc')}
+                  gradient="from-amber-500/20 to-orange-500/10"
                 />
               </CardHeader>
               <CardContent className="space-y-4">
@@ -654,21 +732,65 @@ export function Settings({ onLogout }: SettingsProps) {
                   <Label className="text-sm font-medium mb-3 block">{t('settingsPage.theme')}</Label>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {[
-                      { value: 'light', icon: Sun, label: t('settingsPage.themeLight'), preview: 'bg-white border border-zinc-200 dark:border-zinc-500' },
-                      { value: 'dark', icon: Moon, label: t('settingsPage.themeDark'), preview: 'bg-zinc-900 border border-zinc-700 dark:border-zinc-500' },
-                      { value: 'system', icon: MonitorSmartphone, label: t('settingsPage.themeSystem'), preview: 'bg-gradient-to-r from-white to-zinc-900 border border-zinc-200 dark:border-zinc-500' },
+                      { value: 'light', icon: Sun, label: t('settingsPage.themeLight'),
+                        previewBg: 'bg-white',
+                        previewContent: (
+                          <div className="w-full h-full p-1.5 flex flex-col gap-1">
+                            <div className="w-3/4 h-1 rounded-full bg-zinc-200" />
+                            <div className="flex gap-0.5">
+                              <div className="w-2 h-2 rounded-sm bg-zinc-100" />
+                              <div className="w-2 h-2 rounded-sm bg-zinc-100" />
+                            </div>
+                            <div className="w-1/2 h-1 rounded-full bg-zinc-200" />
+                          </div>
+                        ),
+                        border: 'border border-zinc-200 dark:border-zinc-500'
+                      },
+                      { value: 'dark', icon: Moon, label: t('settingsPage.themeDark'),
+                        previewBg: 'bg-zinc-900',
+                        previewContent: (
+                          <div className="w-full h-full p-1.5 flex flex-col gap-1">
+                            <div className="w-3/4 h-1 rounded-full bg-zinc-700" />
+                            <div className="flex gap-0.5">
+                              <div className="w-2 h-2 rounded-sm bg-zinc-800" />
+                              <div className="w-2 h-2 rounded-sm bg-zinc-800" />
+                            </div>
+                            <div className="w-1/2 h-1 rounded-full bg-zinc-700" />
+                          </div>
+                        ),
+                        border: 'border border-zinc-700 dark:border-zinc-500'
+                      },
+                      { value: 'system', icon: MonitorSmartphone, label: t('settingsPage.themeSystem'),
+                        previewBg: 'bg-gradient-to-r from-white to-zinc-900',
+                        previewContent: (
+                          <div className="w-full h-full p-1.5 flex flex-col gap-1">
+                            <div className="w-3/4 h-1 rounded-full bg-gradient-to-r from-zinc-200 to-zinc-700" />
+                            <div className="flex gap-0.5">
+                              <div className="w-2 h-2 rounded-sm bg-gradient-to-r from-zinc-100 to-zinc-800" />
+                              <div className="w-2 h-2 rounded-sm bg-gradient-to-r from-zinc-100 to-zinc-800" />
+                            </div>
+                            <div className="w-1/2 h-1 rounded-full bg-gradient-to-r from-zinc-200 to-zinc-700" />
+                          </div>
+                        ),
+                        border: 'border border-zinc-200 dark:border-zinc-500'
+                      },
                     ].map((opt) => (
                       <button
                         key={opt.value}
                         onClick={() => setTheme(opt.value)}
-                        className={`relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                        className={`relative flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200 ${
                           mounted && theme === opt.value
-                            ? 'border-primary bg-primary/5 shadow-sm'
-                            : 'border-border hover:border-primary/50'
+                            ? 'border-primary bg-primary/5 shadow-sm scale-[1.02]'
+                            : 'border-border hover:border-primary/50 hover:shadow-sm'
                         }`}
                       >
-                        <div className={`w-10 h-10 rounded-md ${opt.preview}`} />
-                        <span className="text-xs font-medium">{opt.label}</span>
+                        <div className={`w-14 h-10 rounded-md overflow-hidden ${opt.previewBg} ${opt.border} shadow-sm`}>
+                          {opt.previewContent}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <opt.icon className="w-3 h-3 text-muted-foreground" />
+                          <span className="text-xs font-medium">{opt.label}</span>
+                        </div>
                         {mounted && theme === opt.value && (
                           <CheckCircle2 className="absolute top-1.5 right-1.5 w-4 h-4 text-primary" />
                         )}
@@ -713,6 +835,7 @@ export function Settings({ onLogout }: SettingsProps) {
                   icon={Bot}
                   title={t('settingsPage.agentTab')}
                   description={t('settingsPage.agentDesc')}
+                  gradient="from-emerald-500/20 to-teal-500/10"
                 />
               </CardHeader>
               <CardContent className="space-y-1">
@@ -773,6 +896,7 @@ export function Settings({ onLogout }: SettingsProps) {
                   icon={Brain}
                   title={t('settingsPage.memoryTab')}
                   description={t('settingsPage.memoryDesc')}
+                  gradient="from-purple-500/20 to-indigo-500/10"
                 />
               </CardHeader>
               <CardContent className="space-y-1">
@@ -780,10 +904,12 @@ export function Settings({ onLogout }: SettingsProps) {
                   label={t('settingsPage.enableMemory')}
                   description={t('settingsPage.enableMemoryDesc')}
                 >
-                  <Switch
-                    checked={getSetting('enableMemory', true) as boolean}
-                    onCheckedChange={(v) => updateSetting('enableMemory', v)}
-                  />
+                  <div className="transition-transform duration-150 hover:scale-110">
+                    <Switch
+                      checked={getSetting('enableMemory', true) as boolean}
+                      onCheckedChange={(v) => updateSetting('enableMemory', v)}
+                    />
+                  </div>
                 </SettingRow>
                 <Separator />
                 <SettingRow
@@ -829,6 +955,7 @@ export function Settings({ onLogout }: SettingsProps) {
                   icon={Clock}
                   title={t('settingsPage.sessionTab')}
                   description={t('settingsPage.sessionDesc')}
+                  gradient="from-cyan-500/20 to-sky-500/10"
                 />
               </CardHeader>
               <CardContent className="space-y-1">
@@ -894,6 +1021,7 @@ export function Settings({ onLogout }: SettingsProps) {
                   icon={Lock}
                   title={t('settingsPage.privacyTab')}
                   description={t('settingsPage.privacyDesc')}
+                  gradient="from-red-500/20 to-rose-500/10"
                 />
               </CardHeader>
               <CardContent className="space-y-1">
@@ -901,10 +1029,12 @@ export function Settings({ onLogout }: SettingsProps) {
                   label={t('settingsPage.piiRedaction')}
                   description={t('settingsPage.piiRedactionDesc')}
                 >
-                  <Switch
-                    checked={getSetting('piiRedaction', false) as boolean}
-                    onCheckedChange={(v) => updateSetting('piiRedaction', v)}
-                  />
+                  <div className="transition-transform duration-150 hover:scale-110">
+                    <Switch
+                      checked={getSetting('piiRedaction', false) as boolean}
+                      onCheckedChange={(v) => updateSetting('piiRedaction', v)}
+                    />
+                  </div>
                 </SettingRow>
               </CardContent>
             </Card>
@@ -916,6 +1046,7 @@ export function Settings({ onLogout }: SettingsProps) {
                   icon={Cpu}
                   title={t('settingsPage.modelTab')}
                   description={t('settingsPage.modelDesc')}
+                  gradient="from-blue-500/20 to-cyan-500/10"
                 />
               </CardHeader>
               <CardContent className="space-y-1">
@@ -961,6 +1092,7 @@ export function Settings({ onLogout }: SettingsProps) {
                   icon={Radio}
                   title={t('settingsPage.platformTab')}
                   description={t('settingsPage.platformChannelDesc')}
+                  gradient="from-teal-500/20 to-emerald-500/10"
                 />
               </CardHeader>
               <CardContent>
@@ -1132,40 +1264,34 @@ export function Settings({ onLogout }: SettingsProps) {
               <CardHeader className="pb-3">
                 <SectionHeader
                   icon={Bell}
-                  title={t('settings.notifications')}
-                  description={t('settings.notifications')}
+                  title={t('settingsPage.notificationPrefs')}
+                  description={t('settingsPage.notificationPrefsDesc')}
+                  gradient="from-amber-500/20 to-yellow-500/10"
                 />
               </CardHeader>
               <CardContent className="space-y-1">
-                <SettingRow
-                  label={t('settings.emailNotifications')}
-                  description={t('settings.emailNotifications')}
-                >
-                  <Switch
-                    checked={emailNotifications}
-                    onCheckedChange={(v) => handleNotificationToggle('emailNotifications', v, setEmailNotifications)}
-                  />
-                </SettingRow>
-                <Separator />
-                <SettingRow
-                  label={t('settings.pushNotifications')}
-                  description={t('settings.pushNotifications')}
-                >
-                  <Switch
-                    checked={pushNotifications}
-                    onCheckedChange={(v) => handleNotificationToggle('pushNotifications', v, setPushNotifications)}
-                  />
-                </SettingRow>
-                <Separator />
-                <SettingRow
-                  label={t('settings.soundAlerts')}
-                  description={t('settings.soundAlerts')}
-                >
-                  <Switch
-                    checked={soundAlerts}
-                    onCheckedChange={(v) => handleNotificationToggle('soundAlerts', v, setSoundAlerts)}
-                  />
-                </SettingRow>
+                {notifPrefsLoading && Object.keys(notifPrefs).length === 0 ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  notifPrefTypes.map((pref, i) => (
+                    <div key={pref.key}>
+                      {i > 0 && <Separator />}
+                      <SettingRow
+                        label={t(pref.label)}
+                        description={t(pref.desc)}
+                      >
+                        <div className="transition-transform duration-150 hover:scale-110">
+                          <Switch
+                            checked={notifPrefs[pref.key] ?? true}
+                            onCheckedChange={(v) => handleNotifPrefToggle(pref.key, v)}
+                          />
+                        </div>
+                      </SettingRow>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
 
@@ -1183,10 +1309,12 @@ export function Settings({ onLogout }: SettingsProps) {
                   label={t('settings.privacyMode')}
                   description={t('settings.privacyMode')}
                 >
-                  <Switch
-                    checked={privacyMode}
-                    onCheckedChange={(v) => handleNotificationToggle('privacyMode', v, setPrivacyMode)}
-                  />
+                  <div className="transition-transform duration-150 hover:scale-110">
+                    <Switch
+                      checked={privacyMode}
+                      onCheckedChange={(v) => handleNotificationToggle('privacyMode', v, setPrivacyMode)}
+                    />
+                  </div>
                 </SettingRow>
                 <Separator />
                 <div className="flex items-center justify-between py-3">
@@ -1289,10 +1417,12 @@ export function Settings({ onLogout }: SettingsProps) {
                   label={t('settingsPage.acrpShowOffline')}
                   description={t('settingsPage.acrpShowOfflineDesc')}
                 >
-                  <Switch
-                    checked={getSetting('acrpShowOfflineAgents', true) as boolean}
-                    onCheckedChange={(v) => updateSetting('acrpShowOfflineAgents', v)}
-                  />
+                  <div className="transition-transform duration-150 hover:scale-110">
+                    <Switch
+                      checked={getSetting('acrpShowOfflineAgents', true) as boolean}
+                      onCheckedChange={(v) => updateSetting('acrpShowOfflineAgents', v)}
+                    />
+                  </div>
                 </SettingRow>
                 <Separator />
                 <SettingRow
@@ -1369,57 +1499,88 @@ export function Settings({ onLogout }: SettingsProps) {
                   icon={Download}
                   title={t('dataExport.title')}
                   description={t('dataExport.subtitle')}
+                  gradient="from-emerald-500/20 to-teal-500/10"
                 />
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Format selector */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">{t('dataExport.format')}</Label>
-                    <div className="flex gap-2">
-                      <Button
-                        variant={exportFormat === 'json' ? 'default' : 'outline'}
-                        size="sm"
-                        className="gap-1.5 flex-1"
-                        onClick={() => setExportFormat('json')}
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        {t('dataExport.formatJson')}
-                      </Button>
-                      <Button
-                        variant={exportFormat === 'csv' ? 'default' : 'outline'}
-                        size="sm"
-                        className="gap-1.5 flex-1"
-                        onClick={() => setExportFormat('csv')}
-                      >
-                        <FileSpreadsheet className="w-3.5 h-3.5" />
-                        {t('dataExport.formatCsv')}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Type selector */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">{t('dataExport.type')}</Label>
-                    <Select value={exportType} onValueChange={setExportType}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">{t('dataExport.all')}</SelectItem>
-                        <SelectItem value="agents">{t('dataExport.agents')}</SelectItem>
-                        <SelectItem value="skills">{t('dataExport.skills')}</SelectItem>
-                        <SelectItem value="providers">{t('dataExport.providers')}</SelectItem>
-                        <SelectItem value="conversations">{t('dataExport.conversations')}</SelectItem>
-                      </SelectContent>
-                    </Select>
+                {/* Format selector */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">{t('dataExport.format')}</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={exportFormat === 'json' ? 'default' : 'outline'}
+                      size="sm"
+                      className="gap-1.5 flex-1"
+                      onClick={() => setExportFormat('json')}
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      {t('dataExport.formatJson')}
+                    </Button>
+                    <Button
+                      variant={exportFormat === 'csv' ? 'default' : 'outline'}
+                      size="sm"
+                      className="gap-1.5 flex-1"
+                      onClick={() => setExportFormat('csv')}
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5" />
+                      {t('dataExport.formatCsv')}
+                    </Button>
                   </div>
                 </div>
+
+                {/* Selective export checkboxes */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">{t('dataExport.selectData')}</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { key: 'agents', label: t('dataExport.agents'), desc: t('dataExport.includeAgents') },
+                      { key: 'skills', label: t('dataExport.skills'), desc: t('dataExport.includeSkills') },
+                      { key: 'providers', label: t('dataExport.providers'), desc: t('dataExport.includeProviders') },
+                      { key: 'conversations', label: t('dataExport.conversations'), desc: t('dataExport.includeConversations') },
+                    ].map((item) => (
+                      <button
+                        key={item.key}
+                        onClick={() => toggleExportType(item.key)}
+                        className={`flex items-start gap-2.5 p-3 rounded-lg border-2 transition-all duration-200 text-left ${
+                          selectedExportTypes.includes(item.key)
+                            ? 'border-primary bg-primary/5 shadow-sm'
+                            : 'border-border hover:border-primary/30'
+                        }`}
+                      >
+                        {selectedExportTypes.includes(item.key) ? (
+                          <CheckSquare className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        ) : (
+                          <Square className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                        )}
+                        <div>
+                          <p className="text-sm font-medium">{item.label}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Progress indicator */}
+                {exporting && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{t('dataExport.exporting')}</span>
+                      <span>{exportProgress}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${exportProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 <Button
                   className="w-full gap-2"
                   onClick={handleDataExport}
-                  disabled={exporting}
+                  disabled={exporting || selectedExportTypes.length === 0}
                 >
                   {exporting ? (
                     <>
@@ -1567,12 +1728,14 @@ export function Settings({ onLogout }: SettingsProps) {
             </Card>
 
             {/* Danger Zone */}
-            <Card className="border-destructive/30">
-              <CardHeader className="pb-3">
+            <Card className="border-2 border-destructive/40 dark:border-destructive/30 overflow-hidden relative">
+              <div className="absolute inset-0 bg-destructive/[0.03] dark:bg-destructive/[0.06] pointer-events-none" />
+              <CardHeader className="pb-3 relative">
                 <SectionHeader
                   icon={AlertTriangle}
                   title={t('settingsPage.dangerZone')}
                   description={t('settingsPage.dangerZoneDesc')}
+                  gradient="from-red-500/25 to-orange-500/15"
                 />
               </CardHeader>
               <CardContent className="space-y-4">

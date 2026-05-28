@@ -678,6 +678,15 @@ class ApiClient {
     return { blob, filename };
   }
 
+  // Notification Preferences
+  async getNotificationPreferences() {
+    return this.get<{ preferences: { id: string; type: string; enabled: boolean; createdAt: string; updatedAt: string }[] }>('/notification-preferences');
+  }
+
+  async updateNotificationPreference(type: string, enabled: boolean) {
+    return this.post<{ preference: { id: string; type: string; enabled: boolean } }>('/notification-preferences', { type, enabled });
+  }
+
   // ==================== Hermes Hub 2.0: Thread/Run/Step/Tool API ====================
 
   // Threads

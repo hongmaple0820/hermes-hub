@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Bot, Plus, Trash2, Eye, MoreHorizontal, Pencil, Search, Wifi, WifiOff, Clock, Sparkles, AlertTriangle, LayoutGrid, List } from 'lucide-react';
+import { Bot, Plus, Trash2, Eye, MoreHorizontal, Pencil, Search, Wifi, WifiOff, Clock, Sparkles, AlertTriangle, LayoutGrid, List, ArrowUpDown, Filter } from 'lucide-react';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -61,6 +61,7 @@ const AGENT_EMOJIS: Record<string, string> = {
 
 type FilterMode = 'all' | 'builtin' | 'acrp';
 type ViewLayout = 'grid' | 'list';
+type SortMode = 'name' | 'date' | 'status';
 
 export function AgentManager() {
   const { agents, setAgents, providers, setCurrentView, setSelectedAgentId } = useAppStore();
@@ -82,6 +83,7 @@ export function AgentManager() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [viewLayout, setViewLayout] = useState<ViewLayout>('grid');
+  const [sortMode, setSortMode] = useState<SortMode>('name');
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Search debounce (300ms)
@@ -251,12 +253,24 @@ export function AgentManager() {
     }
   };
 
-  // Filter & search agents (using debounced search)
-  const filteredAgents = agents.filter((agent: any) => {
-    const matchesSearch = !debouncedSearch || agent.name.toLowerCase().includes(debouncedSearch.toLowerCase()) || (agent.description || '').toLowerCase().includes(debouncedSearch.toLowerCase());
-    const matchesFilter = filterMode === 'all' || agent.mode === filterMode;
-    return matchesSearch && matchesFilter;
-  });
+  // Filter & search agents (using debounced search) with sorting
+  const filteredAgents = agents
+    .filter((agent: any) => {
+      const matchesSearch = !debouncedSearch || agent.name.toLowerCase().includes(debouncedSearch.toLowerCase()) || (agent.description || '').toLowerCase().includes(debouncedSearch.toLowerCase());
+      const matchesFilter = filterMode === 'all' || agent.mode === filterMode;
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a: any, b: any) => {
+      if (sortMode === 'name') return a.name.localeCompare(b.name);
+      if (sortMode === 'date') return new Date(b.createdAt || b.updatedAt).getTime() - new Date(a.createdAt || a.updatedAt).getTime();
+      if (sortMode === 'status') {
+        const statusOrder: Record<string, number> = { online: 0, busy: 1, error: 2, offline: 3 };
+        const aStatus = getStatusDot(a);
+        const bStatus = getStatusDot(b);
+        return (statusOrder[aStatus] ?? 99) - (statusOrder[bStatus] ?? 99);
+      }
+      return 0;
+    });
 
   const modeLabels: Record<string, string> = {
     builtin: t('agents.modeBuiltinShort'),
@@ -462,19 +476,30 @@ export function AgentManager() {
             className="pl-9"
           />
         </div>
-        <div className="flex items-center gap-1">
-          {(['all', 'builtin', 'acrp'] as FilterMode[]).map((mode) => (
-            <Button
-              key={mode}
-              variant={filterMode === mode ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterMode(mode)}
-              className="text-xs"
-            >
-              {mode === 'all' ? t('agents.filterAll') : mode === 'builtin' ? t('agents.filterBuiltin') : t('agents.filterAcrp')}
-            </Button>
-          ))}
-        </div>
+        {/* Filter Dropdown */}
+        <Select value={filterMode} onValueChange={(v) => setFilterMode(v as FilterMode)}>
+          <SelectTrigger className="w-[140px]">
+            <Filter className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('agents.filterAll')}</SelectItem>
+            <SelectItem value="builtin">{t('agents.filterBuiltin')}</SelectItem>
+            <SelectItem value="acrp">{t('agents.filterAcrp')}</SelectItem>
+          </SelectContent>
+        </Select>
+        {/* Sort Dropdown */}
+        <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+          <SelectTrigger className="w-[130px]">
+            <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="name">{t('agents.sortByName') || 'Name'}</SelectItem>
+            <SelectItem value="date">{t('agents.sortByDate') || 'Date'}</SelectItem>
+            <SelectItem value="status">{t('agents.sortByStatus') || 'Status'}</SelectItem>
+          </SelectContent>
+        </Select>
         <span className="text-xs text-muted-foreground">
           {filteredAgents.length} {filteredAgents.length === 1 ? 'agent' : 'agents'}
         </span>
@@ -591,15 +616,57 @@ export function AgentManager() {
       </Dialog>
 
       {agents.length === 0 ? (
-        <Card className="border-dashed">
-          <EmptyState
-            icon={Bot}
-            title={t('emptyState.noAgents')}
-            description={t('emptyState.noAgentsDesc')}
-            actionLabel={t('emptyState.createFirstAgent')}
-            onAction={() => setShowCreate(true)}
-          />
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+        >
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-20">
+              <motion.div
+                animate={{ y: [0, -8, 0] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <div className="relative">
+                  <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center">
+                    <Bot className="w-12 h-12 text-primary/50" />
+                  </div>
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500/30 border-2 border-background"
+                  />
+                </div>
+              </motion.div>
+              <motion.h3
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.15 }}
+                className="text-lg font-semibold mt-6 mb-2"
+              >
+                {t('emptyState.noAgents')}
+              </motion.h3>
+              <motion.p
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.25 }}
+                className="text-sm text-muted-foreground max-w-xs text-center mb-6"
+              >
+                {t('emptyState.noAgentsDesc')}
+              </motion.p>
+              <motion.div
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.35 }}
+              >
+                <Button className="gap-2" onClick={handleOpenBuilder}>
+                  <Plus className="w-4 h-4" />
+                  {t('emptyState.createFirstAgent')}
+                </Button>
+              </motion.div>
+            </CardContent>
+          </Card>
+        </motion.div>
       ) : filteredAgents.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16">
