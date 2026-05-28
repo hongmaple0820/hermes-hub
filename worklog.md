@@ -774,7 +774,55 @@ Work Log:
   - Added dark:border-zinc-500 to theme preview borders for dark mode visibility
   - Added dark:border-zinc-600 to accent color circles for dark mode visibility
   - Made accent color picker flex-wrap for mobile
-  - Added overflow-x-auto and shrink-0 to tabs for horizontal scrolling on mobile
+  - Added overflow-x-auto and shrink-0 to tabs for horizontal scr
+
+---
+Task ID: 9
+Agent: main
+Task: Integrate Pi Agent Toolkit (pi-ai + pi-agent-core) into Hermes Hub Agent Runtime
+
+Work Log:
+- Researched earendil-works/pi project: 4 core packages (pi-ai, pi-agent-core, pi-coding-agent, pi-tui)
+- Tested Bun compatibility: pi-ai and pi-agent-core fully work with Bun runtime
+- Verified 31 LLM providers supported: openai, anthropic, google, deepseek, groq, mistral, xai, openrouter, together, fireworks, ollama, zai, etc.
+- Completely rebuilt agent-runtime mini-service (v2 → v3) with Pi integration
+- Created 7 new files replacing old agent-runtime code:
+  - package.json: Added @earendil-works/pi-ai + @earendil-works/pi-agent-core dependencies
+  - types.ts: Backward-compatible types + new Pi/Thread/Run types
+  - provider-adapter.ts: Maps LLMProvider DB → pi-ai getModel(), API key management, 17 static providers, static model data
+  - tool-adapter.ts: Maps Tool/AgentTool DB → pi AgentTool interface, supports builtin/http/websocket handlers
+  - builtin-tools.ts: 5 tools (web_search, calculator, file_read, file_write, http_request) in pi AgentTool format with TypeBox schemas
+  - runtime.ts: Core engine using pi-agent-core Agent class, event streaming, steering/follow-up/abort, legacy fallback
+  - index.ts: Socket.IO server + HTTP API on port 3003, backward-compatible events + new Thread/Run/Steer events
+- Fixed pi-agent-core event field mapping:
+  - message_update: event.assistantMessageEvent.type === "text_delta" → event.assistantMessageEvent.delta
+  - tool_execution_start: event.toolName, event.args (not event.data.name)
+  - tool_execution_end: event.toolName, event.result, event.isError
+  - Token usage: event.message.usage.input/output (not event.data.usage)
+- Fixed Socket.IO + HTTP API coexistence on same port:
+  - Socket.IO installs request listener first
+  - We intercept /internal/* and /health requests before Socket.IO processes them
+- Fixed getModels() crashes for certain providers by using static model data
+- All endpoints tested and working:
+  - GET /internal/health → status ok, pi-ai: ✓, pi-agent-core: ✓
+  - GET /internal/providers → 17 providers listed
+  - GET /internal/providers/openai/models → 7 models (static)
+  - GET /internal/providers/anthropic/models → 4 models (static)
+  - GET /internal/providers/google/models → 3 models (static)
+- New Socket.IO events:
+  - run:steer — Interrupt an active run mid-execution
+  - run:follow-up — Queue follow-up work after completion
+  - run:thinking — Stream thinking/reasoning tokens
+  - provider:list / provider:models — Discover available providers and models
+
+Stage Summary:
+- **Pi toolkit fully integrated** into Hermes Hub Agent Runtime v3
+- **31 LLM providers** now available (was previously limited to z-ai SDK only)
+- **Structured agent execution** via pi-agent-core Agent class with event streaming, steering, follow-up, abort
+- **Backward compatible** — all legacy chat events (agent:message, chat:join/leave/message/typing) still work
+- **5 built-in tools** with TypeBox schema validation and parallel execution support
+- **New capabilities**: Steering (real-time interrupt), Follow-up (queue work), Thinking streaming, Provider discovery
+- Runtime service stable on port 3003 with health check and provider/model listing APIsolling on mobile
   - Made all form inputs responsive: w-full sm:w-24, w-full sm:w-28, w-full sm:w-32, w-full sm:w-48
 - AgentManager mobile:
   - All dialogs have w-[calc(100vw-2rem)] sm:max-w-lg for mobile full-width
