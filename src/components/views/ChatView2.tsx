@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Bot, ChevronDown, Wrench, ArrowLeft, Menu, MessageSquare, LayoutTemplate } from 'lucide-react';
+import { Bot, ChevronDown, Wrench, ArrowLeft, Menu, MessageSquare, LayoutTemplate, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/i18n';
 import { api } from '@/lib/api-client';
@@ -849,14 +849,14 @@ export default function ChatView2() {
   if (!selectedAgent) {
     return (
       <div className="h-full flex flex-col">
-        {/* Tab bar */}
-        <div className="flex items-center border-b border-border px-4 pt-3 gap-1 shrink-0">
+        {/* Tab bar — polished with gradient accent */}
+        <div className="flex items-center border-b border-border px-4 pt-3 gap-1 shrink-0 bg-gradient-to-r from-card/50 via-transparent to-card/50">
           <button
             onClick={() => setEmptyStateTab('chat')}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-lg transition-colors',
+              'flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-t-lg transition-all duration-200',
               emptyStateTab === 'chat'
-                ? 'bg-background border border-border border-b-background -mb-px text-foreground'
+                ? 'bg-background border border-border border-b-background -mb-px text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
             )}
           >
@@ -866,9 +866,9 @@ export default function ChatView2() {
           <button
             onClick={() => setEmptyStateTab('templates')}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-lg transition-colors',
+              'flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-t-lg transition-all duration-200',
               emptyStateTab === 'templates'
-                ? 'bg-background border border-border border-b-background -mb-px text-foreground'
+                ? 'bg-background border border-border border-b-background -mb-px text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
             )}
           >
@@ -877,15 +877,33 @@ export default function ChatView2() {
           </button>
         </div>
 
-        {/* Tab content */}
+        {/* Tab content with AnimatePresence */}
         <div className="flex-1 overflow-y-auto">
-          {emptyStateTab === 'chat' ? (
-            <AgentSelector onSelectAgent={handleSelectAgent} />
-          ) : (
-            <div className="p-4 sm:p-6 max-w-3xl mx-auto">
-              <ConversationTemplates onUseTemplate={handleUseTemplate} />
-            </div>
-          )}
+          <AnimatePresence mode="wait">
+            {emptyStateTab === 'chat' ? (
+              <motion.div
+                key="chat-tab"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.15 }}
+                className="h-full"
+              >
+                <AgentSelector onSelectAgent={handleSelectAgent} />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="templates-tab"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.15 }}
+                className="p-4 sm:p-6 max-w-3xl mx-auto"
+              >
+                <ConversationTemplates onUseTemplate={handleUseTemplate} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     );
@@ -920,8 +938,8 @@ export default function ChatView2() {
         )}
       </AnimatePresence>
 
-      {/* Chat Header */}
-      <div className="px-4 py-2.5 border-b border-border flex items-center justify-between bg-card/50 shrink-0">
+      {/* Chat Header — polished with gradient */}
+      <div className="px-4 py-2.5 border-b border-border flex items-center justify-between bg-gradient-to-r from-card/80 via-card/50 to-card/80 shrink-0">
         <div className="flex items-center gap-3">
           {/* Mobile: Thread list Sheet trigger */}
           <Sheet open={mobileThreadListOpen} onOpenChange={setMobileThreadListOpen}>
@@ -953,21 +971,34 @@ export default function ChatView2() {
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <Avatar className="w-8 h-8">
-            <AvatarFallback className="text-xs bg-primary/10 text-primary">
+            <AvatarFallback className={cn(
+              'text-xs flex items-center justify-center rounded-full',
+              selectedAgent.status === 'online'
+                ? 'bg-emerald-500/15 text-emerald-600'
+                : selectedAgent.status === 'busy'
+                  ? 'bg-amber-500/15 text-amber-600'
+                  : 'bg-primary/10 text-primary'
+            )}>
               <Bot className="w-4 h-4" />
             </AvatarFallback>
           </Avatar>
           <div>
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium">{agentName}</p>
-              <span
-                className={cn(
-                  'w-2 h-2 rounded-full',
-                  selectedAgent.status === 'online' && 'bg-emerald-500 animate-pulse',
-                  selectedAgent.status === 'busy' && 'bg-amber-500',
-                  selectedAgent.status === 'offline' && 'bg-muted-foreground/40'
-                )}
-              />
+              {/* Enhanced status indicator with pulse */}
+              {selectedAgent.status === 'online' ? (
+                <span className="flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                </span>
+              ) : selectedAgent.status === 'busy' ? (
+                <span className="flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-amber-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
+                </span>
+              ) : (
+                <span className="w-2 h-2 rounded-full bg-muted-foreground/40" />
+              )}
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-[10px] text-muted-foreground">
@@ -976,6 +1007,11 @@ export default function ChatView2() {
               <Badge variant="outline" className="text-[10px] h-4 px-1.5">
                 {selectedAgent.mode === 'acrp' ? 'ACRP' : 'Builtin'}
               </Badge>
+              {selectedAgent.model && (
+                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
+                  {selectedAgent.model}
+                </Badge>
+              )}
             </div>
           </div>
         </div>
@@ -1022,11 +1058,41 @@ export default function ChatView2() {
         {/* Messages + Input */}
         <div className="flex-1 flex flex-col min-w-0">
           {loadingMessages ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                <span className="text-sm text-muted-foreground">Loading messages...</span>
-              </div>
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 p-4">
+              {/* Skeleton message loader */}
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    'flex gap-2 w-full max-w-lg',
+                    i % 2 === 0 ? 'justify-start' : 'justify-end'
+                  )}
+                >
+                  {i % 2 === 0 && (
+                    <div className="w-7 h-7 rounded-full bg-muted animate-pulse shrink-0" />
+                  )}
+                  <div
+                    className={cn(
+                      'rounded-2xl px-4 py-2.5 space-y-1.5',
+                      i % 2 === 0
+                        ? 'bg-muted/60 rounded-tl-sm max-w-[75%]'
+                        : 'bg-primary/10 rounded-tr-sm max-w-[65%]'
+                    )}
+                  >
+                    <div className={cn(
+                      'h-3 bg-muted animate-pulse rounded',
+                      i === 0 ? 'w-32' : i === 1 ? 'w-24' : 'w-40'
+                    )} />
+                    <div className={cn(
+                      'h-3 bg-muted animate-pulse rounded',
+                      i === 0 ? 'w-20' : i === 1 ? 'w-36' : 'w-16'
+                    )} />
+                  </div>
+                  {i % 2 !== 0 && (
+                    <div className="w-7 h-7 rounded-full bg-muted animate-pulse shrink-0" />
+                  )}
+                </div>
+              ))}
             </div>
           ) : (
             <MessageArea

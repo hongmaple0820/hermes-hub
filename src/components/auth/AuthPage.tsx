@@ -319,8 +319,16 @@ export function AuthPage({ onAuth }: AuthPageProps) {
     setLoading(true);
     try {
       await onAuth(email, password, isRegister, name);
-    } catch {
-      setErrors({ email: t('auth.authFailed') });
+    } catch (error: any) {
+      if (error?.status === 409) {
+        // Email already exists - show specific message and suggest login
+        setErrors({ email: t('auth.emailExists') });
+      } else if (error?.status === 401) {
+        // Invalid credentials for login
+        setErrors({ password: t('auth.invalidCredentials') });
+      } else {
+        setErrors({ email: t('auth.authFailed') });
+      }
     } finally {
       setLoading(false);
     }
@@ -888,19 +896,40 @@ export function AuthPage({ onAuth }: AuthPageProps) {
                       </AnimatePresence>
 
                       {/* Email field */}
-                      <FloatingLabelInput
-                        id="email"
-                        label={t('auth.email')}
-                        type="email"
-                        placeholder={t('auth.emailPlaceholder')}
-                        value={email}
-                        onChange={(e) => {
-                          setEmail(e.target.value);
-                          if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
-                        }}
-                        error={errors.email}
-                        required
-                      />
+                      <div>
+                        <FloatingLabelInput
+                          id="email"
+                          label={t('auth.email')}
+                          type="email"
+                          placeholder={t('auth.emailPlaceholder')}
+                          value={email}
+                          onChange={(e) => {
+                            setEmail(e.target.value);
+                            if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+                          }}
+                          error={errors.email}
+                          required
+                        />
+                        {/* Switch to login link when email already exists */}
+                        <AnimatePresence>
+                          {isRegister && errors.email && errors.email === t('auth.emailExists') && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => { setIsRegister(false); setErrors({}); }}
+                                className="text-xs text-primary hover:underline mt-1 pl-1"
+                              >
+                                {t('auth.switchToLogin')}
+                              </button>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
 
                       {/* Password field */}
                       <div className="space-y-1">

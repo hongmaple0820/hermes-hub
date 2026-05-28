@@ -9,14 +9,30 @@ export async function POST(request: NextRequest) {
 
     if (!email || !name || !password) {
       return NextResponse.json(
-        { error: 'Missing required fields', details: 'email, name, and password are required' },
+        { error: 'MISSING_FIELDS', details: 'email, name, and password are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json(
+        { error: 'INVALID_EMAIL', details: 'Please provide a valid email address' },
+        { status: 400 }
+      );
+    }
+
+    // Validate name length
+    if (name.trim().length < 2) {
+      return NextResponse.json(
+        { error: 'NAME_TOO_SHORT', details: 'Name must be at least 2 characters' },
         { status: 400 }
       );
     }
 
     if (password.length < 6) {
       return NextResponse.json(
-        { error: 'Password too short', details: 'Password must be at least 6 characters' },
+        { error: 'PASSWORD_TOO_SHORT', details: 'Password must be at least 6 characters' },
         { status: 400 }
       );
     }
@@ -24,7 +40,7 @@ export async function POST(request: NextRequest) {
     const existingUser = await db.user.findUnique({ where: { email } });
     if (existingUser) {
       return NextResponse.json(
-        { error: 'User already exists', details: 'An account with this email already exists' },
+        { error: 'EMAIL_EXISTS', details: 'An account with this email already exists' },
         { status: 409 }
       );
     }
@@ -42,7 +58,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Registration error:', error);
     return NextResponse.json(
-      { error: 'Registration failed', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'REGISTRATION_FAILED', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

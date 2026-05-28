@@ -81,7 +81,10 @@
     "strong": "Strong",
     "termsOfService": "Terms of Service",
     "privacyPolicy": "Privacy Policy",
-    "agreeToTerms": "By signing up, you agree to our"
+    "agreeToTerms": "By signing up, you agree to our",
+    "emailExists": "This email is already registered",
+    "invalidCredentials": "Invalid email or password",
+    "switchToLogin": "Already have an account? Sign in instead"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -1766,7 +1769,20 @@
     "starterCode": "Help me write some code",
     "starterDebug": "Help me debug an issue",
     "thinkingLabel": "Thinking...",
-    "streamingLabel": "Responding..."
+    "streamingLabel": "Responding...",
+    "emptyHeroTitle": "Start Your AI Journey",
+    "emptyHeroDesc": "Create your first AI agent to begin chatting. Choose a quick-start template below or build a custom agent from scratch.",
+    "quickChat": "Chat Assistant",
+    "quickChatDesc": "General conversation and Q&A helper",
+    "quickCode": "Code Assistant",
+    "quickCodeDesc": "Write, review, and debug code",
+    "quickWrite": "Writing Assistant",
+    "quickWriteDesc": "Content creation and editing",
+    "createAgentHint": "Set up a provider first, then create your agent",
+    "searchAgents": "Search agents...",
+    "noSearchResults": "No agents match your search",
+    "tryDifferentSearch": "Try a different search term",
+    "clearSearch": "Clear search"
   },
   "templates": {
     "title": "Templates",

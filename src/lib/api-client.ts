@@ -4,6 +4,20 @@
 
 const API_BASE = '/api';
 
+export class ApiError extends Error {
+  status: number;
+  code: string;
+  details: string;
+
+  constructor(status: number, code: string, message: string, details: string = '') {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.details = details;
+  }
+}
+
 class ApiClient {
   private userId: string | null = null;
 
@@ -32,7 +46,12 @@ class ApiClient {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(data.error || data.details || `Request failed: ${res.status}`);
+      throw new ApiError(
+        res.status,
+        data.error || 'UNKNOWN_ERROR',
+        data.details || data.error || `Request failed: ${res.status}`,
+        data.details || ''
+      );
     }
 
     return res;

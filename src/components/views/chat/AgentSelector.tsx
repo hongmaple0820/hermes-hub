@@ -1,11 +1,29 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useState, useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Bot, Cpu, Globe, Radio, Loader2, Plus, Wrench, MessageSquare } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import {
+  Bot,
+  Cpu,
+  Globe,
+  Radio,
+  Loader2,
+  Plus,
+  Wrench,
+  MessageSquare,
+  Search,
+  Sparkles,
+  Code2,
+  PenTool,
+  HelpCircle,
+  ArrowRight,
+  LayoutGrid,
+  List,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/i18n';
 import { useAppStore } from '@/lib/store';
@@ -29,12 +47,46 @@ interface AgentSelectorProps {
 }
 
 // ---------------------------------------------------------------------------
+// Quick-start suggestion cards for empty state
+// ---------------------------------------------------------------------------
+interface QuickStartCard {
+  icon: React.ReactNode;
+  titleKey: string;
+  descKey: string;
+  prompt: string;
+  gradient: string;
+}
+
+const QUICK_START_CARDS: QuickStartCard[] = [
+  {
+    icon: <MessageSquare className="w-5 h-5" />,
+    titleKey: 'chat2.quickChat',
+    descKey: 'chat2.quickChatDesc',
+    prompt: 'Hello! I need help with a conversation assistant.',
+    gradient: 'from-cyan-500/10 to-blue-500/10',
+  },
+  {
+    icon: <Code2 className="w-5 h-5" />,
+    titleKey: 'chat2.quickCode',
+    descKey: 'chat2.quickCodeDesc',
+    prompt: 'Help me write and review code.',
+    gradient: 'from-emerald-500/10 to-green-500/10',
+  },
+  {
+    icon: <PenTool className="w-5 h-5" />,
+    titleKey: 'chat2.quickWrite',
+    descKey: 'chat2.quickWriteDesc',
+    prompt: 'Help me with writing and content creation.',
+    gradient: 'from-amber-500/10 to-orange-500/10',
+  },
+];
+
+// ---------------------------------------------------------------------------
 // Agent-specific conversation starters
 // ---------------------------------------------------------------------------
 function getConversationStarters(agent: MockAgent): string[] {
   const starters: string[] = [];
 
-  // Generate based on mode
   if (agent.mode === 'acrp') {
     starters.push('What capabilities do you have?');
     starters.push('Run a diagnostic check');
@@ -46,7 +98,6 @@ function getConversationStarters(agent: MockAgent): string[] {
     starters.push('Explain a concept to me');
   }
 
-  // Add based on description keywords
   const desc = agent.description.toLowerCase();
   if (desc.includes('code') || desc.includes('develop') || desc.includes('program')) {
     starters.push('Help me write some code');
@@ -61,12 +112,34 @@ function getConversationStarters(agent: MockAgent): string[] {
     starters.push('Analyze this data for me');
   }
 
-  // Ensure we have at least 2 starters
   if (starters.length < 2) {
     starters.push('What can you do?');
   }
 
   return starters.slice(0, 3);
+}
+
+// ---------------------------------------------------------------------------
+// Skeleton card for loading state
+// ---------------------------------------------------------------------------
+function AgentCardSkeleton() {
+  return (
+    <Card className="rounded-xl">
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-muted animate-pulse shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+            <div className="h-3 w-full bg-muted animate-pulse rounded" />
+            <div className="flex gap-1.5">
+              <div className="h-4 w-14 bg-muted animate-pulse rounded-full" />
+              <div className="h-4 w-18 bg-muted animate-pulse rounded-full" />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -79,6 +152,21 @@ export function AgentSelector({ onSelectAgent }: AgentSelectorProps) {
   const [error, setError] = useState<string | null>(null);
   const [agentToolCounts, setAgentToolCounts] = useState<Record<string, number>>({});
   const [hoveredAgent, setHoveredAgent] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced search
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 250);
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, [searchQuery]);
 
   // Fetch real agents from API if store is empty
   useEffect(() => {
@@ -121,15 +209,31 @@ export function AgentSelector({ onSelectAgent }: AgentSelectorProps) {
   }, [agents]);
 
   // Convert real agents to MockAgent format
-  const displayAgents: MockAgent[] = agents.map((a: any) => ({
-    id: a.id,
-    name: a.name,
-    description: a.description || '',
-    status: a.status || 'offline',
-    mode: a.mode || a.runtime || 'builtin',
-    model: a.model || undefined,
-    toolsCount: agentToolCounts[a.id] || 0,
-  }));
+  const displayAgents: MockAgent[] = useMemo(() =>
+    agents.map((a: any) => ({
+      id: a.id,
+      name: a.name,
+      description: a.description || '',
+      status: a.status || 'offline',
+      mode: a.mode || a.runtime || 'builtin',
+      model: a.model || undefined,
+      toolsCount: agentToolCounts[a.id] || 0,
+    })),
+    [agents, agentToolCounts]
+  );
+
+  // Filter agents by search query
+  const filteredAgents = useMemo(() => {
+    if (!debouncedSearch.trim()) return displayAgents;
+    const q = debouncedSearch.toLowerCase();
+    return displayAgents.filter(
+      (a) =>
+        a.name.toLowerCase().includes(q) ||
+        a.description.toLowerCase().includes(q) ||
+        a.mode.toLowerCase().includes(q) ||
+        (a.model && a.model.toLowerCase().includes(q))
+    );
+  }, [displayAgents, debouncedSearch]);
 
   const modeIcon = (mode: string) => {
     switch (mode) {
@@ -158,183 +262,398 @@ export function AgentSelector({ onSelectAgent }: AgentSelectorProps) {
     store.setCurrentView('agentBuilder');
   };
 
+  // -------------------------------------------------------------------------
+  // Empty State — Engaging hero with quick-start cards
+  // -------------------------------------------------------------------------
+  if (!loading && !error && displayAgents.length === 0) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 overflow-y-auto">
+        <div className="max-w-lg w-full">
+          {/* Hero illustration */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-8"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.15, type: 'spring', stiffness: 200, damping: 20 }}
+              className="relative w-24 h-24 mx-auto mb-6"
+            >
+              {/* Gradient glow behind the bot icon */}
+              <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/20 via-cyan-500/15 to-emerald-500/15 blur-xl" />
+              <div className="relative w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/10 flex items-center justify-center">
+                <Bot className="w-12 h-12 text-primary" />
+              </div>
+              {/* Sparkle accents */}
+              <motion.div
+                className="absolute -top-1 -right-1"
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.4, type: 'spring' }}
+              >
+                <Sparkles className="w-5 h-5 text-amber-500" />
+              </motion.div>
+            </motion.div>
+
+            <motion.h2
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-2xl font-bold mb-2"
+            >
+              {t('chat2.emptyHeroTitle')}
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="text-sm text-muted-foreground max-w-sm mx-auto"
+            >
+              {t('chat2.emptyHeroDesc')}
+            </motion.p>
+          </motion.div>
+
+          {/* Quick-start suggestion cards */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8"
+          >
+            {QUICK_START_CARDS.map((card, i) => (
+              <motion.button
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 + i * 0.08 }}
+                whileHover={{ y: -2, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  // Navigate to agent builder with a hint
+                  handleCreateAgent();
+                }}
+                className={cn(
+                  'relative flex flex-col items-center gap-2 p-4 rounded-xl border border-border/80 bg-card hover:border-primary/30 hover:shadow-md transition-all duration-200 text-center group',
+                  'bg-gradient-to-br',
+                  card.gradient
+                )}
+              >
+                <div className="w-9 h-9 rounded-xl bg-background/80 border border-border/50 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                  {card.icon}
+                </div>
+                <span className="text-sm font-medium">{t(card.titleKey)}</span>
+                <span className="text-[11px] text-muted-foreground leading-tight">{t(card.descKey)}</span>
+              </motion.button>
+            ))}
+          </motion.div>
+
+          {/* Primary CTA — only ONE create agent button */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="flex flex-col items-center gap-3"
+          >
+            <Button
+              size="lg"
+              className="gap-2 px-8 h-11 text-sm font-medium rounded-xl shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all"
+              onClick={handleCreateAgent}
+            >
+              <Plus className="w-4 h-4" />
+              {t('chat2.createAgent')}
+              <ArrowRight className="w-4 h-4 ml-1" />
+            </Button>
+            <p className="text-xs text-muted-foreground/70">{t('chat2.createAgentHint')}</p>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Main selector view — agents exist
+  // -------------------------------------------------------------------------
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div className="max-w-3xl w-full">
+    <div className="flex-1 flex flex-col p-4 sm:p-6 overflow-y-auto">
+      <div className="max-w-3xl w-full mx-auto">
         {/* Title */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
+          className="text-center mb-6"
         >
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/10 flex items-center justify-center mx-auto mb-4">
             <Bot className="w-7 h-7 text-primary" />
           </div>
           <h2 className="text-xl font-semibold mb-1">{t('chat2.selectAgent')}</h2>
           <p className="text-sm text-muted-foreground">{t('chat2.selectAgentDesc')}</p>
         </motion.div>
 
-        {/* Loading state */}
+        {/* Search bar + view toggle + create button */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="flex items-center gap-2 mb-4"
+        >
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('chat2.searchAgents')}
+              className="pl-8 h-8 text-xs rounded-lg"
+            />
+          </div>
+          <div className="flex items-center border border-border rounded-lg overflow-hidden">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={cn(
+                'p-1.5 transition-colors',
+                viewMode === 'grid' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={cn(
+                'p-1.5 transition-colors',
+                viewMode === 'list' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <List className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 h-8 text-xs rounded-lg shrink-0"
+            onClick={handleCreateAgent}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{t('chat2.createAgent')}</span>
+          </Button>
+        </motion.div>
+
+        {/* Loading state — skeleton cards */}
         {loading && (
-          <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-primary mb-3" />
-            <p className="text-sm text-muted-foreground">Loading agents...</p>
+          <div className={cn(
+            'grid gap-3',
+            viewMode === 'grid' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'
+          )}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <AgentCardSkeleton key={i} />
+            ))}
           </div>
         )}
 
         {/* Error state */}
         {error && !loading && (
           <div className="text-center py-8">
+            <HelpCircle className="w-10 h-10 text-destructive/40 mx-auto mb-3" />
             <p className="text-sm text-destructive mb-2">{error}</p>
-            <Badge variant="outline" className="text-xs">
-              Please create an agent first
-            </Badge>
+            <p className="text-xs text-muted-foreground">{t('chat2.noAgentsDesc')}</p>
           </div>
         )}
 
-        {/* Agent Grid */}
+        {/* Agent Grid/List */}
         {!loading && !error && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {displayAgents.map((agent, index) => (
+          <>
+            <AnimatePresence mode="popLayout">
+              <div className={cn(
+                'grid gap-3',
+                viewMode === 'grid' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'
+              )}>
+                {filteredAgents.map((agent, index) => (
+                  <motion.div
+                    key={agent.id}
+                    layout
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ delay: index * 0.04, duration: 0.2 }}
+                    onMouseEnter={() => setHoveredAgent(agent.id)}
+                    onMouseLeave={() => setHoveredAgent(null)}
+                  >
+                    <Card
+                      className={cn(
+                        'cursor-pointer hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 rounded-xl group',
+                        hoveredAgent === agent.id && 'border-primary/40 shadow-md -translate-y-0.5',
+                        // Gradient backgrounds based on mode
+                        agent.mode === 'acrp' && 'bg-gradient-to-br from-card to-cyan-500/5',
+                        agent.mode === 'custom_api' && 'bg-gradient-to-br from-card to-amber-500/5',
+                        agent.mode === 'builtin' && 'bg-gradient-to-br from-card to-emerald-500/5',
+                        viewMode === 'list' && 'hover:-translate-y-0'
+                      )}
+                      onClick={() => onSelectAgent(agent)}
+                    >
+                      <CardContent className={cn(
+                        'p-4',
+                        viewMode === 'list' && 'p-3'
+                      )}>
+                        {viewMode === 'grid' ? (
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={cn(
+                                'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 relative',
+                                agent.status === 'online'
+                                  ? 'bg-primary/10'
+                                  : 'bg-muted'
+                              )}
+                            >
+                              <Bot
+                                className={cn(
+                                  'w-5 h-5',
+                                  agent.status === 'online' ? 'text-primary' : 'text-muted-foreground'
+                                )}
+                              />
+                              {/* Status indicator with pulse */}
+                              {agent.status === 'online' && (
+                                <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+                                </span>
+                              )}
+                              {agent.status === 'busy' && (
+                                <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                                  <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500" />
+                                </span>
+                              )}
+                              {agent.status === 'offline' && (
+                                <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 rounded-full bg-muted-foreground/40" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <span className="text-sm font-medium truncate">{agent.name}</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                                {agent.description}
+                              </p>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 gap-0.5">
+                                  {modeIcon(agent.mode)}
+                                  {modeLabel(agent.mode)}
+                                </Badge>
+                                {agent.model && (
+                                  <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
+                                    {agent.model}
+                                  </Badge>
+                                )}
+                                {agent.toolsCount > 0 && (
+                                  <Badge variant="outline" className="text-[10px] h-4 px-1.5 gap-0.5">
+                                    <Wrench className="w-2.5 h-2.5" />
+                                    {agent.toolsCount} {t('chat2.agentTools')}
+                                  </Badge>
+                                )}
+                              </div>
+
+                              {/* Conversation starters on hover */}
+                              <AnimatePresence>
+                                {hoveredAgent === agent.id && (
+                                  <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="mt-3 space-y-1 overflow-hidden"
+                                  >
+                                    <span className="text-[10px] text-muted-foreground/70 font-medium">
+                                      {t('chat2.conversationStarter')}
+                                    </span>
+                                    {getConversationStarters(agent).map((starter, i) => (
+                                      <button
+                                        key={i}
+                                        className="flex items-center gap-1.5 w-full text-left px-2 py-1 rounded-md text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onSelectAgent(agent);
+                                        }}
+                                      >
+                                        <MessageSquare className="w-3 h-3 shrink-0" />
+                                        {starter}
+                                      </button>
+                                    ))}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          </div>
+                        ) : (
+                          /* List view layout */
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={cn(
+                                'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 relative',
+                                agent.status === 'online'
+                                  ? 'bg-primary/10'
+                                  : 'bg-muted'
+                              )}
+                            >
+                              <Bot
+                                className={cn(
+                                  'w-4 h-4',
+                                  agent.status === 'online' ? 'text-primary' : 'text-muted-foreground'
+                                )}
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1 flex items-center gap-2">
+                              <span className="text-sm font-medium truncate">{agent.name}</span>
+                              <span
+                                className={cn(
+                                  'w-1.5 h-1.5 rounded-full shrink-0',
+                                  agent.status === 'online' && 'bg-emerald-500',
+                                  agent.status === 'busy' && 'bg-amber-500',
+                                  agent.status === 'offline' && 'bg-muted-foreground/40'
+                                )}
+                              />
+                              <Badge variant="outline" className="text-[10px] h-4 px-1.5 gap-0.5 shrink-0">
+                                {modeIcon(agent.mode)}
+                                {modeLabel(agent.mode)}
+                              </Badge>
+                              {agent.model && (
+                                <Badge variant="secondary" className="text-[10px] h-4 px-1.5 shrink-0">
+                                  {agent.model}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate max-w-[200px] hidden sm:block">
+                              {agent.description}
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            </AnimatePresence>
+
+            {/* No search results */}
+            {!loading && filteredAgents.length === 0 && displayAgents.length > 0 && (
               <motion.div
-                key={agent.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.06, duration: 0.25 }}
-                onMouseEnter={() => setHoveredAgent(agent.id)}
-                onMouseLeave={() => setHoveredAgent(null)}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-8"
               >
-                <Card
-                  className={cn(
-                    'cursor-pointer hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 rounded-xl',
-                    hoveredAgent === agent.id && 'border-primary/40 shadow-md -translate-y-0.5'
-                  )}
-                  onClick={() => onSelectAgent(agent)}
+                <Search className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">{t('chat2.noSearchResults')}</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">{t('chat2.tryDifferentSearch')}</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 text-xs"
+                  onClick={() => setSearchQuery('')}
                 >
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={cn(
-                          'w-10 h-10 rounded-xl flex items-center justify-center shrink-0',
-                          agent.status === 'online'
-                            ? 'bg-primary/10'
-                            : 'bg-muted'
-                        )}
-                      >
-                        <Bot
-                          className={cn(
-                            'w-5 h-5',
-                            agent.status === 'online' ? 'text-primary' : 'text-muted-foreground'
-                          )}
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-sm font-medium truncate">{agent.name}</span>
-                          <span
-                            className={cn(
-                              'w-1.5 h-1.5 rounded-full shrink-0',
-                              agent.status === 'online' && 'bg-emerald-500 animate-pulse',
-                              agent.status === 'busy' && 'bg-amber-500',
-                              agent.status === 'offline' && 'bg-muted-foreground/40'
-                            )}
-                          />
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-                          {agent.description}
-                        </p>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <Badge variant="outline" className="text-[10px] h-4 px-1.5 gap-0.5">
-                            {modeIcon(agent.mode)}
-                            {modeLabel(agent.mode)}
-                          </Badge>
-                          {agent.model && (
-                            <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
-                              {agent.model}
-                            </Badge>
-                          )}
-                          {agent.toolsCount > 0 && (
-                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 gap-0.5">
-                              <Wrench className="w-2.5 h-2.5" />
-                              {agent.toolsCount} {t('chat2.agentTools')}
-                            </Badge>
-                          )}
-                        </div>
-
-                        {/* Conversation starters */}
-                        {hoveredAgent === agent.id && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="mt-3 space-y-1"
-                          >
-                            <span className="text-[10px] text-muted-foreground/70 font-medium">
-                              {t('chat2.conversationStarter')}
-                            </span>
-                            {getConversationStarters(agent).map((starter, i) => (
-                              <button
-                                key={i}
-                                className="flex items-center gap-1.5 w-full text-left px-2 py-1 rounded-md text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onSelectAgent(agent);
-                                }}
-                              >
-                                <MessageSquare className="w-3 h-3 shrink-0" />
-                                {starter}
-                              </button>
-                            ))}
-                          </motion.div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                  {t('chat2.clearSearch')}
+                </Button>
               </motion.div>
-            ))}
-
-            {/* Create New Agent Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: displayAgents.length * 0.06, duration: 0.25 }}
-            >
-              <Card
-                className="cursor-pointer hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 rounded-xl border-dashed"
-                onClick={handleCreateAgent}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-primary/5 border border-dashed border-primary/20">
-                      <Plus className="w-5 h-5 text-primary/60" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-primary/80">{t('chat2.createAgent')}</p>
-                      <p className="text-xs text-muted-foreground">{t('chat2.createAgentDesc')}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </div>
-        )}
-
-        {!loading && !error && displayAgents.length === 0 && (
-          <div className="text-center py-12">
-            <Bot className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">{t('chat2.noAgents')}</p>
-            <p className="text-xs text-muted-foreground/70 mt-1">{t('chat2.noAgentsDesc')}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4 gap-1.5"
-              onClick={handleCreateAgent}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              {t('chat2.createAgent')}
-            </Button>
-          </div>
+            )}
+          </>
         )}
       </div>
     </div>

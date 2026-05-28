@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { error: 'Missing required fields', details: 'email and password are required' },
+        { error: 'MISSING_FIELDS', details: 'email and password are required' },
         { status: 400 }
       );
     }
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const user = await db.user.findUnique({ where: { email } });
     if (!user) {
       return NextResponse.json(
-        { error: 'Invalid credentials', details: 'No account found with this email' },
+        { error: 'INVALID_CREDENTIALS', details: 'Invalid email or password' },
         { status: 401 }
       );
     }
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
       return NextResponse.json(
-        { error: 'Invalid credentials', details: 'Incorrect password' },
+        { error: 'INVALID_CREDENTIALS', details: 'Invalid email or password' },
         { status: 401 }
       );
     }
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Login failed', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'LOGIN_FAILED', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

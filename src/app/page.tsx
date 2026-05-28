@@ -232,6 +232,10 @@ function AppContent() {
         setShowOnboarding(true);
       }
     } catch (error: any) {
+      // Let AuthPage handle 409 and 401 errors with specific messages
+      if (error?.status === 409 || error?.status === 401) {
+        throw error;
+      }
       toast.error(error.message || 'Authentication failed');
       throw error;
     }

@@ -404,9 +404,9 @@ export function Dashboard() {
         title: t('dashboard.startConversation'),
         description: t('dashboard.startConversationDesc'),
         icon: MessageSquare,
-        color: 'text-emerald-600 dark:text-emerald-400',
-        bgColor: 'bg-emerald-500/10',
-        borderColor: 'border-emerald-200 dark:border-emerald-800',
+        color: 'text-cyan-600 dark:text-cyan-400',
+        bgColor: 'bg-cyan-500/10',
+        borderColor: 'border-cyan-200 dark:border-cyan-800',
         view: 'chat2',
         condition: true,
       });
@@ -416,9 +416,9 @@ export function Dashboard() {
         title: t('dashboard.addFirstTool'),
         description: t('dashboard.addFirstToolDesc'),
         icon: Wrench,
-        color: 'text-amber-600 dark:text-amber-400',
-        bgColor: 'bg-amber-500/10',
-        borderColor: 'border-amber-200 dark:border-amber-800',
+        color: 'text-violet-600 dark:text-violet-400',
+        bgColor: 'bg-violet-500/10',
+        borderColor: 'border-violet-200 dark:border-violet-800',
         view: 'toolRegistry',
         condition: true,
       });
@@ -428,9 +428,9 @@ export function Dashboard() {
         title: t('dashboard.createFirstAgent'),
         description: t('dashboard.createFirstAgentDesc'),
         icon: Bot,
-        color: 'text-violet-600 dark:text-violet-400',
-        bgColor: 'bg-violet-500/10',
-        borderColor: 'border-violet-200 dark:border-violet-800',
+        color: 'text-emerald-600 dark:text-emerald-400',
+        bgColor: 'bg-emerald-500/10',
+        borderColor: 'border-emerald-200 dark:border-emerald-800',
         view: 'agentBuilder',
         condition: true,
       });
@@ -489,13 +489,14 @@ export function Dashboard() {
   ];
 
   // Stats grid with sparklines (existing agents/providers etc)
+  // Consistent color system: Agents=emerald, Conversations=cyan/teal, Skills=violet/purple, Providers=amber/orange
   const stats = [
     {
       title: t('dashboard.agents'),
       value: agents.length,
       subtitle: t('dashboard.agentsOnline', { count: onlineAgents.length }),
       icon: Bot,
-      color: 'text-emerald-600',
+      color: 'text-emerald-600 dark:text-emerald-400',
       bgColor: 'bg-emerald-500/10',
       borderColor: 'border-l-emerald-500',
       view: 'agents' as const,
@@ -504,36 +505,39 @@ export function Dashboard() {
       sparklineColor: 'bg-emerald-500/60',
       gradientFrom: 'from-emerald-50/80 dark:from-emerald-950/30',
       gradientTo: 'to-card dark:to-card',
+      emptyMessage: agents.length === 0 ? t('dashboard.createFirstAgent') : undefined,
     },
     {
       title: t('dashboard.providers'),
       value: providers.length,
       subtitle: t('dashboard.providersActive', { count: activeProviders.length }),
       icon: Server,
-      color: 'text-violet-600',
-      bgColor: 'bg-violet-500/10',
-      borderColor: 'border-l-violet-500',
+      color: 'text-amber-600 dark:text-amber-400',
+      bgColor: 'bg-amber-500/10',
+      borderColor: 'border-l-amber-500',
       view: 'providers' as const,
       detail: `${activeProviders.length} ${t('dashboard.active')}`,
       sparkline: [1, 2, 2, 3, providers.length],
-      sparklineColor: 'bg-violet-500/60',
-      gradientFrom: 'from-violet-50/80 dark:from-violet-950/30',
+      sparklineColor: 'bg-amber-500/60',
+      gradientFrom: 'from-amber-50/80 dark:from-amber-950/30',
       gradientTo: 'to-card dark:to-card',
+      emptyMessage: providers.length === 0 ? t('dashboard.setUpProvider') : undefined,
     },
     {
       title: t('dashboard.conversations'),
       value: conversations.length,
       subtitle: t('dashboard.conversationsActive'),
       icon: MessageSquare,
-      color: 'text-rose-600',
-      bgColor: 'bg-rose-500/10',
-      borderColor: 'border-l-rose-500',
+      color: 'text-cyan-600 dark:text-cyan-400',
+      bgColor: 'bg-cyan-500/10',
+      borderColor: 'border-l-cyan-500',
       view: 'chat' as const,
       detail: `${chatRooms.length} ${t('dashboard.rooms')}`,
       sparkline: [5, 8, 12, 10, conversations.length],
-      sparklineColor: 'bg-rose-500/60',
-      gradientFrom: 'from-rose-50/80 dark:from-rose-950/30',
+      sparklineColor: 'bg-cyan-500/60',
+      gradientFrom: 'from-cyan-50/80 dark:from-cyan-950/30',
       gradientTo: 'to-card dark:to-card',
+      emptyMessage: conversations.length === 0 ? t('dashboard.startConversation') : undefined,
     },
   ];
 
@@ -626,17 +630,17 @@ export function Dashboard() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
           {runActivityStats.map((stat, index) => (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: index * 0.06, ease: 'easeOut' }}>
-              <Card className={cn('rounded-xl border border-border/60 shadow-sm transition-all duration-300 cursor-pointer group', 'hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]', 'bg-gradient-to-br', stat.gradientFrom, 'to-card')}>
+              <Card className={cn('rounded-xl border border-border/60 shadow-sm transition-all duration-300 cursor-pointer group', 'border-l-4', stat.borderColor, 'hover:shadow-md hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98]', 'bg-gradient-to-br', stat.gradientFrom, 'to-card')}>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <div className={cn('w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-300 group-hover:scale-110', stat.bgColor)}>
-                      <stat.icon className={cn('w-4 h-4', stat.color)} />
+                    <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110', stat.bgColor)}>
+                      <stat.icon className={cn('w-4.5 h-4.5', stat.color)} />
                     </div>
                   </div>
                   {runsLoading ? (
-                    <Skeleton className="h-8 w-16 mb-1" />
+                    <Skeleton className="h-9 w-16 mb-1" />
                   ) : (
-                    <div className="text-2xl font-bold tracking-tight">
+                    <div className="text-3xl font-semibold tracking-tight">
                       {stat.suffix === '%' ? (
                         <><AnimatedCounter target={stat.value} duration={800 + index * 100} />{stat.suffix}</>
                       ) : stat.label === t('dashboard.totalTokens') ? (
@@ -646,8 +650,8 @@ export function Dashboard() {
                       )}
                     </div>
                   )}
-                  <p className="text-xs text-muted-foreground dark:text-muted-foreground/90 mt-0.5">{stat.label}</p>
-                  {stat.detail && <p className="text-[11px] text-muted-foreground/80 dark:text-muted-foreground/70 mt-0.5">{stat.detail}</p>}
+                  <p className="text-sm text-muted-foreground dark:text-muted-foreground/90 mt-0.5">{stat.label}</p>
+                  {stat.detail && <p className="text-xs text-muted-foreground/60 dark:text-muted-foreground/60 mt-0.5">{stat.detail}</p>}
                 </CardContent>
               </Card>
             </motion.div>
@@ -660,8 +664,8 @@ export function Dashboard() {
         {/* ===== Main Grid: Recent Runs + Execution Health + Quick Start ===== */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Recent Runs Timeline */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
-            <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl h-full">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3, ease: 'easeOut' }}>
+            <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl h-full border-l-4 border-l-emerald-500/30">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -692,10 +696,17 @@ export function Dashboard() {
                     ))}
                   </div>
                 ) : recentRuns.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8">
-                    <PlayCircle className="w-8 h-8 text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">{t('dashboard.noRunsYet')}</p>
-                    <p className="text-xs text-muted-foreground/80 mt-1">{t('dashboard.startChatToCreateRun')}</p>
+                  <div className="flex flex-col items-center justify-center py-10 relative">
+                    <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-emerald-50/30 to-cyan-50/20 dark:from-emerald-950/10 dark:to-cyan-950/10 -z-10" />
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-3">
+                      <PlayCircle className="w-7 h-7 text-emerald-500/60" />
+                    </div>
+                    <p className="text-sm font-medium text-muted-foreground">{t('dashboard.noRunsYet')}</p>
+                    <p className="text-xs text-muted-foreground/60 mt-1">{t('dashboard.startChatToCreateRun')}</p>
+                    <Button variant="outline" size="sm" className="mt-3 gap-1.5 text-xs h-7" onClick={() => setCurrentView('chat2')}>
+                      <MessageSquare className="w-3 h-3" />
+                      {t('dashboard.startConversation')}
+                    </Button>
                   </div>
                 ) : (
                   <div className="relative max-h-80 overflow-y-auto scroll-smooth space-y-1.5">
@@ -746,8 +757,8 @@ export function Dashboard() {
           </motion.div>
 
           {/* Execution Health */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
-            <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl h-full">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4, ease: 'easeOut' }}>
+            <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl h-full border-l-4 border-l-violet-500/30">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Gauge className="w-4 h-4 text-violet-500" />
@@ -763,10 +774,13 @@ export function Dashboard() {
                     <Skeleton className="h-12 w-full" />
                   </div>
                 ) : !executionHealth.hasData ? (
-                  <div className="flex flex-col items-center justify-center py-8">
-                    <Activity className="w-8 h-8 text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">{t('dashboard.noExecutionData')}</p>
-                    <p className="text-xs text-muted-foreground/80 mt-1">{t('dashboard.runsWillAppear')}</p>
+                  <div className="flex flex-col items-center justify-center py-10 relative">
+                    <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-violet-50/30 to-cyan-50/20 dark:from-violet-950/10 dark:to-cyan-950/10 -z-10" />
+                    <div className="w-14 h-14 rounded-2xl bg-violet-500/10 flex items-center justify-center mb-3">
+                      <Activity className="w-7 h-7 text-violet-500/60" />
+                    </div>
+                    <p className="text-sm font-medium text-muted-foreground">{t('dashboard.noExecutionData')}</p>
+                    <p className="text-xs text-muted-foreground/60 mt-1">{t('dashboard.runsWillAppear')}</p>
                   </div>
                 ) : (
                   <>
@@ -858,8 +872,8 @@ export function Dashboard() {
           </motion.div>
 
           {/* Quick Start Cards + Most-used agents */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5 }}>
-            <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl h-full">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5, ease: 'easeOut' }}>
+            <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl h-full border-l-4 border-l-amber-500/30">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-amber-500" />
@@ -877,7 +891,7 @@ export function Dashboard() {
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: 0.3 + index * 0.08 }}
-                        className={cn('w-full flex items-center gap-3 p-3 rounded-xl border border-border/60 transition-all duration-200', 'hover:shadow-md hover:-translate-y-0.5 hover:border-primary/20 active:scale-[0.98]')}
+                        className={cn('w-full flex items-center gap-3 p-3 rounded-xl border border-dashed border-border/80 transition-all duration-200', 'hover:shadow-md hover:-translate-y-0.5 hover:border-solid hover:border-primary/20 hover:bg-accent/30 active:scale-[0.98]')}
                         onClick={() => setCurrentView(card.view)}
                       >
                         <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center', card.bgColor)}>
@@ -925,13 +939,13 @@ export function Dashboard() {
                   <div className="grid grid-cols-2 gap-2">
                     {[
                       { label: t('dashboard.createAgent'), icon: Bot, color: 'text-emerald-600 dark:text-emerald-400', bgColor: 'bg-emerald-500/10', view: 'agents' as const },
-                      { label: t('dashboard.addProvider'), icon: Server, color: 'text-violet-600 dark:text-violet-400', bgColor: 'bg-violet-500/10', view: 'providers' as const },
-                      { label: t('dashboard.browseSkills'), icon: Puzzle, color: 'text-amber-600 dark:text-amber-400', bgColor: 'bg-amber-500/10', view: 'skills' as const },
-                      { label: t('dashboard.startChat'), icon: MessageSquare, color: 'text-rose-600 dark:text-rose-400', bgColor: 'bg-rose-500/10', view: 'chat2' as const },
+                      { label: t('dashboard.addProvider'), icon: Server, color: 'text-amber-600 dark:text-amber-400', bgColor: 'bg-amber-500/10', view: 'providers' as const },
+                      { label: t('dashboard.browseSkills'), icon: Puzzle, color: 'text-violet-600 dark:text-violet-400', bgColor: 'bg-violet-500/10', view: 'skills' as const },
+                      { label: t('dashboard.startChat'), icon: MessageSquare, color: 'text-cyan-600 dark:text-cyan-400', bgColor: 'bg-cyan-500/10', view: 'chat2' as const },
                     ].map((action) => (
                       <button
                         key={action.label}
-                        className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/50 hover:border-border hover:bg-accent/50 transition-all"
+                        className="flex flex-col items-center gap-2 p-3 rounded-xl border border-dashed border-border/60 hover:border-solid hover:border-primary/20 hover:bg-accent/30 transition-all duration-200"
                         onClick={() => setCurrentView(action.view)}
                       >
                         <div className={cn('w-8 h-8 rounded-full flex items-center justify-center', action.bgColor)}>
@@ -950,8 +964,8 @@ export function Dashboard() {
         {/* ===== Analytics Row: Runs Chart + Conversations Chart + Agent Overview ===== */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Runs per Day Bar Chart */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5 }}>
-            <Card className="rounded-2xl hover:shadow-lg transition-all duration-300">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5, ease: 'easeOut' }}>
+            <Card className="rounded-2xl hover:shadow-lg transition-all duration-300 border-l-4 border-l-emerald-500/30">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <PlayCircle className="w-4 h-4 text-emerald-500" />
@@ -976,27 +990,27 @@ export function Dashboard() {
           </motion.div>
 
           {/* Conversations per Day Bar Chart */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.55 }}>
-            <Card className="rounded-2xl hover:shadow-lg transition-all duration-300">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.55, ease: 'easeOut' }}>
+            <Card className="rounded-2xl hover:shadow-lg transition-all duration-300 border-l-4 border-l-cyan-500/30">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-rose-500" />
+                  <BarChart3 className="w-4 h-4 text-cyan-500" />
                   {t('dashboard.conversationsPerDay')}
                 </CardTitle>
                 <CardDescription>{t('dashboard.last7Days')}</CardDescription>
               </CardHeader>
               <CardContent>
-                <MiniBarChart data={convsPerDay} labels={dayLabels} maxValue={maxConvPerDay} color="bg-rose-500/70" />
+                <MiniBarChart data={convsPerDay} labels={dayLabels} maxValue={maxConvPerDay} color="bg-cyan-500/70" />
               </CardContent>
             </Card>
           </motion.div>
 
           {/* Stats Grid - agents/providers/conversations with sparklines */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.6 }} className="space-y-4">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.6, ease: 'easeOut' }} className="space-y-4">
             {stats.map((stat, index) => (
               <Card
                 key={stat.title}
-                className={cn('transition-all duration-300 cursor-pointer group rounded-xl', 'border-l-4', stat.borderColor, 'hover:-translate-y-0.5 hover:shadow-lg', 'bg-gradient-to-br', stat.gradientFrom, stat.gradientTo)}
+                className={cn('transition-all duration-300 cursor-pointer group rounded-xl', 'border-l-4', stat.borderColor, 'hover:-translate-y-0.5 hover:shadow-lg hover:scale-[1.02]', 'bg-gradient-to-br', stat.gradientFrom, stat.gradientTo)}
                 onClick={() => setCurrentView(stat.view)}
               >
                 <CardContent className="p-3 flex items-center justify-between">
@@ -1005,13 +1019,16 @@ export function Dashboard() {
                       <stat.icon className={cn('w-4 h-4', stat.color)} />
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground dark:text-muted-foreground/90">{stat.title}</p>
+                      <p className="text-sm text-muted-foreground/60 dark:text-muted-foreground/60">{stat.title}</p>
                       <div className="flex items-center gap-2">
-                        <span className="text-xl font-bold tracking-tight">
+                        <span className="text-2xl font-semibold tracking-tight">
                           <AnimatedCounter target={stat.value} duration={800 + index * 80} />
                         </span>
                         <TrendIndicator values={stat.sparkline} />
                       </div>
+                      {stat.value === 0 && stat.emptyMessage && (
+                        <p className="text-xs text-muted-foreground/50 dark:text-muted-foreground/50 mt-0.5">{stat.emptyMessage}</p>
+                      )}
                     </div>
                   </div>
                   <Sparkline values={stat.sparkline} color={stat.sparklineColor} />
@@ -1022,8 +1039,8 @@ export function Dashboard() {
         </div>
 
         {/* Conversation Templates */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.65 }}>
-          <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.65, ease: 'easeOut' }}>
+          <Card className="hover:shadow-lg transition-all duration-300 rounded-2xl border-l-4 border-l-rose-500/30">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
