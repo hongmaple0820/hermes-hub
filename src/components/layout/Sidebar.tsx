@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Bot, Server, Puzzle, MessageSquare, Users, Settings,
   LogOut, ChevronLeft, ChevronRight, Zap, Languages,
   Radio, Clock, BarChart3, UserCircle, Brain, ScrollText, Folder, Terminal,
-  Monitor, ChevronDown,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -37,8 +37,7 @@ const navSections = [
       { id: 'agents' as ViewMode, labelKey: 'nav.agents', icon: Bot, shortcut: '⌘2' },
       { id: 'providers' as ViewMode, labelKey: 'nav.providers', icon: Server, shortcut: '⌘3' },
       { id: 'skills' as ViewMode, labelKey: 'nav.skills', icon: Puzzle, shortcut: '⌘4' },
-      { id: 'agent-control' as ViewMode, labelKey: 'nav.agentControl', icon: Monitor, shortcut: '⌘5', isNew: true },
-      { id: 'channels' as ViewMode, labelKey: 'nav.channels', icon: Radio, shortcut: '⌘6' },
+      { id: 'channels' as ViewMode, labelKey: 'nav.channels', icon: Radio, shortcut: '⌘5' },
     ],
   },
   {
@@ -301,23 +300,9 @@ export function Sidebar({ onLogout }: SidebarProps) {
                             {!effectivelyCollapsed && (
                               <>
                                 <span className="truncate flex-1 text-left relative z-10">{t(item.labelKey)}</span>
-                                {/* New Badge with pulse */}
-                                {item.isNew && (
-                                  <Badge className="h-4 px-1.5 text-[9px] font-bold bg-emerald-500 text-white hover:bg-emerald-500 border-0 leading-none relative z-10 animate-[badge-pulse_2s_ease-in-out_infinite]">
-                                    {t('sidebar.newBadge')}
-                                  </Badge>
-                                )}
-                                {/* Agent count badges */}
                                 {item.id === 'agents' && onlineAgents > 0 && (
                                   <span className="ml-auto text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full font-medium relative z-10">
                                     {onlineAgents}
-                                  </span>
-                                )}
-                                {/* ACRP connection count badge with gradient */}
-                                {item.id === 'agent-control' && connectedAcrp > 0 && (
-                                  <span className="flex items-center gap-1 text-[10px] bg-gradient-to-r from-cyan-500/15 to-blue-500/15 text-cyan-600 dark:text-cyan-400 px-1.5 py-0.5 rounded-full font-medium relative z-10 border border-cyan-500/20">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
-                                    {connectedAcrp}
                                   </span>
                                 )}
                                 {item.id === 'chat' && unreadConvs > 0 && (
@@ -342,17 +327,8 @@ export function Sidebar({ onLogout }: SidebarProps) {
                               <TooltipTrigger asChild>{button}</TooltipTrigger>
                               <TooltipContent side="right" className="font-medium">
                                 {t(item.labelKey)}
-                                {item.isNew && (
-                                  <Badge className="ml-1.5 h-4 px-1 text-[8px] font-bold bg-emerald-500 text-white border-0">
-                                    {t('sidebar.newBadge')}
-                                  </Badge>
-                                )}
-                                {/* Show badge counts in tooltip for collapsed state */}
                                 {item.id === 'agents' && onlineAgents > 0 && (
                                   <span className="ml-1.5 text-[10px] text-emerald-500">{onlineAgents} online</span>
-                                )}
-                                {item.id === 'agent-control' && connectedAcrp > 0 && (
-                                  <span className="ml-1.5 text-[10px] text-cyan-500">{connectedAcrp} connected</span>
                                 )}
                               </TooltipContent>
                             </Tooltip>

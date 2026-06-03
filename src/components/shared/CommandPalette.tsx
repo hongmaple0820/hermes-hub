@@ -69,10 +69,9 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     { id: 'nav-agents', label: t('commandPalette.agents'), icon: Bot, action: () => navigateTo('agents'), shortcut: '⌘2', group: 'navigation' },
     { id: 'nav-providers', label: t('commandPalette.providers'), icon: Server, action: () => navigateTo('providers'), shortcut: '⌘3', group: 'navigation' },
     { id: 'nav-skills', label: t('commandPalette.skills'), icon: Puzzle, action: () => navigateTo('skills'), shortcut: '⌘4', group: 'navigation' },
-    { id: 'nav-agent-control', label: t('commandPalette.agentControl'), icon: Monitor, action: () => navigateTo('agent-control'), shortcut: '⌘5', group: 'navigation' },
-    { id: 'nav-channels', label: t('commandPalette.channels'), icon: Wifi, action: () => navigateTo('channels'), shortcut: '⌘6', group: 'navigation' },
-    { id: 'nav-chat', label: t('commandPalette.chat'), icon: MessageSquare, action: () => navigateTo('chat'), shortcut: '⌘7', group: 'navigation' },
-    { id: 'nav-chat-rooms', label: t('commandPalette.chatRooms'), icon: Users, action: () => navigateTo('chat-rooms'), shortcut: '⌘8', group: 'navigation' },
+    { id: 'nav-channels', label: t('commandPalette.channels'), icon: Wifi, action: () => navigateTo('channels'), shortcut: '⌘5', group: 'navigation' },
+    { id: 'nav-chat', label: t('commandPalette.chat'), icon: MessageSquare, action: () => navigateTo('chat'), shortcut: '⌘6', group: 'navigation' },
+    { id: 'nav-chat-rooms', label: t('commandPalette.chatRooms'), icon: Users, action: () => navigateTo('chat-rooms'), shortcut: '⌘7', group: 'navigation' },
     { id: 'nav-settings', label: t('commandPalette.settings'), icon: Settings, action: () => navigateTo('settings'), shortcut: '⌘,', group: 'navigation' },
   ];
 

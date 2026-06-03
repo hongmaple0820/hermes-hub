@@ -114,11 +114,16 @@ model Agent {
   capabilities    AgentCapability[]
   invocations     CapabilityInvocation[]
 
+  // Unified Portal fields
+  agentCategory    String   @default("assistant") // assistant, worker, coordinator
+  templateId       String?  // Source template if created from template
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   provider      LLMProvider?      @relation(fields: [providerId], references: [id])
+  template      AgentTemplate?    @relation(fields: [templateId], references: [id])
   skills        AgentSkill[]
   connections   AgentConnection[]
   conversations Conversation[]
@@ -152,7 +157,7 @@ model Skill {
 
   // Legacy fields kept for backward compatibility
   configSchema  String?  @default("{}") // JSON Schema for configuration
-  handlerType   String   @default("builtin") // builtin, webhook, function
+  handlerType   String   @default("builtin") // builtin, webhook, function, acrp, protocol
   handlerUrl    String?  // For webhook-type skills
   parameters    String   @default("[]") // JSON: [{name, type, required, description}]
   isEnabled     Boolean  @default(true)
@@ -170,10 +175,14 @@ model Skill {
   wsConnected      Boolean  @default(false)
 
   // Source tracking
-  sourceType    String   @default("built-in") // built-in, agentskills-registry, custom, git
+  sourceType    String   @default("built-in") // built-in, agentskills-registry, custom, git, acrp-auto
   sourceUrl     String?  // Git repo URL if from registry
   sourcePath    String?  // Path within repo (e.g., .agents/skills/commit-helper)
   installedAt   DateTime? // When the skill was installed from a source
+
+  // ACRP auto-converted fields
+  sourceCapabilityId String? // Original capability ID if auto-converted from ACRP
+  sourceAgentId      String? // Agent ID that generated this skill via ACRP
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -642,4 +651,24 @@ model CapabilityInvocation {
   @@index([agentId, createdAt])
   @@index([capabilityId])
   @@index([status])
+}
+
+// ==================== Agent Template System ====================
+
+model AgentTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique  // Must match ^[a-z0-9]+(-[a-z0-9]+)*$
+  displayName String              // Human-friendly name
+  description String
+  category    String   @default("assistant") // assistant, worker, coordinator
+  icon        String?  // Lucide icon name or emoji
+  systemPrompt String? // Default system prompt
+  agentType   String?  // Preset agent type for external agents (null = builtin)
+  skillIds    String   @default("[]") // JSON: pre-installed skill ID list
+  config      String   @default("{}") // JSON: preset config (model, temperature, etc.)
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agents Agent[]
 }

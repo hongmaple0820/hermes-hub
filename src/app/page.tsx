@@ -7,7 +7,7 @@ import { api } from '@/lib/api-client';
 import { I18nProvider } from '@/i18n';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Dashboard } from '@/components/views/Dashboard';
-import { AgentManager } from '@/components/views/AgentManager';
+import { AgentPortal } from '@/components/views/AgentPortal';
 import { AgentDetail } from '@/components/views/AgentDetail';
 import { ProviderManager } from '@/components/views/ProviderManager';
 import { SkillMarketplace } from '@/components/views/SkillMarketplace';
@@ -22,7 +22,6 @@ import { MemoryView } from '@/components/views/MemoryView';
 import { LogsView } from '@/components/views/LogsView';
 import { FilesView } from '@/components/views/FilesView';
 import { TerminalView } from '@/components/views/TerminalView';
-import { AgentControlCenter } from '@/components/views/AgentControlCenter';
 import { SessionSearch } from '@/components/views/SessionSearch';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { Toaster, toast } from 'sonner';
@@ -179,10 +178,9 @@ function AppContent() {
         '2': 'agents',
         '3': 'providers',
         '4': 'skills',
-        '5': 'agent-control',
-        '6': 'channels',
-        '7': 'chat',
-        '8': 'chat-rooms',
+        '5': 'channels',
+        '6': 'chat',
+        '7': 'chat-rooms',
       };
 
       if (e.key === ',') {
@@ -298,7 +296,7 @@ function AppContent() {
       case 'dashboard':
         return <Dashboard />;
       case 'agents':
-        return <AgentManager />;
+        return <AgentPortal />;
       case 'agent-detail':
         return <AgentDetail />;
       case 'providers':
@@ -326,8 +324,6 @@ function AppContent() {
         return <FilesView />;
       case 'terminal':
         return <TerminalView />;
-      case 'agent-control':
-        return <AgentControlCenter />;
       case 'notifications':
         return <NotificationPanel />;
       case 'settings':

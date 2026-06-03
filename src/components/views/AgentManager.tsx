@@ -531,7 +531,7 @@ export function AgentManager() {
                 setShowAcrpSuccess(false);
                 if (createdAcrpAgent) {
                   setSelectedAgentId(createdAcrpAgent.id);
-                  setCurrentView('agent-control');
+                  setCurrentView('agent-detail');
                 }
                 setCreatedAcrpAgent(null);
               }}

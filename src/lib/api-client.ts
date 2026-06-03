@@ -553,6 +553,64 @@ class ApiClient {
     return this.del(`/acrp/agents/${agentId}/token`);
   }
 
+  // Unified Portal APIs
+  async createBuiltinAssistant(data: {
+    name: string;
+    description?: string;
+    systemPrompt?: string;
+    providerId?: string;
+    model?: string;
+    temperature?: number;
+    maxTokens?: number;
+  }) {
+    return this.post<{ agent: any }>('/agents/create-builtin', data);
+  }
+
+  async createExternalAgent(data: {
+    name: string;
+    description?: string;
+    agentType: string;
+  }) {
+    return this.post<{ agent: any; agentToken: string; connectGuide: { python: string; javascript: string; cli: string } }>('/agents/create-external', data);
+  }
+
+  async createFromTemplate(data: {
+    templateId: string;
+    name?: string;
+    description?: string;
+  }) {
+    return this.post<{ agent: any }>('/agents/create-from-template', data);
+  }
+
+  async getAgentTemplates() {
+    return this.get<{ templates: any[] }>('/agent-templates');
+  }
+
+  async getAgentTemplate(id: string) {
+    return this.get<{ template: any }>(`/agent-templates/${id}`);
+  }
+
+  async getAgentUnifiedDetail(id: string) {
+    return this.get<{ agent: any; skills: any[]; connectionStatus: any; recentActivities: any[] }>(`/agents/${id}/unified-detail`);
+  }
+
+  async attachSkillToAgent(agentId: string, skillId: string, config?: any) {
+    return this.post<{ agentSkill: any; endpoint?: any }>(`/agents/${agentId}/attach-skill`, { skillId, config });
+  }
+
+  async detachSkillFromAgent(agentId: string, skillId: string) {
+    return this.post<{ success: boolean }>(`/agents/${agentId}/detach-skill`, { skillId });
+  }
+
+  async getAgentActivities(agentId: string, limit?: number) {
+    const query = limit ? `?limit=${limit}` : '';
+    return this.get<{ activities: any[] }>(`/agents/${agentId}/activities${query}`);
+  }
+
+  async sendAgentChat(agentId: string, content: string) {
+    return this.post<{ reply: string; conversationId: string }>(`/agents/${agentId}/chat`, { content });
+  }
+
   // Analytics
   async getSkillAnalytics() {
     return this.get<{

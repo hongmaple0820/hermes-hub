@@ -17,7 +17,6 @@ export type ViewMode =
   | 'logs'
   | 'files'
   | 'terminal'
-  | 'agent-control'
   | 'notifications';
 
 export interface Notification {

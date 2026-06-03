@@ -266,7 +266,7 @@ export function Dashboard() {
           type: 'agent_connected',
           title: t('dashboard.activityAcrpConnected'),
           message: `${newlyConnected.name} connected via WebSocket`,
-          actionUrl: 'agent-control',
+          actionUrl: 'agents',
           metadata: { agentId: newlyConnected.id },
         });
       }
@@ -275,7 +275,7 @@ export function Dashboard() {
         type: 'agent_disconnected',
         title: t('dashboard.activityAcrpDisconnected'),
         message: `An ACRP agent disconnected`,
-        actionUrl: 'agent-control',
+        actionUrl: 'agents',
       });
     }
     prevAcrpConnected.current = currentConnected;
@@ -556,7 +556,7 @@ export function Dashboard() {
       color: 'text-cyan-600',
       bgColor: 'bg-cyan-500/10',
       borderColor: 'border-l-cyan-500',
-      view: 'agent-control' as const,
+      view: 'agents' as const,
       detail: `${connectedAcrpAgents.length} ${t('dashboard.connected')}`,
       sparkline: [0, 1, 1, 2, acrpAgents.length],
       sparklineColor: 'bg-cyan-500/60',
