@@ -98,7 +98,6 @@ export async function POST(request: NextRequest) {
           skillId,
           priority: index,
         })),
-        skipDuplicates: true,
       });
     }
 

@@ -10,7 +10,7 @@ import {
   Bot, Server, Puzzle, Monitor, MessageSquare, Users,
   Activity, ArrowUpRight, Zap, Wifi, WifiOff, TrendingUp,
   Clock, Cpu, Globe, Shield, Sparkles, BarChart3, Radio,
-  CheckCircle, Eye, LogOut, Plus, Settings, Timer, Uptime,
+  CheckCircle, Eye, LogOut, Plus, Settings, Timer,
   ArrowDownRight, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -320,18 +320,18 @@ export function Dashboard() {
   };
 
   // Conversations per day (last 7 days) - mock data based on actual count
-  const convsPerDay = useMemo(() => {
+  const convsPerDay = useMemo<number[]>(() => {
     const total = conversations.length;
     const base = Math.max(Math.floor(total / 7), 1);
     return Array.from({ length: 7 }, () => Math.floor(Math.random() * base * 2 + base * 0.5));
   }, [conversations.length]);
 
   const dayLabels = useMemo(() => {
-    const days = [];
+    const days: string[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      days.push(d.toLocaleDateString([], { weekday: 'short' }).slice(0, 2));
+      days.push(d.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2));
     }
     return days;
   }, []);

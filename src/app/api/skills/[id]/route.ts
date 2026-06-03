@@ -42,14 +42,12 @@ export async function GET(
 
     // Enhance each agent binding with endpoint URL and registration status
     const agentsWithEndpoints = skill.agents.map((binding) => {
-      const registrationInfo = JSON.parse(binding.registrationInfo || '{}');
       return {
         ...binding,
         endpointUrl: binding.endpointToken
           ? `/api/skill-protocol/events?token=${binding.endpointToken}`
           : null,
         registrationStatus: binding.callbackUrl ? 'registered' : 'pending',
-        registrationInfo,
         invokeCount: binding.invokeCount,
         lastInvokedAt: binding.lastInvokedAt,
       };

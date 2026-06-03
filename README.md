@@ -71,7 +71,31 @@
 - ⌨️ **键盘快捷键**: 全局快捷键支持，提升操作效率
 - 📱 **响应式设计**: 适配桌面端和移动端
 
----
+### 🔹 Agent Portal 简化流程 (v2.0+)
+
+**概念统一**
+- Skill / Plugin / Connection 统一为 **Skill** 概念
+- 用户只需关注 Agent + Skill，无需理解底层技术细节
+
+**操作简化**
+- **Agent Portal**: 三卡片快速创建 (内置助手 / 外部接入 / 职业模板)
+- **Agent Detail**: 5 Tab 简化为 3 Tab (配置 / 对话 / 历史)
+- **Skill 装配**: 一键添加，自动处理 endpoint/callback 配置
+
+**业务闭环**
+- 创建 Agent → 自动装配 Skills → 在详情页内直接对话 → 查看历史记录
+- 外部 Agent 接入 → 自动生成 Token → 复制代码 → 连接 → Capability 自动转 Skill → 可对话
+
+**预置模板**
+6 个职业模板开箱即用，自动预装配相关 Skills：
+| 模板 | 预装 Skills |
+|------|-------------|
+| 研发助手 | web-search, code-execution, pdf |
+| 运营助手 | web-search, charts, ppt, xlsx |
+| 内容创作 | web-search, blog-writer, seo-content-writer |
+| 金融分析 | web-search, stock-analysis-skill, finance |
+| 项目管理 | web-search, auto-target-tracker |
+| Hermes Agent | (ACRP 自动注册) |
 
 ## 🏗️ 技术架构
 
@@ -287,35 +311,84 @@ socket.on("capability:invoke", async (data) => {
 2. 点击 "注册" 填写用户名、邮箱、密码
 3. 登录后可进入主界面
 
-### 2. 创建智能体
-```
-侧边栏 → Agent Manager → + Create Agent
-```
-- **Builtin 模式**: 选择 LLM 提供商 + 模型，配置系统提示词
-- **ACRP 模式**: 填写智能体名称、类型、描述，生成连接 Token
+### 2. 创建智能体 (简化流程)
 
-### 3. 安装技能
+Hermes Hub 提供三种快速创建 Agent 的方式：
+
+#### 方式一：内置助手 (Builtin)
+适合快速创建基于云端 LLM 的 AI 助手。
+
+```
+侧边栏 → Agents → 创建内置助手
+```
+- 填写名称和描述
+- 选择 LLM 提供商 (OpenAI / Anthropic / Google)
+- 配置 System Prompt (可选预设模板)
+- 一键创建，立即可用
+
+#### 方式二：外部 Agent (ACRP)
+适合接入 Claude Code、Trae、OpenClaw 等本地 AI 工具。
+
+```
+侧边栏 → Agents → 外部接入
+```
+- 选择 Agent 类型 (Hermes Agent / Claude Code / Trae / OpenClaw / 自定义)
+- 系统自动生成 Agent Token
+- 复制接入代码 (Python / JavaScript / CLI)
+- 在本地环境中运行代码完成连接
+- 外部 Agent 的能力自动转换为 Skills
+
+#### 方式三：职业模板
+适合基于预置模板快速创建专业 Agent。
+
+```
+侧边栏 → Agents → 从模板创建
+```
+- 选择职业模板 (研发助手 / 运营助手 / 内容创作 / 金融分析 / 项目管理)
+- 系统自动预装配相关 Skills
+- 可预览模板配置和预装技能
+- 一键创建，开箱即用
+
+### 3. 管理智能体
+
+```
+侧边栏 → Agents → 点击 Agent 卡片
+```
+
+Agent 详情页提供三大功能 Tab：
+
+**配置 Tab**
+- 编辑基本信息 (名称、描述、System Prompt)
+- 查看/管理已装配 Skills (一键添加/移除)
+- 外部 Agent 的接入信息 (Token、代码、Capability 管理)
+
+**对话 Tab**
+- 在 Agent 详情页内直接对话
+- 支持内置助手 (LLM) 和外部 Agent (WebSocket) 两种模式
+- 实时显示 Skill 调用过程
+
+**历史 Tab**
+- 查看对话历史记录
+- 查看 Skill 调用记录
+- 查看 Capability 调用记录 (外部 Agent)
+
+### 4. 安装技能
+
 ```
 侧边栏 → Skill Marketplace → 浏览技能 → Install
 ```
 - 支持按类别/处理器类型筛选
-- 安装后可在 "My Skills" 中配置端点和回调
+- 也可在 Agent 详情页直接装配 Skills (双入口)
+- 装配后自动处理端点和回调配置
 
-### 4. 开始对话
+### 5. 开始对话
+
 ```
 侧边栏 → Chat → 选择智能体 → 输入消息
 ```
 - 支持多会话管理
 - 消息支持 Markdown 渲染
 - 长按消息可复制/删除
-
-### 5. 管理 ACRP 智能体
-```
-侧边栏 → Agent Control Center
-```
-- **Connected Agents**: 查看在线智能体列表和状态
-- **Remote Control**: 远程调用智能体注册的能力
-- **Setup Guide**: 获取连接代码示例和测试工具
 
 ---
 
@@ -456,6 +529,31 @@ psql $DATABASE_URL -c "SELECT 1;"
 2. 查看 `skill-ws` 服务日志: `tail -f mini-services/skill-ws/logs/*.log`
 3. 使用 `GET /api/acrp/agents` 检查智能体注册状态
 
+### Q: Agent Portal 和旧版 Agent Manager 的区别？
+**Agent Portal (新版)**:
+- 三卡片快速创建 (内置助手 / 外部接入 / 模板)
+- Agent Detail 简化为 3 Tab
+- Skill/Plugin/Connection 统一为 Skill 概念
+- 外部 Agent 的 ACRP 管理合并到 Agent Detail
+
+**Agent Manager (旧版)**:
+- 已保留但默认不再显示
+- 可通过 URL `/agents/legacy` 访问 (如需要)
+
+### Q: 如何从旧版迁移数据？
+简化流程完全向后兼容，旧数据自动适配：
+- 旧 Builtin Agent → 在新 Agent Portal 正常显示
+- 旧 ACRP Agent → 在新 Agent Detail 的"配置" Tab 管理
+- 旧 Plugin/Connection → 自动显示为 Skill (handlerType=protocol)
+
+### Q: Capability 如何自动转换为 Skill？
+当外部 Agent 通过 ACRP 注册 capability 时：
+1. 系统自动创建对应的 Skill (handlerType=acrp)
+2. 自动装配到该 Agent
+3. 在 Agent Detail 的"配置" Tab 中显示
+
+无需手动操作，Capability 变更实时同步为 Skill。
+
 ### Q: 生产环境如何部署？
 ```bash
 # 1. 构建应用
@@ -512,5 +610,33 @@ chore:    构建/工具/配置
 
 ---
 
-*文档最后更新: 2026-05-08 | 项目版本: main 分支*  
+## 📋 版本更新日志
+
+### v2.0 - Agent Portal 简化流程 (2026-06-03)
+
+**重大更新**
+- 全新 Agent Portal 界面，三卡片快速创建 Agent
+- Agent Detail 重构为 3 Tab (配置 / 对话 / 历史)
+- Skill/Plugin/Connection 统一为 Skill 概念
+- 外部 Agent 的 ACRP 管理合并到 Agent Detail
+- 新增 6 个职业模板，自动预装配 Skills
+- Capability 自动转换为 Skill，无需手动操作
+
+**API 新增**
+- `/api/agents/create-builtin` - 创建内置助手
+- `/api/agents/create-external` - 创建外部 Agent
+- `/api/agents/create-from-template` - 从模板创建
+- `/api/agents/[id]/unified-detail` - 统一详情
+- `/api/agents/[id]/attach-skill` - 统一装配 Skill
+- `/api/agents/[id]/chat` - Agent 内对话
+- `/api/agent-templates` - 模板列表
+
+**向后兼容**
+- 所有旧 API 保持正常工作
+- 旧数据自动适配新 UI
+- Agent Manager 保留，可通过 `/agents/legacy` 访问
+
+---
+
+*文档最后更新: 2026-06-03 | 项目版本: v2.0*  
 *如有问题，请在 GitHub 仓库提交 Issue 或 Discussion* 🚀

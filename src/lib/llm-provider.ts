@@ -245,11 +245,15 @@ async function zaiChatCompletion(
   options: ChatCompletionOptions = {}
 ): Promise<ChatCompletionResult> {
   // Dynamic import for z-ai-web-dev-sdk (server-side only)
-  const { chat } = await import('z-ai-web-dev-sdk');
+  const ZAIModule = await import('z-ai-web-dev-sdk');
+  const ZAI = ZAIModule.default || ZAIModule;
+  const zai = await ZAI.create();
   
-  const formattedMessages = messages.map(({ role, content }) => ({ role, content }));
+  const formattedMessages = messages
+    .filter(({ role }) => role !== 'tool')
+    .map(({ role, content }) => ({ role, content })) as { role: 'system' | 'user' | 'assistant'; content: string }[];
   
-  const result = await chat({
+  const result = await zai.chat.completions.create({
     messages: formattedMessages,
     model: model || 'default',
     temperature: options.temperature ?? 0.7,

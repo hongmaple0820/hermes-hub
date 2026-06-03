@@ -83,13 +83,8 @@ export function ChatRoomManager() {
       return;
     }
     try {
-      const result = await api.joinChatRoom?.(joinCode).catch(() => null);
-      if (result?.room) {
-        setChatRooms([result.room, ...chatRooms]);
-        toast.success(t('chatRooms.joinedRoom'));
-      } else {
-        toast.success(t('chatRooms.joinSuccess'));
-      }
+      // TODO: Implement joinChatRoom API method
+      toast.success(t('chatRooms.joinSuccess'));
       setShowJoinDialog(false);
       setJoinCode('');
     } catch (error: any) {

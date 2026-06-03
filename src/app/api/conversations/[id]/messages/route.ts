@@ -82,7 +82,7 @@ export async function POST(
     });
 
     // Generate agent reply if this is an agent conversation
-    let agentReply = null;
+    let agentReply: string | null = null;
     if (conversation.agentId) {
       const result = await generateAgentReply({
         agentId: conversation.agentId,

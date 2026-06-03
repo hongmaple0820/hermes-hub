@@ -37,7 +37,7 @@ export async function GET(
     })
 
     // Get live status from skill-ws
-    let liveStatus = null
+    let liveStatus: { connected: boolean } | null = null
     try {
       const res = await fetch(
         `http://localhost:3004/internal/acrp-status?agentId=${id}`,

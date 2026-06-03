@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     // Get live status from skill-ws for each agent
     const agentsWithStatus = await Promise.all(
       agents.map(async (agent) => {
-        let liveStatus = null
+        let liveStatus: { connected: boolean } | null = null
         try {
           const res = await fetch(
             `http://localhost:3004/internal/acrp-status?agentId=${agent.id}`,

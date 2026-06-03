@@ -264,14 +264,16 @@ async function executeSingleSkill(
         callbackUrl,
         callbackSecret || null,
         {
-          event: 'skill.invoke',
+          type: 'tool_call',
           timestamp: new Date().toISOString(),
+          source: 'system',
           data: {
             skillName,
             params,
             context,
           },
-        }
+        },
+        context.agentId
       );
 
       if (!webhookResult.success) {
@@ -281,7 +283,7 @@ async function executeSingleSkill(
       return {
         type: 'webhook',
         skillName,
-        status: webhookResult.status,
+        success: webhookResult.success,
         params,
       };
     }
@@ -296,14 +298,16 @@ async function executeSingleSkill(
         callbackUrl,
         callbackSecret || null,
         {
-          event: 'skill.invoke',
+          type: 'tool_call',
           timestamp: new Date().toISOString(),
+          source: 'system',
           data: {
             skillName,
             params,
             context,
           },
-        }
+        },
+        context.agentId
       );
 
       if (!functionResult.success) {
@@ -313,7 +317,7 @@ async function executeSingleSkill(
       return {
         type: 'function',
         skillName,
-        status: functionResult.status,
+        success: functionResult.success,
         params,
       };
     }

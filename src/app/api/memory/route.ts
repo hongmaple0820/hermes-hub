@@ -43,7 +43,6 @@ export async function GET(request: NextRequest) {
           content: '',
           modifiedAt: new Date(),
         })),
-        skipDuplicates: true,
       });
     }
 

@@ -245,7 +245,7 @@ export function UsageView() {
     }
   };
 
-  const estimatedCost = usage?.estimatedCost ?? usage?.totalCost ?? 0;
+  const estimatedCost = usage?.estimatedCost ?? 0;
   const costStatus = usage
     ? estimatedCost > 50
       ? { color: 'text-red-600', bgColor: 'bg-red-500/10', labelKey: 'usage.costHigh' }

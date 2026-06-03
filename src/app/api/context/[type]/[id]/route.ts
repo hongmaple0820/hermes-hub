@@ -26,7 +26,7 @@ export async function GET(
     const stats = await getContextStats(type as 'conversation' | 'room', id);
 
     // Get room config if it's a room
-    let compressionConfig = null;
+    let compressionConfig: { triggerTokens: number; maxHistoryTokens: number; tailMessageCount: number } | null = null;
     if (type === 'room') {
       const { db } = await import('@/lib/db');
       const room = await db.chatRoom.findUnique({

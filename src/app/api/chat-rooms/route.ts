@@ -72,7 +72,6 @@ export async function POST(request: NextRequest) {
           roomId: room.id,
           agentId,
         })),
-        skipDuplicates: true,
       });
     }
 

@@ -511,7 +511,7 @@ function cmdEnv(session: TerminalSession): string {
 
 function cmdPs(): string {
   return [
-    `${ANSI.FG.BOLD}PID   TTY     TIME      CMD${ANSI.RESET}`,
+    `${ANSI.BOLD}PID   TTY     TIME      CMD${ANSI.RESET}`,
     `1     ?       00:00:02  ${ANSI.FG.GREEN}hermes-agent${ANSI.RESET}`,
     `42    ?       00:01:12  ${ANSI.FG.GREEN}hermes-gateway${ANSI.RESET}`,
     `87    ?       00:00:34  ${ANSI.FG.CYAN}hermes-scheduler${ANSI.RESET}`,
