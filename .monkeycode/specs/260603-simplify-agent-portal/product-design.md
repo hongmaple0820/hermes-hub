@@ -1,8 +1,8 @@
 # Hermes Hub 产品设计文档
 
-> **版本**: v2.0  
-> **日期**: 2026-06-03  
-> **状态**: 已完成重构  
+> **版本**: v2.1  
+> **日期**: 2026-06-04  
+> **状态**: 已完成重构 + 边缘场景补充  
 > **文档类型**: 产品设计说明书 (PRD)
 
 ---
@@ -19,6 +19,26 @@
 8. [技术实现要点](#8-技术实现要点)
 9. [非功能需求](#9-非功能需求)
 10. [附录](#10-附录)
+11. [异常处理状态机设计](#11-异常处理状态机设计)
+12. [LLM Provider 配置流程](#12-llm-provider-配置流程)
+13. [ChatRoom 功能设计](#13-chatroom-功能设计)
+14. [Agent 删除流程](#14-agent-删除流程)
+15. [上下文压缩策略](#15-上下文压缩策略)
+16. [交互逻辑修正](#16-交互逻辑修正)
+17. [团队协作数据模型](#17-团队协作数据模型)
+18. [账单与用量限额](#18-账单与用量限额)
+19. [Skill Protocol 连接流程](#19-skill-protocol-连接流程)
+20. [注册登录流程](#20-注册登录流程)
+21. [Agent 编辑流程](#21-agent-编辑流程)
+22. [对话消息交互规范](#22-对话消息交互规范)
+23. [系统通知机制](#23-系统通知机制)
+24. [权限矩阵](#24-权限矩阵)
+25. [搜索功能设计](#25-搜索功能设计)
+26. [键盘快捷键](#26-键盘快捷键)
+27. [数据导出/导入](#27-数据导出导入)
+28. [Provider 故障切换](#28-provider-故障切换)
+29. [Agent 状态转换图](#29-agent-状态转换图)
+30. [全局 Chat 与 Detail 对话统一](#30-全局-chat-与-detail-对话统一)
 
 ---
 
@@ -1294,12 +1314,878 @@ interface ClientToServerEvents {
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v2.1 | 2026-06-04 | 边缘场景补充（章节 11-30） |
 | v2.0 | 2026-06-03 | Agent Portal 简化重构 |
 | v1.0 | 2026-04-XX | 初始版本发布 |
+
+---
+
+## 11. 异常处理状态机设计
+
+### 11.1 错误分类体系
+
+**必须定义的错误场景**:
+1. 外部 Agent 断线
+2. LLM 接口超时/失败
+3. Skill 调用失败
+4. WebSocket 连接异常
+5. 数据库操作失败
+
+**错误类型枚举**:
+```typescript
+enum ErrorCategory {
+  CONNECTION_ERROR = 'connection_error',
+  AUTHENTICATION_ERROR = 'auth_error',
+  TIMEOUT_ERROR = 'timeout_error',
+  LLM_ERROR = 'llm_error',
+  SKILL_ERROR = 'skill_error',
+  DATABASE_ERROR = 'database_error',
+  VALIDATION_ERROR = 'validation_error',
+  RATE_LIMIT_ERROR = 'rate_limit_error',
+  QUOTA_EXCEEDED = 'quota_exceeded',
+}
+```
+
+**错误严重程度**: INFO / WARNING / ERROR / CRITICAL
+
+### 11.2 外部 Agent 断线处理
+
+**状态机流程**:
+```
+[已连接] --30s无心跳--> [心跳缺失] --10s--> [已断开]
+    |                        |
+    |                        v
+    |                   [自动重连] --成功--> [已连接]
+    |                        |
+    |                        v
+    |                   [重连失败] --3次--> [需手动恢复]
+```
+
+**UI 状态对应表**:
+
+| 状态 | 图标 | 提示文案 | 用户操作 |
+|------|------|---------|---------|
+| Connected | 🟢 | "在线" | 正常对话 |
+| HeartbeatMissing | 🟡 | "连接不稳定..." | 等待自动恢复 |
+| Disconnected | 🔴 | "已断开，正在重连(1/3)..." | 等待或手动重连 |
+| Failed | ❌ | "连接失败" | [重新连接] [查看配置] |
+| ManualRecovery | ⚠️ | "需要重新配置" | [查看接入代码] |
+
+**实现参数**:
+- 心跳检测间隔: 30s
+- 超时容忍: 10s
+- 最大重连次数: 3 次
+- 指数退避: 1s, 2s, 4s
+
+### 11.3 LLM 接口错误处理
+
+| HTTP状态 | 错误码 | 自动重试 | 用户提示 | 降级策略 |
+|---------|--------|---------|---------|---------|
+| 429 | RATE_LIMIT | 3次 | "请求繁忙" | 延迟执行 |
+| 504 | TIMEOUT | 1次 | "响应较慢" | 缩短输出 |
+| 401 | INVALID_KEY | 否 | "API Key无效" | 无 |
+| 403 | QUOTA_EXCEEDED | 否 | "用量已用完" | 提示升级 |
+| 500 | SERVER_ERROR | 1次 | "服务暂时不可用" | 切换备用Provider |
+| 404 | MODEL_NOT_FOUND | 否 | "模型不可用" | 自动降级 |
+
+### 11.4 Skill 调用失败处理
+
+**对话界面展示**:
+```
+Agent: 🔍 [调用 web-search]
+⚠️ Skill 调用失败
+   原因: 网络超时
+   [重试] [跳过]
+Agent: 抱歉，搜索功能暂时不可用...
+```
+
+**处理策略**:
+- 超时: 自动重试 2 次
+- 执行错误: 不重试
+- 网络错误: 自动重试 3 次
+- 参数校验失败: 不重试
+
+---
+
+## 12. LLM Provider 配置流程
+
+### 12.1 Provider 管理入口
+
+**位置**: Settings → LLM Providers
+
+### 12.2 配置流程
+
+**Step 1**: 选择 Provider 类型 (OpenAI/Anthropic/Google/Ollama)
+
+**Step 2**: 填写配置
+- API Key (必填)
+- Base URL (可选)
+- 可用模型 (多选)
+- 默认模型 (单选)
+
+**Step 3**: 测试连接
+```
+测试连接...
+├─ 验证 API Key... 通过
+├─ 获取模型列表... 通过
+├─ 测试对话... 通过
+└─ 保存配置... 完成
+```
+
+### 12.3 配置校验规则
+- API Key 格式校验
+- 至少选择一个可用模型
+- 必须设置默认模型
+- 测试连接成功后才能保存
+
+---
+
+## 13. ChatRoom 功能设计
+
+### 13.1 功能概述
+
+支持多 Agent 群聊，用户和多个 Agent 在同一对话中协作。
+
+### 13.2 创建流程
+
+1. 侧边栏 → Chat Rooms → [创建聊天室]
+2. 填写名称、描述、选择参与 Agent
+3. 开始群聊
+
+### 13.3 数据模型
+
+```prisma
+model ChatRoom {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  members     ChatRoomMember[]
+  agents      ChatRoomAgent[]
+  messages    ChatRoomMessage[]
+}
+
+model ChatRoomMember {
+  id       String @id @default(cuid())
+  roomId   String
+  userId   String
+  role     String @default("member")
+  joinedAt DateTime @default(now())
+}
+
+model ChatRoomAgent {
+  id      String @id @default(cuid())
+  roomId  String
+  agentId String
+  addedAt DateTime @default(now())
+}
+```
+
+---
+
+## 14. Agent 删除流程
+
+### 14.1 删除入口
+
+Agent Detail → [删除] 按钮 (红色危险操作)
+
+### 14.2 认对话框
+
+```
+⚠️ 删除 Agent
+
+确定要删除 "研发助手" 吗？
+
+此操作将永久删除：
+• Agent 配置信息
+• 关联的 Skills
+• ACRP 连接记录
+
+[x] 保留对话历史
+
+请输入 Agent 名称以确认:
+[研发助手          ]
+
+[取消]    [确认删除]
+```
+
+### 14.3 级联删除规则
+
+**必须删除**:
+- Agent 记录
+- AgentSkill 关联
+- AgentConnection 记录
+
+**可选保留**:
+- Conversation 记录
+- Message 记录
+
+### 14.4 删除后跳转
+
+跳转回 Agent Portal，显示 Toast: "Agent 已删除"
+
+---
+
+## 15. 上下文压缩策略
+
+### 15.1 触发条件
+
+Token 数超过阈值时触发:
+- 内置助手: 4000 tokens
+- 外部 Agent: 8000 tokens
+
+### 15.2 压缩策略
+
+**策略 1: 截断 (默认)**
+- 保留最近 N 条消息
+- 丢弃早期消息
+
+**策略 2: 摘要**
+- 生成早期消息摘要
+- 保留摘要 + 最近消息
+
+### 15.3 用户感知
+
+```
+💡 上下文已压缩
+   当前对话较长，已自动压缩早期内容。
+   [查看详情] [不再提示]
+```
+
+---
+
+## 16. 交互逻辑修正
+
+### 16.1 步骤数矛盾
+
+**原问题**: 流程 B 标注"总步骤 4 步"，正文列了 10 步
+
+**修正**: 标注为"核心步骤 3 步"
+
+### 16.2 新建 Agent 跳转 Tab
+
+**原问题**: 创建后直接跳转到对话 Tab
+
+**修正**: 统一跳转到配置 Tab
+
+### 16.3 Skill 弹窗关闭逻辑
+
+**原问题**: 添加后立即关闭弹窗
+
+**修正**: 保持弹窗打开，已添加 Skill 显示禁用状态
+
+### 16.4 历史 Tab 粒度
+
+**原问题**: 对话历史与 Skill 调用统计混放
+
+**修正**: 
+- 历史 Tab: 仅对话会话列表
+- 配置 Tab: Skill 条目下显示调用统计
+
+---
+
+## 17. 团队协作数据模型
+
+### 17.1 Team 模型
+
+```prisma
+model Team {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+  members     TeamMember[]
+  agents      Agent[]
+}
+
+model TeamMember {
+  id     String @id @default(cuid())
+  teamId String
+  userId String
+  role   String @default("member")
+  joinedAt DateTime @default(now())
+}
+```
+
+### 17.2 Agent 可见性
+
+- **private**: 仅创建者可见
+- **team**: 团队成员可见
+- **public**: 所有人可见
+
+---
+
+## 18. 账单与用量限额
+
+### 18.1 用量统计
+
+```prisma
+model UsageRecord {
+  id         String   @id @default(cuid())
+  userId     String
+  agentId    String?
+  provider   String
+  model      String
+  inputTokens  Int
+  outputTokens Int
+  cost       Float
+  createdAt  DateTime @default(now())
+}
+```
+
+### 18.2 限额机制
+
+**限额层级**:
+- 用户级: 总用量限额
+- Agent 级: 单个 Agent 限额
+- 月度限额: 每月重置
+
+**超额处理**:
+1. 达到 80%: 邮件警告
+2. 达到 100%: 提示升级，允许超额 10%
+3. 超过 110%: 暂停服务
+
+---
+
+## 19. Skill Protocol 连接流程
+
+### 19.1 WebSocket 连接时序
+
+```
+1. Client -> Server: ws.connect()
+2. Server -> Client: 要求认证
+3. Client -> Server: { endpointToken }
+4. Server -> Client: 认证成功 + agentId
+5. Client -> Server: skill:register { capabilities }
+6. Server -> Client: 注册成功确认
+7. Server -> Client: 定期 heartbeat (30s)
+8. Client -> Server: skill:heartbeat 响应
+```
+
+### 19.2 错误处理
+
+- 认证失败: 关闭连接，提示重新配置
+- 心跳超时: 标记离线，尝试重连
+- 消息格式错误: 返回错误，不关闭连接
+
+---
+
+## 20. 注册登录流程
+
+### 20.1 注册流程
+
+1. 填写邮箱、用户名、密码
+2. 箱验证 (发送验证码)
+3. 验证成功后进入 Dashboard
+
+### 20.2 OAuth 登录
+
+支持的 Provider:
+- GitHub
+- Google
+- 企业 SSO
+
+### 20.3 安全机制
+
+- 密码强度要求: 8位以上，包含大小写+数字
+- 登录失败锁定: 5次失败锁定15分钟
+- Session 过期: 7天
+
+---
+
+## 21. Agent 编辑流程
+
+### 21.1 编辑模式切换
+
+**Agent Detail → 配置 Tab** 有两种模式：
+
+| 模式 | 触发 | 可编辑内容 | 保存方式 |
+|------|------|------------|---------|
+| **查看模式** | 默认 | 仅查看，不可编辑 | 无 |
+| **编辑模式** | 点击[编辑]按钮 | 名称、描述、System Prompt、LLM 配置 | [保存] [取消] |
+
+**编辑按钮位置**: Agent Detail 页面右上角
+
+### 21.2 各字段编辑规范
+
+#### 名称
+- 类型: 单行文本
+- 校验: 非空，1-50 字符，不允许纯空格
+- 实时校验: 输入时即时显示错误
+
+#### 描述
+- 类型: 多行文本
+- 校验: 0-500 字符
+- 可选字段
+
+#### System Prompt
+- 类型: 多行文本 (代码编辑器风格)
+- 字数统计: 实时显示字符数
+- 模板库: 点击[从模板选择]加载预设 Prompt
+- 保存行为: 修改 System Prompt 后需要确认"是否重新开始对话?"
+
+#### LLM 配置
+- Provider: 下拉选择 (仅显示已配置的 Provider)
+- Model: 下拉选择 (仅显示该 Provider 的可用模型)
+- Temperature: 滑块 (0.0 - 2.0, 步进 0.1)
+- Max Tokens: 数字输入 (100 - 32000)
+
+### 21.3 编辑保存流程
+
+```
+1. 用户点击 [编辑]
+2. 页面进入编辑模式:
+   - 所有可编辑字段变为输入状态
+   - 显示 [保存] [取消] 按钮
+   - [删除] 按钮隐藏 (防止误操作)
+3. 用户修改字段
+4. 修改时实时校验:
+   - 无效输入: 红色边框 + 错误提示
+   - 有效输入: 正常显示
+5. 用户点击 [保存]:
+   - 前端校验通过
+   - 调用 PATCH /api/agents/{id}
+   - 成功: Toast "已保存"，退出编辑模式
+   - 失败: Toast "保存失败"，保持编辑模式
+6. 用户点击 [取消]:
+   - 所有修改丢弃
+   - 恢复查看模式
+```
+
+### 21.4 脏数据检测
+
+- 任何字段修改后，[保存]按钮高亮
+- 用户尝试离开页面时弹出确认对话框:
+  "您有未保存的更改，是否放弃修改?"
+
+---
+
+## 22. 对话消息交互规范
+
+### 22.1 消息类型
+
+| 类型 | 样式 | 来源 | 特殊处理 |
+|------|------|------|---------|
+| **用户消息** | 右对齐，primary 背景 | 用户输入 | 可编辑（发送后30s内） |
+| **Agent 消息** | 左对齐，secondary 背景 | LLM/ACRP | 不可编辑 |
+| **系统消息** | 中间对齐，muted 背景 | 系统通知 | 灰色小字 |
+| **Skill 调用** | 左对齐，带图标 | Agent 触发 | 可展开详情 |
+| **错误消息** | 左对齐，destructive 背景 | 异常 | 带[重试]按钮 |
+
+### 22.2 消息操作
+
+#### 用户消息操作
+
+| 操作 | 触发方式 | 条件 | 说明 |
+|------|---------|------|------|
+| **复制** | 右键菜单 / 长按 | 始终可用 | 复制消息原文 |
+| **编辑** | 右键菜单 / 双击 | 发送后 30s 内 | 编辑后重新发送 |
+| **删除** | 右键菜单 / 长按 | 仅自己的消息 | 删除后显示"消息已删除" |
+| **重新发送** | 右键菜单 | 消息发送失败时 | 重新尝试发送 |
+
+#### Agent 消息操作
+
+| 操作 | 触发方式 | 条件 | 说明 |
+|------|---------|------|------|
+| **复制** | 右键菜单 / 长按 | 始终可用 | 复制消息原文 |
+| **引用回复** | 右键菜单 | 始终可用 | 在回复中引用此消息 |
+| **评分** | 消息底部按钮 | 始终可用 | 👍 / 👎 评分 |
+| **查看详情** | 消息底部按钮 | Skill 调用消息 | 展开调用参数和结果 |
+
+### 22.3 消息编辑流程
+
+```
+1. 用户双击自己发送的消息 (30s内)
+2. 消息进入编辑状态:
+   - 消息内容变为输入框
+   - 显示 [保存] [取消] 按钮
+3. 用户修改内容
+4. 点击 [保存]:
+   - 原消息标记为"已编辑"
+   - 发送新消息到 Agent
+   - Agent 根据新消息重新生成回复
+5. 点击 [取消]:
+   - 恢复原文
+```
+
+### 22.4 Skill 调用消息展开
+
+```
+折叠状态:
+┌─────────────────────────────────┐
+│ 🔍 [web-search] "今天天气"      │
+└─────────────────────────────────┘
+
+展开状态:
+┌─────────────────────────────────┐
+│ 🔍 web-search 调用详情          │
+├─────────────────────────────────┤
+│ 输入参数:                       │
+│   query: "今天天气"             │
+│   maxResults: 5                 │
+│                                 │
+│ 输出结果:                       │
+│   [1] 北京: 晴, 28°C           │
+│   [2] 上海: 多云, 25°C         │
+│   调用耗时: 1.2s               │
+│                                 │
+│ [收起详情]                      │
+└─────────────────────────────────┘
+```
+
+### 22.5 消息渲染规范
+
+| 内容类型 | 渲染方式 | 说明 |
+|---------|---------|------|
+| **Markdown** | react-markdown | 支持标题、列表、链接 |
+| **代码块** | 语法高亮 + 复制按钮 | 支持 30+ 语言 |
+| **图片** | 内联显示 + 点击放大 | URL 图片自动渲染 |
+| **表格** | HTML 表格 | Markdown 表格渲染 |
+| **链接** | 可点击 + 安全提示 | 外部链接显示安全提示 |
+| **LaTeX** | KaTeX 渲染 | 数学公式支持 |
+
+---
+
+## 23. 系统通知机制
+
+### 23.1 通知类型
+
+| 类型 | 触发场景 | 展示方式 | 持续时间 |
+|------|---------|---------|---------|
+| **Agent 状态变更** | 在线/离线/断线 | Toast + 侧边栏图标更新 | 5s |
+| **Skill 调用结果** | 调用成功/失败 | 对话内展示 | 永久 |
+| **用量告警** | 达到 80%/100% | 顶部 Banner + 邮件 | 持久 |
+| **协作邀请** | 被邀请加入 Team | Toast + 通知列表 | 持久 |
+| **系统更新** | 版本升级/维护 | 全屏 Banner | 持久 |
+
+### 23.2 通知中心
+
+**入口**: 侧边栏 → Notifications (🔔图标带未读数)
+
+```
+┌─────────────────────────────────────────┐
+│ 通知中心                    [全部已读]  │
+├─────────────────────────────────────────┤
+│ 🔴 Agent "研发助手" 已离线        2m  │
+│ 🟢 Agent "Hermes Dev" 已连接     5m  │
+│ ⚠️ 用量已达 80%                  1h  │
+│ 📧 李工邀请您加入团队            2h  │
+│                                         │
+│ [查看全部]                              │
+└─────────────────────────────────────────┘
+```
+
+### 23.3 通知数据模型
+
+```prisma
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String
+  type       String   // agent_status, skill_result, quota_alert, team_invite, system_update
+  title      String
+  message    String
+  read       Boolean  @default(false)
+  actionUrl  String?  // 点击后跳转的 URL
+  createdAt  DateTime @default(now())
+}
+```
+
+---
+
+## 24. 权限矩阵
+
+### 24.1 角色定义
+
+| 角色 | 范围 | 权限 |
+|------|------|------|
+| **owner** | Team | 全部权限 + 管理成员 + 删除 Team |
+| **admin** | Team | 管理 Agent + 管理成员 + 配置 |
+| **member** | Team | 使用 Team Agent + 对话 + 查看历史 |
+| **user** | 个人 | 管理自己的 Agent + Skill + 对话 |
+| **guest** | 受邀 | 仅对话（对 public Agent） |
+
+### 24.2 操作权限矩阵
+
+| 操作 | owner | admin | member | user | guest |
+|------|-------|-------|--------|------|-------|
+| 创建 Agent | ✅ | ✅ | ✅(仅个人) | ✅ | ❌ |
+| 编辑 Agent | ✅(全部) | ✅(Team内) | ✅(仅自己) | ✅(仅自己) | ❌ |
+| 删除 Agent | ✅(全部) | ✅(Team内) | ✅(仅自己) | ✅(仅自己) | ❌ |
+| 装配 Skill | ✅ | ✅ | ✅(仅自己) | ✅(仅自己) | ❌ |
+| 与 Agent 对话 | ✅ | ✅ | ✅ | ✅ | ✅(仅public) |
+| 查看 Agent 配置 | ✅ | ✅ | ✅(Team内) | ✅(仅自己) | ❌ |
+| 管理 Provider | ✅ | ✅ | ✅(仅自己) | ✅(仅自己) | ❌ |
+| 查看 Dashboard | ✅ | ✅ | ✅(受限) | ✅(受限) | ❌ |
+| 管理团队成员 | ✅ | ✅ | ❌ | ❌ | ❌ |
+| 删除 Team | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+---
+
+## 25. 搜索功能设计
+
+### 25.1 搜索入口
+
+**全局搜索**: Command Palette (⌘K / Ctrl+K)
+
+### 25.2 搜索范围
+
+| 搜索对象 | 索引字段 | 结果展示 |
+|---------|---------|---------|
+| **Agent** | 名称、描述、System Prompt | Agent 卡片 + [查看] |
+| **Skill** | 名称、displayName、描述 | Skill 标签 + [添加到Agent] |
+| **对话历史** | 消息内容 | 消息片段 + [打开对话] |
+| **模板** | 名称、displayName、描述 | 模板卡片 + [使用] |
+| **Provider** | 名称、provider | Provider 卡片 + [配置] |
+
+### 25.3 搜索交互
+
+```
+┌─────────────────────────────────────────┐
+│ 🔍 搜索...                              │
+├─────────────────────────────────────────┤
+│                                         │
+│ Agent                                   │
+│ ├─ 🤖 研发助手  → [查看]               │
+│ ├─ 🔗 Hermes Dev → [查看]              │
+│                                         │
+│ Skill                                   │
+│ ├─ 🔍 web-search → [添加]              │
+│ ├─ 💻 code-execution → [添加]          │
+│                                         │
+│ 对话                                    │
+│ ├─ "React 19 调研" → [打开]            │
+│ ├─ "代码审查辅助" → [打开]             │
+│                                         │
+│ 模板                                    │
+│ ├─ 📋 研发助手 → [使用模板]             │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+### 25.4 搜索排序规则
+
+1. 确名称匹配优先
+2. 当前用户创建的内容优先
+3. 最近修改/使用优先
+4. 按类别分组展示
+
+---
+
+## 26. 键盘快捷键
+
+### 26.1 全局快捷键
+
+| 快捷键 | 功能 | 适用范围 |
+|--------|------|---------|
+| ⌘K / Ctrl+K | 打开 Command Palette | 全局 |
+| ⌘1 | Dashboard | 全局 |
+| ⌘2 | Agent Portal | 全局 |
+| ⌘3 | Agent Detail (当前选中) | 全局 |
+| ⌘4 | Provider Manager | 全局 |
+| ⌘5 | Skill Marketplace | 全局 |
+| ⌘6 | Chat | 全局 |
+| ⌘7 | Chat Rooms | 全局 |
+| ⌘8 | Settings | 全局 |
+| ⌘/ | 切换侧边栏 | 全局 |
+| ⌘. | 关闭弹窗/对话框 | 全局 |
+
+### 26.2 对话快捷键
+
+| 快捷键 | 功能 | 适用范围 |
+|--------|------|---------|
+| Enter | 发送消息 | 对话输入框 |
+| Shift+Enter | 换行 | 对话输入框 |
+| ⌘Shift+C | 复制最后一条回复 | 对话页面 |
+| ⌘R | 重新生成回复 | 对话页面 |
+| ↑ | 编辑上一条消息(30s内) | 对话输入框 |
+
+### 26.3 Agent Detail 快捷键
+
+| 快捷键 | 功能 | 适用范围 |
+|--------|------|---------|
+| ⌘E | 进入编辑模式 | Agent Detail |
+| ⌘S | 保存编辑 | 编辑模式 |
+| Escape | 退出编辑/取消操作 | Agent Detail |
+
+---
+
+## 27. 数据导出/导入
+
+### 27.1 Agent 配置导出
+
+**入口**: Agent Detail → [更多] → [导出配置]
+
+**导出格式**: JSON
+```json
+{
+  "version": "2.0",
+  "exportedAt": "2026-06-04T12:00:00Z",
+  "agent": {
+    "name": "研发助手",
+    "description": "辅助研发...",
+    "systemPrompt": "你是一个技术专家...",
+    "mode": "builtin",
+    "agentCategory": "assistant",
+    "model": "gpt-4",
+    "temperature": 0.7,
+    "maxTokens": 2048
+  },
+  "skills": [
+    { "name": "web-search", "config": {} },
+    { "name": "code-execution", "config": {} }
+  ]
+}
+```
+
+### 27.2 对话历史导出
+
+**入口**: 对话页面 → [更多] → [导出对话]
+
+**导出格式**: Markdown
+```markdown
+# 对话: React 19 调研
+## 日期: 2026-06-04
+
+### User
+帮我搜索 React 19 的新特性
+
+### Agent (研发助手)
+🔍 [调用 web-search] ...
+
+React 19 的新特性包括:
+- Server Components
+- Actions
+...
+```
+
+### 27.3 Agent 配置导入
+
+**入口**: Agent Portal → [更多] → [导入配置]
+
+**流程**:
+1. 选择 JSON 文件上传
+2. 系统解析并校验格式
+3. 预览配置内容
+4. 用户确认创建
+5. 自动创建 Agent + 装配 Skills
+
+---
+
+## 28. Provider 故障切换
+
+### 28.1 故障检测
+
+**检测方式**:
+- 每次对话调用时检测响应状态
+- 定时健康检查 (每 5 分钟 ping 一次)
+
+### 28.2 切换流程
+
+```
+1. 检测到 Provider A 故障 (连续3次调用失败)
+2. 查找备用 Provider B (同类型,已配置,健康)
+3. 自动切换:
+   - 临时将 Agent 的 providerId 改为 Provider B
+   - 通知用户: "已自动切换到 Provider B"
+4. Provider A 恢复后:
+   - 通知用户: "Provider A 已恢复"
+   - 不自动切回 (避免频繁切换)
+   - 用户可手动切回
+```
+
+### 28.3 健康检查 API
+
+```typescript
+// GET /api/providers/health
+interface ProviderHealth {
+  providerId: string;
+  status: 'healthy' | 'degraded' | 'down';
+  lastCheck: DateTime;
+  responseTimeMs: number;
+  errorRate: number; // 最近 1h 的错误率
+}
+```
+
+---
+
+## 29. Agent 状态转换图
+
+### 29.1 状态定义
+
+| 状态 | 含义 | 触发条件 |
+|------|------|---------|
+| **offline** | 未连接 | 默认状态/Agent 创建后 |
+| **online** | 正常运行 | 内置助手: LLM 可用; 外部: WS 连接 |
+| **busy** | 正在处理 | 正在执行对话/Skill调用 |
+| **error** | 异常状态 | Provider故障/连接失败 |
+| **disconnected** | 临时断开 | 心跳缺失(外部Agent) |
+
+### 29.2 状态转换规则
+
+```
+offline ──创建──→ offline
+offline ──首次对话──→ online (内置助手)
+offline ──WS连接──→ online (外部Agent)
+online ──收到对话──→ busy
+busy ──对话完成──→ online
+online ──Provider故障──→ error
+online ──心跳缺失──→ disconnected
+disconnected ──重连成功──→ online
+disconnected ──重连失败──→ error
+error ──Provider恢复──→ online (需手动)
+error ──重新连接──→ online (需手动)
+```
+
+### 29.3 UI 状态指示器
+
+```
+🟢 online    → 绿色实心圆点 + "在线"
+🟡 busy      → 绿色脉冲圆点 + "处理中..."
+🔴 offline   → 灰色圆点 + "离线"
+❌ error     → 红色圆点 + "异常" + [修复]按钮
+🟡 disconnected → 黄色圆点 + "重连中..." + 重连计数
+```
+
+---
+
+## 30. 全局 Chat 与 Detail 对话统一
+
+### 30.1 统一会话模型
+
+**核心规则**: 全局 Chat 和 Agent Detail 的对话 Tab 共享同一套 Conversation 数据。
+
+```prisma
+model Conversation {
+  id          String @id @default(cuid())
+  agentId     String
+  title       String?
+  createdAt   DateTime @default(now())
+  messages    Message[]
+}
+```
+
+### 30.2 两个入口的定位
+
+| 入口 | 侧边栏 Chat | Agent Detail 对话 Tab |
+|------|-------------|---------------------|
+| **定位** | 全局对话入口，可切换 Agent | 特定 Agent 的专属对话 |
+| **默认行为** | 显示最近对话列表 | 直接进入当前 Agent 对话 |
+| **创建对话** | 选择 Agent → 开始新对话 | 自动开始/继续对话 |
+| **切换 Agent** | 可以 | 不可以（固定当前 Agent） |
+| **数据源** | 同一个 Conversation 表 | 同一个 Conversation 表 |
+
+### 30.3 交互规则
+
+1. 在 Chat 中选中 Agent A 的对话 → 跳转到 Agent A 的 Detail 对话 Tab → 显示同一对话
+2. 在 Detail 对话 Tab 中新发的消息 → Chat 中也能看到
+3. 在 Chat 中新发的消息 → Detail 对话 Tab 中也能看到
+4. 两个入口的消息流实时同步（通过 WebSocket）
 
 ---
 
 **文档结束**
 
 *本文档由 Hermes Hub 产品团队维护*  
-*最后更新: 2026-06-03*
+*最后更新: 2026-06-04*
